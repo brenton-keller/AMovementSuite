@@ -1,6 +1,6 @@
-# Windows Scaling Suite
+# A Window Movement Suite
 
-Windows Scaling Suite is an AutoHotkey v2.0-based collection of scripts that gives you flexible window management at your fingertips. It lets you dynamically resize, move, snap, and even set windows as always-on-top using simple mouse and keyboard combinations.
+A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that gives you flexible window management at your fingertips. It lets you dynamically resize, move, snap, and even set windows as always-on-top using simple mouse and keyboard combinations.
 
 ---
 
@@ -44,10 +44,10 @@ Windows Scaling Suite is an AutoHotkey v2.0-based collection of scripts that giv
    Download and install AutoHotkey version 2.0 from the [official website](https://www.autohotkey.com/).
 
 2. **Clone/Download the Repository**  
-   Clone or download the Windows Scaling Suite repository into your local machine.
+   Clone or download the A Window Movement Suite repository into your local machine.
 
 3. **Run the Main Script**  
-   Launch the main script (e.g., `WindowScaling.ahk2`). A system tray icon will appear—this is your central hub for toggling features.
+   Launch the main script (e.g., `AWindowMovementSuite.ahk2`). A system tray icon will appear—this is your central hub for toggling features.
 
 ---
 
