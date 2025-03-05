@@ -25,3 +25,5 @@ desktop.ini
 # Personal test files that shouldn't be committed
 *-personal.*
 *-test.*
+
+src/WindowScaleProportional.ahk2

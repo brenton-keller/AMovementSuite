@@ -19,8 +19,10 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
   Move windows using *Left Alt + Right Mouse Button*. The module supports:
   - Edge snapping *s* to other open windows.
   - Screen (monitor) edge snapping.
-  - A settings GUI to customize the “snap distance.”
+  - A settings GUI to customize the "snap distance."
   - Built-in safety checks to re-enable normal behavior if keys are released.
+
+  ![Window Movement Demo](./assets/WindowMove.mp4)
 
 - **Window Positioning Grid**  
   Press the `Z` key while moving to bring up a grid-based positioning menu. Snap windows to common layouts (e.g., left/right halves, thirds, or quarters) using on-screen buttons.
@@ -76,6 +78,14 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
 
 ---
 
+## Known Issues
+
+- **XY Scaling on Multiple Monitors**: The XY scaling functionality does not work correctly on multiple monitor setups. This is a known issue being investigated.
+
+For more issues or to report new ones, please visit the [Issues page](https://github.com/yourusername/AWindowMovementSuite/issues).
+
+---
+
 ## Customization
 
 - **Snap Distance:**  
@@ -105,4 +115,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-Happy scaling and window managing! Enjoy the power of precise (and fun) window control on your Windows system. 
+Happy scaling and window managing! Enjoy the power of precise (and fun) window control on your Windows system.
