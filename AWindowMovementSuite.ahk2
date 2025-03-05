@@ -1,0 +1,201 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+; Global settings for window management
+global scalingModeActive := false
+global widthScalingEnabled := true
+global heightScalingEnabled := true
+global xyScalingEnabled := true
+global windowMoveEnabled := true
+global enableWindowSnapping := true
+global snapDistance := 10
+global safetyTimer := 0
+
+; Include the scaling scripts
+#Include src/WindowScaleColors.ahk2
+#Include src/WindowScaleWidth.ahk2
+#Include src/WindowScaleHeight.ahk2
+;#Include src/WindowScaleProportional.ahk2
+#Include src/WindowScaleXY.ahk2
+#Include src/WindowMove.ahk2
+;#Include src/WindowZOrder.ahk2
+
+; Create the tray menu
+A_TrayMenu.Delete  ; Clear default menu
+A_TrayMenu.Add "Width Scaling (Ctrl+RButton)", ToggleWidthScaling
+A_TrayMenu.Add "Height Scaling (Shift+RButton)", ToggleHeightScaling
+A_TrayMenu.Add "XY Scaling (Ctrl+Shift+RButton)", ToggleXYScaling
+A_TrayMenu.Add "Window Move (LAlt+RButton)", ToggleWindowMove
+A_TrayMenu.Add  ; Separator
+A_TrayMenu.Add "Window Move Settings", ShowWindowMoveSettings
+A_TrayMenu.Add  ; Separator
+A_TrayMenu.Add "Exit", (*) => ExitApp()
+
+; Initialize menu checks
+A_TrayMenu.Check "Width Scaling (Ctrl+RButton)"
+A_TrayMenu.Check "Height Scaling (Shift+RButton)"
+A_TrayMenu.Check "XY Scaling (Ctrl+Shift+RButton)"
+A_TrayMenu.Check "Window Move (LAlt+RButton)"
+
+InitSafetyTimer() {
+    ; Set a timer to check for key release in case of errors
+    safetyTimer := SetTimer(CheckForKeyRelease, 250)
+}
+
+InitSafetyTimer()
+
+CheckForKeyRelease() {
+    global scalingModeActive
+
+    static wasReleased := true
+    
+    ; If RButton is not pressed, reset the scaling state
+    if (!GetKeyState("RButton", "P")) {
+        if (scalingModeActive) {
+            scalingModeActive := false
+            wasReleased := true
+            ToolTip  ; Clear any tooltips
+        }
+    } else if (scalingModeActive && wasReleased) {
+        wasReleased := false
+    }
+}
+
+ToggleWidthScaling(*)
+{
+    global widthScalingEnabled
+    widthScalingEnabled := !widthScalingEnabled
+    if widthScalingEnabled
+        A_TrayMenu.Check "Width Scaling (Ctrl+RButton)"
+    else
+        A_TrayMenu.Uncheck "Width Scaling (Ctrl+RButton)"
+}
+
+ToggleHeightScaling(*)
+{
+    global heightScalingEnabled
+    heightScalingEnabled := !heightScalingEnabled
+    if heightScalingEnabled
+        A_TrayMenu.Check "Height Scaling (Shift+RButton)"
+    else
+        A_TrayMenu.Uncheck "Height Scaling (Shift+RButton)"
+}
+
+ToggleXYScaling(*)
+{
+    global xyScalingEnabled
+    xyScalingEnabled := !xyScalingEnabled
+    if xyScalingEnabled
+        A_TrayMenu.Check "XY Scaling (Ctrl+Shift+RButton)"
+    else
+        A_TrayMenu.Uncheck "XY Scaling (Ctrl+Shift+RButton)"
+}
+
+ToggleWindowMove(*)
+{
+    global windowMoveEnabled
+    windowMoveEnabled := !windowMoveEnabled
+    if windowMoveEnabled
+        A_TrayMenu.Check "Window Move (LAlt+RButton)"
+    else
+        A_TrayMenu.Uncheck "Window Move (LAlt+RButton)"
+}
+
+ShowWindowMoveSettings(*)
+{
+    global enableWindowSnapping, snapDistance
+    
+    ; Create the settings window
+    settingsGui := Gui("+AlwaysOnTop +ToolWindow", "Window Move Settings")
+    
+    ; Add checkbox for window snapping
+    settingsGui.Add("CheckBox", "vWindowSnapping Checked" enableWindowSnapping, "Enable Window Snapping")
+    
+    ; Add snap distance slider
+    settingsGui.Add("Text", "xm y+15", "Snap Distance (pixels):")
+    settingsGui.Add("Slider", "vSnapDistance Range1-25 TickInterval5 Tooltip w200", snapDistance)
+    
+    ; Show current value
+    settingsGui.Add("Text", "x+5 w30 vCurrentValue", snapDistance)
+    
+    ; Add buttons
+    settingsGui.Add("Button", "xm y+15 w80 Default", "OK").OnEvent("Click", SaveSettings)
+    settingsGui.Add("Button", "x+10 w80", "Cancel").OnEvent("Click", CloseSettings)
+    
+    ; Event for updating the displayed value
+    sliderControl := settingsGui["SnapDistance"]
+    sliderControl.OnEvent("Change", UpdateValue)
+    
+    ; Show the GUI
+    settingsGui.Show()
+    
+    UpdateValue(*) {
+        settingsGui["CurrentValue"].Value := sliderControl.Value
+    }
+    
+    SaveSettings(*) {
+        Saved := settingsGui.Submit()
+        enableWindowSnapping := Saved.WindowSnapping
+        snapDistance := Saved.SnapDistance
+        settingsGui.Destroy()
+    }
+    
+    CloseSettings(*) {
+        settingsGui.Destroy()
+    }
+}
+
+; Using the same helper function from previous versions for consistency
+GetWindowMonitor(winX, winY, winWidth, winHeight) {
+    winCenterX := winX + (winWidth / 2)
+    winCenterY := winY + (winHeight / 2)
+    
+    MonitorCount := MonitorGetCount()
+    Loop MonitorCount {
+        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
+        if (winCenterX >= MonLeft && winCenterX <= MonRight
+            && winCenterY >= MonTop && winCenterY <= MonBottom)
+            return A_Index
+    }
+    return 1
+}
+
+IsValidWindowForResize(hwnd) {
+    ; Get window class
+    windowClass := WinGetClass("ahk_id " hwnd)
+    
+    ; List of classes to exclude (add more as needed)
+    excludedClasses := [
+        "#32768",    ; Standard Windows context menus
+        "Windows.UI.Core.CoreWindow",  ; Modern context menus
+        "ToolbarWindow32",
+        "DropDown",
+        "Popup",
+        "PopupMenu"
+    ]
+    
+    ; Check if window is excluded
+    for excludedClass in excludedClasses {
+        if (windowClass = excludedClass)
+            return false
+    }
+    
+    ; Additional checks
+    if (!WinGetTitle("ahk_id " hwnd))  ; No title usually means temporary window
+        return false
+        
+    if (WinGetStyle("ahk_id " hwnd) & 0x40000000)  ; Check if it's a child window
+        return false
+    
+    return true
+}
+
+GetMonitorAtPos(x, y) {
+    MonitorCount := MonitorGetCount()
+    Loop MonitorCount {
+        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
+        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
+            return A_Index
+    }
+    return 1
+}

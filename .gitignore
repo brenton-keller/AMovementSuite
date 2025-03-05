@@ -1,0 +1,27 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# AutoHotkey compiled files
+*.exe
+*.dll
+*.bin
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# Backup files
+*.bak
+*~
+*.old
+*.orig
+
+# Logs
+*.log
+
+# Personal test files that shouldn't be committed
+*-personal.*
+*-test.*

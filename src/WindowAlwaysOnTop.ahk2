@@ -1,0 +1,104 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+; Setup
+SetWinDelay -1
+SetControlDelay -1
+CoordMode "Mouse", "Screen"
+
+; Initialize global variables
+global windowsAlwaysOnTop := Map() ; Track which windows are set as always-on-top
+
+; Hotkey: Left Control + Middle Mouse Button
+<^MButton::ToggleAlwaysOnTop()
+
+ToggleAlwaysOnTop() {
+    MouseGetPos , , &mwin
+    
+    ; Check if we have a valid window
+    if (!mwin) {
+        ShowDebugMessage("No window detected under cursor")
+        return
+    }
+    
+    ; Check if it's a valid window for always-on-top
+    if (!IsValidWindowForTopMost(mwin)) {
+        ShowDebugMessage("This window cannot be set as always-on-top")
+        return
+    }
+    
+    ; Get the currently active window (which may be different from the window under mouse)
+    activeWin := WinGetID("A")
+    
+    ExStyle := WinGetExStyle("ahk_id " mwin)
+    winTitle := WinGetTitle("ahk_id " mwin)
+    
+    ; Toggle the always-on-top state
+    if (ExStyle & 0x8) { ; 0x8 is WS_EX_TOPMOST
+        ; Remove always-on-top
+        WinSetAlwaysOnTop 0, "ahk_id " mwin
+        windowsAlwaysOnTop.Delete(mwin)
+        ShowToggleNotification("Always on Top: OFF", winTitle)
+        
+        ; Fix Z-order: If we're turning off always-on-top for a non-active window,
+        ; make sure the active window comes to the front
+        if (mwin != activeWin && WinExist("ahk_id " activeWin)) {
+            if (WinGetMinMax("ahk_id " activeWin) != -1) { ; Not minimized
+                ; Fix Z-order using direct Windows API calls
+                ; First make active window topmost, then remove that flag
+                DllCall("SetWindowPos", "Ptr", activeWin, "Ptr", -1, "Int", 0, "Int", 0, "Int", 0, "Int", 0, "UInt", 0x213)
+                DllCall("SetWindowPos", "Ptr", activeWin, "Ptr", -2, "Int", 0, "Int", 0, "Int", 0, "Int", 0, "UInt", 0x213)
+                WinActivate "ahk_id " activeWin
+            }
+        }
+    } else {
+        ; Set always-on-top
+        WinSetAlwaysOnTop 1, "ahk_id " mwin
+        windowsAlwaysOnTop[mwin] := true
+        ShowToggleNotification("Always on Top: ON", winTitle)
+    }
+}
+
+; Show a brief notification about the toggle action
+ShowToggleNotification(message, winTitle := "") {
+    winInfo := winTitle ? " (" winTitle ")" : ""
+    ToolTip message winInfo
+    SetTimer () => ToolTip(), -2000
+}
+
+; Show debug messages
+ShowDebugMessage(message) {
+    ToolTip message
+    SetTimer () => ToolTip(), -2000
+}
+
+; Check if it's a valid window for setting always-on-top
+IsValidWindowForTopMost(hwnd) {
+    if (!hwnd)
+        return false
+        
+    ; Don't allow setting always-on-top for certain system windows
+    windowClass := WinGetClass("ahk_id " hwnd)
+    
+    ; List of classes that shouldn't be set to always-on-top
+    excludedClasses := ["Progman", "WorkerW", "Shell_TrayWnd", "Windows.UI.Core.CoreWindow", 
+                       "ApplicationFrameWindow", "SysListView32", "NotifyIconOverflowWindow"]
+    
+    for class in excludedClasses {
+        if (windowClass == class)
+            return false
+    }
+    
+    ; Check if the window is a system dialog
+    if (WinGetStyle("ahk_id " hwnd) & 0x08000000) { ; WS_POPUP
+        title := WinGetTitle("ahk_id " hwnd)
+        if (title ~= "i)^(Error|Warning|Info|Confirm|Prompt)")
+            return false
+    }
+    
+    ; Check if window is minimized
+    if (WinGetMinMax("ahk_id " hwnd) == -1)
+        return false
+        
+    return true
+}

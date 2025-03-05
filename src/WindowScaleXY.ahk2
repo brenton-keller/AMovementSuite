@@ -1,0 +1,257 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+SetWinDelay -1
+SetControlDelay -1
+CoordMode "Mouse", "Screen"
+
+CalculateColorXY(currentW, currentH, initialW, initialH, maxWidth, maxHeight) {
+    ; Calculate percentage changes for both dimensions
+    if (currentW >= initialW) {
+        ; Safety check for X-axis division by zero
+        if (maxWidth <= initialW) {
+            ; We're at max width, use full teal color for X
+            rX := Colors.TEAL.R
+            gX := Colors.TEAL.G
+            bX := Colors.TEAL.B
+            percentageW := 1
+        } else {
+            percentageW := (currentW - initialW) / (maxWidth - initialW)
+            percentageW := Max(0, Min(1, percentageW))
+            ; X-axis expansion color tends toward teal
+            rX := Colors.BASELINE.R + (Colors.TEAL.R - Colors.BASELINE.R) * percentageW
+            gX := Colors.BASELINE.G + (Colors.TEAL.G - Colors.BASELINE.G) * percentageW
+            bX := Colors.BASELINE.B + (Colors.TEAL.B - Colors.BASELINE.B) * percentageW
+        }
+    } else {
+        ; Safety check for minimum width
+        if (initialW <= Colors.MIN_WIDTH) {
+            rX := Colors.DEEP_PURPLE.R
+            gX := Colors.DEEP_PURPLE.G
+            bX := Colors.DEEP_PURPLE.B
+            percentageW := 1
+        } else {
+            percentageW := (initialW - currentW) / (initialW - Colors.MIN_WIDTH)
+            percentageW := Min(1, percentageW)
+            ; X-axis shrinking color tends toward deep purple
+            rX := Colors.BASELINE.R + (Colors.DEEP_PURPLE.R - Colors.BASELINE.R) * percentageW
+            gX := Colors.BASELINE.G + (Colors.DEEP_PURPLE.G - Colors.BASELINE.G) * percentageW
+            bX := Colors.BASELINE.B + (Colors.DEEP_PURPLE.B - Colors.BASELINE.B) * percentageW
+        }
+    }
+
+    if (currentH >= initialH) {
+        ; Safety check for Y-axis division by zero
+        if (maxHeight <= initialH) {
+            ; We're at max height, use full teal color for Y
+            rY := Colors.TEAL.R
+            gY := Colors.TEAL.G
+            bY := Colors.TEAL.B
+            percentageH := 1
+        } else {
+            percentageH := (currentH - initialH) / (maxHeight - initialH)
+            percentageH := Max(0, Min(1, percentageH))
+            ; Y-axis expansion color tends toward teal
+            rY := Colors.BASELINE.R + (Colors.TEAL.R - Colors.BASELINE.R) * percentageH
+            gY := Colors.BASELINE.G + (Colors.TEAL.G - Colors.BASELINE.G) * percentageH
+            bY := Colors.BASELINE.B + (Colors.TEAL.B - Colors.BASELINE.B) * percentageH
+        }
+    } else {
+        ; Safety check for minimum height
+        if (initialH <= Colors.MIN_HEIGHT) {
+            rY := Colors.DEEP_PURPLE.R
+            gY := Colors.DEEP_PURPLE.G
+            bY := Colors.DEEP_PURPLE.B
+            percentageH := 1
+        } else {
+            percentageH := (initialH - currentH) / (initialH - Colors.MIN_HEIGHT)
+            percentageH := Min(1, percentageH)
+            ; Y-axis shrinking color tends toward deep purple
+            rY := Colors.BASELINE.R + (Colors.DEEP_PURPLE.R - Colors.BASELINE.R) * percentageH
+            gY := Colors.BASELINE.G + (Colors.DEEP_PURPLE.G - Colors.BASELINE.G) * percentageH
+            bY := Colors.BASELINE.B + (Colors.DEEP_PURPLE.B - Colors.BASELINE.B) * percentageH
+        }
+    }
+
+    ; Blend the colors from both axes
+    ; Using a weighted average that gives more weight to larger changes
+    weightX := Abs(currentW - initialW) / Max(1, initialW) ; Prevent division by zero
+    weightY := Abs(currentH - initialH) / Max(1, initialH) ; Prevent division by zero
+    totalWeight := weightX + weightY
+    
+    if (totalWeight = 0) {
+        ; If no change, return baseline color
+        r := Colors.BASELINE.R
+        g := Colors.BASELINE.G
+        b := Colors.BASELINE.B
+    } else {
+        ; Normalize weights
+        weightX := weightX / totalWeight
+        weightY := weightY / totalWeight
+        
+        ; Weighted blend of both axis colors
+        r := (rX * weightX + rY * weightY)
+        g := (gX * weightX + gY * weightY)
+        b := (bX * weightX + bY * weightY)
+    }
+
+    ; Clamp values between 0-255
+    r := Round(Max(0, Min(255, r)))
+    g := Round(Max(0, Min(255, g)))
+    b := Round(Max(0, Min(255, b)))
+
+    ; Return RGB color in hex format
+    return Format("{:02X}{:02X}{:02X}", r, g, b)
+}
+
+resizeActive := false
+rButtonReleased := true
+wasResizing := false
+
+SetTimer CheckKeysAndResize, 16
+
+CheckKeysAndResize() {
+    global resizeActive, rButtonReleased, wasResizing, scalingModeActive
+    
+    ; If another scaling operation is already active, don't start XY scaling
+    if (scalingModeActive)
+        return
+    
+    if (!GetKeyState("RButton", "P")) {
+        if (wasResizing) {
+            wasResizing := false
+            KeyWait "RButton"
+            return
+        }
+        rButtonReleased := true
+        resizeActive := false
+        return
+    }
+    
+    if (GetKeyState("LControl", "P") && GetKeyState("LShift", "P") && GetKeyState("RButton", "P")) {
+        if (!resizeActive && rButtonReleased) {
+            MouseGetPos ,, &mwin
+            
+            if (!IsValidWindowForResize(mwin)) {
+                return
+            }
+            
+            wasResizing := true
+            rButtonReleased := false
+            resizeActive := true
+            scalingModeActive := true
+            BlockInput "On"
+            StartResize()
+            BlockInput "Off"
+            scalingModeActive := false
+        }
+    }
+}
+
+StartResize() {
+    ; Check if functionality is enabled
+    if (!xyScalingEnabled)
+        return
+
+    MouseGetPos &startX, &startY, &mwin
+    WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
+
+    currentMonitor := GetWindowMonitor(wx, wy, ww, wh)
+    MonitorGet(currentMonitor, &MonLeft, &MonTop, &MonRight, &MonBottom)
+    MonitorGetWorkArea(currentMonitor, &WorkAreaLeft, &WorkAreaTop, &WorkAreaRight, &WorkAreaBottom)
+
+    initialW := ww
+    initialH := wh
+    initialX := wx
+    initialY := wy
+
+    maxWidth := MonRight - MonLeft
+    maxHeight := MonBottom - MonTop
+    if (maxWidth <= initialW) {
+        maxWidth := initialW + 1  ; Add 1 pixel buffer to prevent division by zero
+    }
+    if (maxHeight <= initialH) {
+        maxHeight := initialH + 1  ; Add 1 pixel buffer to prevent division by zero
+    }
+
+    relativeX := (startX - wx) / ww
+    relativeY := (startY - wy) / wh
+
+    previewGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    previewGui.BackColor := "22B14C"
+    WinSetTransparent 75, previewGui.Hwnd
+    previewGui.Show("x" wx " y" wy " w" ww " h" wh " NoActivate")
+
+    While (GetKeyState("RButton", "P") && GetKeyState("LControl", "P") && GetKeyState("LShift", "P"))
+    {
+        MouseGetPos &currentX, &currentY
+        
+        currentMonitor := GetMonitorAtPos(currentX, currentY)
+        MonitorGet(currentMonitor, &MonLeft, &MonTop, &MonRight, &MonBottom)
+        MonitorGetWorkArea(currentMonitor, &WorkAreaLeft, &WorkAreaTop, &WorkAreaRight, &WorkAreaBottom)
+        
+        maxWidth := MonRight - MonLeft
+        maxHeight := MonBottom - MonTop
+        
+        ; Calculate X and Y movements separately
+        moveX := currentX - startX
+        moveY := currentY - startY
+        
+        ; Calculate scaling factors independently for X and Y
+        scaleFactorX := 1 + (moveX * 0.003)
+        scaleFactorY := 1 + (-moveY * 0.003)  ; Negative for intuitive up/down scaling
+        
+        ; Apply minimum scaling
+        scaleFactorX := Max(0.1, scaleFactorX)
+        scaleFactorY := Max(0.1, scaleFactorY)
+        
+        ; Calculate new dimensions
+        newW := Round(initialW * scaleFactorX)
+        newH := Round(initialH * scaleFactorY)
+        
+        ; Constrain dimensions
+        newW := Min(maxWidth + 2, newW + 2)
+        newH := Min(maxHeight + 2, newH + 2)
+        
+        ; Calculate new position
+        newX := Round(startX - (newW * relativeX))
+        newY := Round(startY - (newH * relativeY))
+        
+        ; Constrain position
+        newX := Max(MonLeft - 1, Min(MonRight - newW + 1, newX))
+        newY := Max(MonTop - 1, Min(MonBottom - newH + 1, newY))
+        
+        ; Update preview color based on new dimensions
+        newColor := CalculateColorXY(newW, newH, initialW, initialH, maxWidth, maxHeight)
+        previewGui.BackColor := newColor
+
+        ; Update preview
+        WinMove newX, newY, newW, newH, previewGui.Hwnd
+        WinSetRegion "0-0 w" newW " h" newH, previewGui.Hwnd
+    }
+
+    previewGui.Destroy()
+    if (IsSet(newW) && IsSet(newH))
+    {
+        isMaximized := WinGetMinMax("ahk_id " mwin)
+        
+        if (isMaximized = 1)
+        {
+            WinRestore "ahk_id " mwin
+            Sleep 10
+        }
+        
+        WinMove newX, newY, newW, newH, "ahk_id " mwin
+        
+        WinHide "ahk_id " mwin
+        WinShow "ahk_id " mwin
+    }
+    resizeActive := false
+}
+
+*RButton::
+{
+    if (GetKeyState("LControl", "P") && GetKeyState("LShift", "P"))
+        return
+    Click "Right"
+}

@@ -1,0 +1,10 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+class Colors {
+    static BASELINE := {R: 34, G: 177, B: 76}    
+    static TEAL := {R: 0, G: 150, B: 136}        
+    static DEEP_PURPLE := {R: 103, G: 58, B: 183} 
+    static MIN_HEIGHT := 100
+    static MIN_WIDTH := 100
+}

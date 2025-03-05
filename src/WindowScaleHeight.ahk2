@@ -1,0 +1,158 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+SetWinDelay -1
+SetControlDelay -1
+CoordMode "Mouse", "Screen"
+
+CalculateColorHeight(currentHeight, initialHeight, maxHeight) {
+    ; Safety check - prevent division by zero
+    if (currentHeight >= initialHeight) {
+        ; If maxHeight and initialHeight are the same, we're already at max
+        if (maxHeight <= initialHeight) {
+            ; Return the teal color since we're at max height
+            return Format("{:02X}{:02X}{:02X}", Colors.TEAL.R, Colors.TEAL.G, Colors.TEAL.B)
+        }
+        
+        percentage := (currentHeight - initialHeight) / (maxHeight - initialHeight)
+        ; Clamp percentage to valid range
+        percentage := Max(0, Min(1, percentage))
+        r := Colors.BASELINE.R + (Colors.TEAL.R - Colors.BASELINE.R) * percentage
+        g := Colors.BASELINE.G + (Colors.TEAL.G - Colors.BASELINE.G) * percentage
+        b := Colors.BASELINE.B + (Colors.TEAL.B - Colors.BASELINE.B) * percentage
+    }
+    else {
+        ; Add safety check for minimum height too
+        if (initialHeight <= Colors.MIN_HEIGHT) {
+            return Format("{:02X}{:02X}{:02X}", Colors.DEEP_PURPLE.R, Colors.DEEP_PURPLE.G, Colors.DEEP_PURPLE.B)
+        }
+        
+        percentage := (initialHeight - currentHeight) / (initialHeight - Colors.MIN_HEIGHT)
+        percentage := Min(1, percentage)
+        r := Colors.BASELINE.R + (Colors.DEEP_PURPLE.R - Colors.BASELINE.R) * percentage
+        g := Colors.BASELINE.G + (Colors.DEEP_PURPLE.G - Colors.BASELINE.G) * percentage
+        b := Colors.BASELINE.B + (Colors.DEEP_PURPLE.B - Colors.BASELINE.B) * percentage
+    }
+    
+    ; Clamp values between 0-255
+    r := Round(Max(0, Min(255, r)))
+    g := Round(Max(0, Min(255, g)))
+    b := Round(Max(0, Min(255, b)))
+    
+    ; Return RGB color in hex format
+    return Format("{:02X}{:02X}{:02X}", r, g, b)
+}
+
++RButton::  ; Left Shift + Right Mouse Button
+{
+    global scalingModeActive
+
+    ; If a scaling operation is already active, exit
+    if (scalingModeActive)
+        return
+
+    ; Set flag to lock scaling mode
+    scalingModeActive := true
+
+    ; Check if functionality is enabled
+    if (!heightScalingEnabled)
+        return
+
+    MouseGetPos ,, &mwin
+    
+    ; Check if it's a valid window for resizing
+    if (!IsValidWindowForResize(mwin)) {
+        return
+    }
+
+    MouseGetPos &startX, &startY, &mwin
+    WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
+
+    ; Get the monitor containing the window
+    monitorIndex := GetWindowMonitor(wx, wy, ww, wh)
+    MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+    MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+
+    ; Initial values
+    initialH := wh
+    edgeThreshold := 50  ; Pixels from edge to trigger snap
+
+    ; Calculate maximum height and add safety check
+    maxHeight := workBottom - workTop
+    ;maxHeight := monBottom - monTop  ; Use full monitor height, not work area
+    if (maxHeight <= initialH) {
+        maxHeight := initialH + 1  ; Add 1 pixel buffer to prevent division by zero
+    }
+
+    relativeY := (startY - wy) / initialH
+    
+    ; Create preview GUI
+    previewGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    previewGui.BackColor := Format("{:06X}", Colors.BASELINE.R << 16 | Colors.BASELINE.G << 8 | Colors.BASELINE.B)
+    WinSetTransparent 75, previewGui.Hwnd
+    previewGui.Show("x" wx " y" wy " w" ww " h" wh " NoActivate")
+
+    While true
+    {
+        if !GetKeyState("RButton", "P") || !GetKeyState("LShift", "P")
+            break
+
+        MouseGetPos &currentX
+
+        deltaX := currentX - startX
+        
+        ; Check if mouse is near screen edge
+        if (currentX >= workRight - edgeThreshold)
+        {
+            ; Snap to max height
+            newH := maxHeight
+            newY := workTop
+        }
+        else
+        {
+            ; Dynamic sensitivity based on target height
+            scaleFactor := 1 + (deltaX * 0.003)
+            scaleFactor := Max(0.1, scaleFactor)  ; Allow smaller minimum scale
+            newH := Round(initialH * scaleFactor)
+            newH := Min(newH + 2, maxHeight + 2)  ; Only limit maximum height
+            
+            ; Calculate vertical position
+            newY := Round(startY - (newH * relativeY))
+            newY := Max(workTop - 1, Min(workBottom - newH - 1, newY))
+            ;newY := Max(monTop - 1, Min(monBottom - newH + 1, newY))
+        }
+
+        ; Update preview color based on new height
+        newColor := CalculateColorHeight(newH, initialH, maxHeight)
+        previewGui.BackColor := newColor
+
+        ; Update preview
+        WinMove wx, newY, ww, newH, previewGui.Hwnd
+        WinSetRegion "0-0 w" ww " h" newH, previewGui.Hwnd
+    }
+
+    ; Apply final size and destroy preview
+    previewGui.Destroy()
+    if (IsSet(newH) && IsSet(newY))
+    {
+        ; Check if window is maximized
+        isMaximized := WinGetMinMax("ahk_id " mwin)
+        
+        if (isMaximized = 1) ; 1 means maximized
+        {
+            ; Restore the window first
+            WinRestore "ahk_id " mwin
+            ; Small sleep to ensure the restore completes
+            Sleep 10
+        }
+        
+        ; Apply new dimensions
+        WinMove wx, newY, ww, newH, "ahk_id " mwin
+        
+        ; Force a refresh to prevent visual artifacts
+        WinHide "ahk_id " mwin
+        WinShow "ahk_id " mwin
+    }
+    resizeActive := false
+    scalingModeActive := false
+}
