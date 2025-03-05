@@ -22,7 +22,7 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
   - A settings GUI to customize the "snap distance."
   - Built-in safety checks to re-enable normal behavior if keys are released.
 
-  ![./assets/WindowMove.mp4](https://github.com/brenton-keller/AMovementSuite/assets/WindowMove.mp4)
+  ![Window Movement Demo](./assets/WindowMove.gif)
 
 - **Window Positioning Grid**  
   Press the `Z` key while moving to bring up a grid-based positioning menu. Snap windows to common layouts (e.g., left/right halves, thirds, or quarters) using on-screen buttons.
