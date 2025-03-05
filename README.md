@@ -57,9 +57,10 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
 
 - **Tray Menu Options:**  
   Right-click the tray icon to toggle individual features:
-  - *Width Scaling (Ctrl+RButton)*
-  - *Height Scaling (Shift+RButton)*
-  - *XY Scaling (Ctrl+Shift+RButton)*
+  - *Width Scaling (LCtrl+RButton)*
+  - *Height Scaling (LShift+RButton)*
+  - *XY Scaling (LCtrl+LShift+RButton)*
+  - *Always on Top (LCtrl+MButton)*
   - *Window Move (LAlt+RButton)*
   - Open settings for window move (to adjust snap distance).
 
