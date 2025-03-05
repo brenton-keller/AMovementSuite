@@ -6,6 +6,7 @@ global scalingModeActive := false
 global widthScalingEnabled := true
 global heightScalingEnabled := true
 global xyScalingEnabled := true
+global windowAlwaysOnTopEnabled := true
 global windowMoveEnabled := true
 global enableWindowSnapping := true
 global snapDistance := 10
@@ -18,13 +19,17 @@ global safetyTimer := 0
 ;#Include src/WindowScaleProportional.ahk2
 #Include src/WindowScaleXY.ahk2
 #Include src/WindowMove.ahk2
+#Include src/WindowAlwaysOnTop.ahk2
 ;#Include src/WindowZOrder.ahk2
 
 ; Create the tray menu
 A_TrayMenu.Delete  ; Clear default menu
-A_TrayMenu.Add "Width Scaling (Ctrl+RButton)", ToggleWidthScaling
-A_TrayMenu.Add "Height Scaling (Shift+RButton)", ToggleHeightScaling
-A_TrayMenu.Add "XY Scaling (Ctrl+Shift+RButton)", ToggleXYScaling
+A_TrayMenu.Add "Width Scaling (LCtrl+RButton)", ToggleWidthScaling
+A_TrayMenu.Add "Height Scaling (LShift+RButton)", ToggleHeightScaling
+A_TrayMenu.Add "XY Scaling (LCtrl+LShift+RButton)", ToggleXYScaling
+A_TrayMenu.Add  ; Separatorg
+A_TrayMenu.Add "Window Always On Top (LCtrl+MButton)", ToggleWindowAlwaysOnTop
+A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move (LAlt+RButton)", ToggleWindowMove
 A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move Settings", ShowWindowMoveSettings
@@ -32,9 +37,10 @@ A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Exit", (*) => ExitApp()
 
 ; Initialize menu checks
-A_TrayMenu.Check "Width Scaling (Ctrl+RButton)"
-A_TrayMenu.Check "Height Scaling (Shift+RButton)"
-A_TrayMenu.Check "XY Scaling (Ctrl+Shift+RButton)"
+A_TrayMenu.Check "Width Scaling (LCtrl+RButton)"
+A_TrayMenu.Check "Height Scaling (LShift+RButton)"
+A_TrayMenu.Check "XY Scaling (LCtrl+LShift+RButton)"
+A_TrayMenu.Check "Window Always On Top (LCtrl+MButton)"
 A_TrayMenu.Check "Window Move (LAlt+RButton)"
 
 InitSafetyTimer() {
@@ -66,9 +72,9 @@ ToggleWidthScaling(*)
     global widthScalingEnabled
     widthScalingEnabled := !widthScalingEnabled
     if widthScalingEnabled
-        A_TrayMenu.Check "Width Scaling (Ctrl+RButton)"
+        A_TrayMenu.Check "Width Scaling (LCtrl+RButton)"
     else
-        A_TrayMenu.Uncheck "Width Scaling (Ctrl+RButton)"
+        A_TrayMenu.Uncheck "Width Scaling (LCtrl+RButton)"
 }
 
 ToggleHeightScaling(*)
@@ -76,9 +82,9 @@ ToggleHeightScaling(*)
     global heightScalingEnabled
     heightScalingEnabled := !heightScalingEnabled
     if heightScalingEnabled
-        A_TrayMenu.Check "Height Scaling (Shift+RButton)"
+        A_TrayMenu.Check "Height Scaling (LShift+RButton)"
     else
-        A_TrayMenu.Uncheck "Height Scaling (Shift+RButton)"
+        A_TrayMenu.Uncheck "Height Scaling (LShift+RButton)"
 }
 
 ToggleXYScaling(*)
@@ -86,9 +92,19 @@ ToggleXYScaling(*)
     global xyScalingEnabled
     xyScalingEnabled := !xyScalingEnabled
     if xyScalingEnabled
-        A_TrayMenu.Check "XY Scaling (Ctrl+Shift+RButton)"
+        A_TrayMenu.Check "XY Scaling (LCtrl+LShift+RButton)"
     else
-        A_TrayMenu.Uncheck "XY Scaling (Ctrl+Shift+RButton)"
+        A_TrayMenu.Uncheck "XY Scaling (LCtrl+LShift+RButton)"
+}
+
+ToggleWindowAlwaysOnTop(*)
+{
+    global windowAlwaysOnTopEnabled
+    windowAlwaysOnTopEnabled := !windowAlwaysOnTopEnabled
+    if windowAlwaysOnTopEnabled
+        A_TrayMenu.Check "Window Always On Top (LCtrl+MButton)"
+    else
+        A_TrayMenu.Uncheck "Window Always On Top (LCtrl+MButton)"
 }
 
 ToggleWindowMove(*)

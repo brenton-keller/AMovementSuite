@@ -10,9 +10,15 @@ CoordMode "Mouse", "Screen"
 global windowsAlwaysOnTop := Map() ; Track which windows are set as always-on-top
 
 ; Hotkey: Left Control + Middle Mouse Button
-<^MButton::ToggleAlwaysOnTop()
+<^MButton::AlwaysOnTop()
 
-ToggleAlwaysOnTop() {
+AlwaysOnTop() {
+    global windowAlwaysOnTopEnabled
+
+    ; Check if functionality is enabled
+    if (!windowAlwaysOnTopEnabled)
+        return
+        
     MouseGetPos , , &mwin
     
     ; Check if we have a valid window
