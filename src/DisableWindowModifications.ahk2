@@ -1,0 +1,38 @@
+#Requires AutoHotkey v2.0
+
+; Set up a timer to check for new windows
+SetTimer DisableWindowModifications, 1000
+
+; Run the function immediately once
+DisableWindowModifications()
+
+DisableWindowModifications() {
+    ; Get a list of all windows
+    windowList := WinGetList("A")
+    
+    for hwnd in windowList {
+        ; ; Skip windows that don't have a traditional title bar
+        ; if !WinGetTitle(hwnd)
+        ;     continue
+            
+        ; Skip specific windows we don't want to modify (add more as needed)
+        if WinGetClass(hwnd) = "Shell_TrayWnd"  ; Taskbar
+            continue
+        ; if WinGetClass(hwnd) = "Windows.UI.Core.CoreWindow"  ; Modern UI windows
+        ;     continue
+        ; if WinGetClass(hwnd) = "ApplicationFrameWindow"  ; Modern UI app frames
+        ;     continue
+            
+        ; 1. Disable resizing by removing WS_THICKFRAME style
+        WinSetStyle -0x40000, hwnd  ; Remove WS_THICKFRAME style
+        
+        ; 2. Disable moving by removing "Move" option from system menu
+        hSysMenu := DllCall("GetSystemMenu", "Ptr", hwnd, "Int", FALSE)
+        if hSysMenu {
+            nCnt := DllCall("GetMenuItemCount", "Ptr", hSysMenu)
+            if nCnt > 6  ; Make sure menu has enough items
+                DllCall("RemoveMenu", "Ptr", hSysMenu, "UInt", nCnt-6, "UInt", 0x400)
+            DllCall("DrawMenuBar", "Ptr", hwnd)
+        }
+    }
+}

@@ -5,47 +5,9 @@ SetWinDelay -1
 SetControlDelay -1
 CoordMode "Mouse", "Screen"
 
-CalculateColorHeight(currentHeight, initialHeight, maxHeight) {
-    ; Safety check - prevent division by zero
-    if (currentHeight >= initialHeight) {
-        ; If maxHeight and initialHeight are the same, we're already at max
-        if (maxHeight <= initialHeight) {
-            ; Return the teal color since we're at max height
-            return Format("{:02X}{:02X}{:02X}", Colors.TEAL.R, Colors.TEAL.G, Colors.TEAL.B)
-        }
-        
-        percentage := (currentHeight - initialHeight) / (maxHeight - initialHeight)
-        ; Clamp percentage to valid range
-        percentage := Max(0, Min(1, percentage))
-        r := Colors.BASELINE.R + (Colors.TEAL.R - Colors.BASELINE.R) * percentage
-        g := Colors.BASELINE.G + (Colors.TEAL.G - Colors.BASELINE.G) * percentage
-        b := Colors.BASELINE.B + (Colors.TEAL.B - Colors.BASELINE.B) * percentage
-    }
-    else {
-        ; Add safety check for minimum height too
-        if (initialHeight <= Colors.MIN_HEIGHT) {
-            return Format("{:02X}{:02X}{:02X}", Colors.DEEP_PURPLE.R, Colors.DEEP_PURPLE.G, Colors.DEEP_PURPLE.B)
-        }
-        
-        percentage := (initialHeight - currentHeight) / (initialHeight - Colors.MIN_HEIGHT)
-        percentage := Min(1, percentage)
-        r := Colors.BASELINE.R + (Colors.DEEP_PURPLE.R - Colors.BASELINE.R) * percentage
-        g := Colors.BASELINE.G + (Colors.DEEP_PURPLE.G - Colors.BASELINE.G) * percentage
-        b := Colors.BASELINE.B + (Colors.DEEP_PURPLE.B - Colors.BASELINE.B) * percentage
-    }
-    
-    ; Clamp values between 0-255
-    r := Round(Max(0, Min(255, r)))
-    g := Round(Max(0, Min(255, g)))
-    b := Round(Max(0, Min(255, b)))
-    
-    ; Return RGB color in hex format
-    return Format("{:02X}{:02X}{:02X}", r, g, b)
-}
-
 +RButton::  ; Left Shift + Right Mouse Button
 {
-    global scalingModeActive
+    global scalingModeActive, heightScalingEnabled
 
     ; If a scaling operation is already active, exit
     if (scalingModeActive)
@@ -55,13 +17,16 @@ CalculateColorHeight(currentHeight, initialHeight, maxHeight) {
     scalingModeActive := true
 
     ; Check if functionality is enabled
-    if (!heightScalingEnabled)
+    if (!heightScalingEnabled) {
+        scalingModeActive := false
         return
+    }
 
     MouseGetPos ,, &mwin
     
     ; Check if it's a valid window for resizing
     if (!IsValidWindowForResize(mwin)) {
+        scalingModeActive := false
         return
     }
 
@@ -75,17 +40,26 @@ CalculateColorHeight(currentHeight, initialHeight, maxHeight) {
 
     ; Initial values
     initialH := wh
-    edgeThreshold := 50  ; Pixels from edge to trigger snap
+    initialY := wy
+    bottomEdgePos := wy + wh  ; Store original bottom edge position
+    
+    snapEdgeThreshold := 50  ; Pixels from edge to trigger snap
+    
+    ; Calculate the 1/8 threshold for edge detection
+    edgeThreshold := initialH / 8
+    
+    ; Determine if mouse is near the edges - this mode will be maintained throughout the drag
+    isNearTopEdge := (startY - wy) <= edgeThreshold
+    isNearBottomEdge := (wy + wh - startY) <= edgeThreshold
 
     ; Calculate maximum height and add safety check
     maxHeight := workBottom - workTop
-    ;maxHeight := monBottom - monTop  ; Use full monitor height, not work area
     if (maxHeight <= initialH) {
         maxHeight := initialH + 1  ; Add 1 pixel buffer to prevent division by zero
     }
 
     relativeY := (startY - wy) / initialH
-    
+
     ; Create preview GUI
     previewGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
     previewGui.BackColor := Format("{:06X}", Colors.BASELINE.R << 16 | Colors.BASELINE.G << 8 | Colors.BASELINE.B)
@@ -97,29 +71,99 @@ CalculateColorHeight(currentHeight, initialHeight, maxHeight) {
         if !GetKeyState("RButton", "P") || !GetKeyState("LShift", "P")
             break
 
-        MouseGetPos &currentX
+        MouseGetPos &currentX, &currentY
+        
+        ; Check for monitor changes during drag
+        newMonitorIndex := MonitorFromPoint(currentX, currentY)
+        if (newMonitorIndex != monitorIndex) {
+            monitorIndex := newMonitorIndex
+            MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+            MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+            
+            maxHeight := workBottom - workTop
+            if (maxHeight <= initialH) {
+                maxHeight := initialH + 1
+            }
+        }
 
         deltaX := currentX - startX
         
-        ; Check if mouse is near screen edge
-        if (currentX >= workRight - edgeThreshold)
-        {
-            ; Snap to max height
-            newH := maxHeight
-            newY := workTop
-        }
-        else
-        {
-            ; Dynamic sensitivity based on target height
-            scaleFactor := 1 + (deltaX * 0.003)
-            scaleFactor := Max(0.1, scaleFactor)  ; Allow smaller minimum scale
-            newH := Round(initialH * scaleFactor)
-            newH := Min(newH + 2, maxHeight + 2)  ; Only limit maximum height
+        ; Always use horizontal movement to control size consistently
+        ; Positive deltaX = increase height, negative = decrease height
+        
+        if (isNearTopEdge) {
+            ; TOP EDGE ONLY MODE: Bottom edge stays fixed
+            ; Moving right increases height (moves top edge up)
+            ; Moving left decreases height (moves top edge down)
+            scaleFactor := 1 + (deltaX * 0.003/2)
             
-            ; Calculate vertical position
-            newY := Round(startY - (newH * relativeY))
-            newY := Max(workTop - 1, Min(workBottom - newH - 1, newY))
-            ;newY := Max(monTop - 1, Min(monBottom - newH + 1, newY))
+            if (deltaX > 0) {
+                ; Increasing height (moving top edge up)
+                newH := Min(initialH * scaleFactor, bottomEdgePos - workTop)
+            } else {
+                ; Decreasing height (moving top edge down)
+                newH := Max(initialH * scaleFactor, Colors.MIN_HEIGHT)
+            }
+            
+            ; Calculate new top position based on fixed bottom
+            newY := bottomEdgePos - newH
+            
+            ; Ensure top doesn't go above screen
+            newY := Max(newY, workTop)
+            
+            ; Recalculate height based on new top position
+            newH := bottomEdgePos - newY
+        }
+        else if (isNearBottomEdge) {
+            ; BOTTOM EDGE ONLY MODE: Top edge stays fixed
+            ; Moving right increases height (moves bottom edge down)
+            ; Moving left decreases height (moves bottom edge up)
+            
+            if (deltaX > 0) {
+                ; Increasing height
+                scaleFactor := 1 + (deltaX * 0.003/2)
+            } else {
+                ; Decreasing height
+                scaleFactor := 1 + (deltaX * 0.003/2)
+            }
+            
+            newY := initialY  ; Keep top position fixed
+            newH := initialH * scaleFactor
+            
+            ; Constrain height so bottom edge doesn't exceed screen bottom
+            newH := Min(newH, workBottom - initialY)
+            
+            ; Ensure minimum height
+            newH := Max(newH, Colors.MIN_HEIGHT)
+        }
+        else {
+            ; PROPORTIONAL MODE: Both edges can move
+            ; Check if mouse is near screen edge for snapping
+            if (currentX >= workRight - snapEdgeThreshold) {
+                ; Snap to max height
+                newH := maxHeight
+                newY := workTop
+            }
+            else {
+                ; Dynamic sensitivity based on target height
+                if (deltaX < 0) {
+                    ; For reduction (moving mouse left)
+                    scaleFactor := 1 + (deltaX * 0.003)
+                } else {
+                    ; For expansion (moving mouse right)
+                    scaleFactor := 1 + (deltaX * 0.003)
+                }
+                scaleFactor := Max(0.1, scaleFactor)  ; Allow smaller minimum scale
+                
+                newH := Round(initialH * scaleFactor)
+                newH := Max(Colors.MIN_HEIGHT, Min(newH, maxHeight))
+                
+                ; Calculate vertical position for proportional resize
+                ; newY := Round(startY - (newH * relativeY))
+                ; newY := Max(workTop, Min(workBottom - newH, newY))
+                newY := Round(initialY - (newH - initialH) * (1 - relativeY))
+                newY := Max(workTop, Min(workBottom - newH, newY))
+            }
         }
 
         ; Update preview color based on new height
@@ -153,6 +197,6 @@ CalculateColorHeight(currentHeight, initialHeight, maxHeight) {
         WinHide "ahk_id " mwin
         WinShow "ahk_id " mwin
     }
-    resizeActive := false
+    
     scalingModeActive := false
 }

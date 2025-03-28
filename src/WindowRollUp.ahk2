@@ -1,0 +1,194 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+; Global storage for tracking rolled-up windows
+global rolledUpWindows := Map()
+global titleBarHeights := Map(
+    "chrome.exe", 32,
+    "msedge.exe", 32,
+    "firefox.exe", 33,
+    "code.exe", 32,
+    "vivaldi.exe", 32,
+    "explorer.exe", 32,
+    "WindowsTerminal.exe", 32
+)
+global defaultTitleHeight := 35
+global debugMode := false
+
+; Hotkey: Left Alt + Middle Mouse Button
+!MButton::RollUpWindow()
+
+RollUpWindow() {
+    ; Get window under cursor
+    MouseGetPos ,, &targetWin
+    if (!targetWin)
+        return
+    
+    winTitle := "ahk_id " targetWin
+    
+    ; Check if window is already rolled up
+    if (rolledUpWindows.Has(targetWin)) {
+        ; RESTORE: Window is rolled up, so restore it
+        originalHeight := rolledUpWindows[targetWin]
+        
+        ; Get current position
+        WinGetPos &x, &y, &w, &h, winTitle
+        
+        ; Restore to original height
+        WinMove x, y, w, originalHeight, winTitle
+        
+        ; Remove from tracking
+        rolledUpWindows.Delete(targetWin)
+        
+        if (debugMode)
+            ShowDebugMessage("Window restored to " originalHeight "px")
+    } 
+    else {
+        ; ROLL UP: Window is normal, roll it up
+        
+        ; Get current dimensions and info
+        WinGetPos &x, &y, &w, &h, winTitle
+        winExe := WinGetProcessName(winTitle)
+        
+        ; Store original height for later restoration
+        rolledUpWindows[targetWin] := h
+        
+        ; Get appropriate title bar height
+        titleHeight := GetTitleBarHeight(winExe)
+        
+        if (debugMode)
+            ShowDebugMessage("Target height: " titleHeight "px for " winExe)
+        
+        ; First attempt - try standard resize
+        WinMove x, y, w, titleHeight, winTitle
+        
+        ; Check if resize was successful
+        Sleep 50  ; Brief pause to let window manager apply resize
+        WinGetPos &nx, &ny, &nw, &nh, winTitle
+        
+        ; If current height is still much larger than target, use force resize method
+        if (nh > titleHeight + 10) {
+            ForceWindowResize(targetWin, x, y, w, titleHeight)
+        }
+    }
+}
+
+GetTitleBarHeight(processName) {
+    ; Check if we have a known height for this process
+    if (titleBarHeights.Has(processName))
+        return titleBarHeights[processName]
+    
+    ; Calculate DPI scale factor
+    dpiScale := A_ScreenDPI / 96
+    
+    ; Return default scaled for DPI
+    return Round(defaultTitleHeight * dpiScale)
+}
+
+ForceWindowResize(hwnd, x, y, w, targetHeight) {
+    winTitle := "ahk_id " hwnd
+    
+    ; Try multiple resize methods in order of increasing aggressiveness
+    
+    ; Method 1: Try in slower increments
+    WinGetPos &cx, &cy, &cw, &ch, winTitle
+    
+    if (ch > targetHeight + 10) {
+        ; Reducing height in steps can sometimes work better
+        stepSize := Max(10, (ch - targetHeight) / 5)
+        newHeight := ch
+        
+        Loop 5 {
+            newHeight -= stepSize
+            if (newHeight < targetHeight)
+                newHeight := targetHeight
+                
+            WinMove x, y, w, newHeight, winTitle
+            Sleep 10  ; Tiny pause between steps
+            
+            ; If we reached target, break
+            WinGetPos ,, &cw, &newHeight, winTitle
+            if (newHeight <= targetHeight + 5)
+                break
+        }
+    }
+    
+    ; Method 2: Try with style modification
+    WinGetPos &cx, &cy, &cw, &ch, winTitle
+    if (ch > targetHeight + 10) {
+        ; Save original styles
+        originalStyle := WinGetStyle(winTitle)
+        originalExStyle := WinGetExStyle(winTitle)
+        
+        ; Temporarily remove potentially restrictive styles
+        WinSetStyle -0x40000, winTitle  ; Remove WS_THICKFRAME (resizable)
+        
+        ; Try resize again
+        WinMove x, y, w, targetHeight, winTitle
+        Sleep 50
+        
+        ; Restore original styles
+        WinSetStyle originalStyle, winTitle
+        WinSetExStyle originalExStyle, winTitle
+    }
+    
+    ; Method 3: Try resize with window borders
+    WinGetPos &cx, &cy, &cw, &ch, winTitle
+    if (ch > targetHeight + 10) {
+        try {
+            ; More aggressive approach - use DllCall directly
+            WS_CAPTION := 0xC00000
+            WS_THICKFRAME := 0x40000
+            WS_MINIMIZEBOX := 0x20000
+            WS_MAXIMIZEBOX := 0x10000
+            
+            ; Get current window style
+            oldStyle := DllCall("GetWindowLong", "Ptr", hwnd, "Int", -16, "Int")
+            
+            ; Strip resize-related styles temporarily
+            newStyle := oldStyle & ~(WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
+            DllCall("SetWindowLong", "Ptr", hwnd, "Int", -16, "Int", newStyle)
+            
+            ; Force resize
+            DllCall("SetWindowPos", "Ptr", hwnd, "Ptr", 0, "Int", x, "Int", y, 
+                    "Int", w, "Int", targetHeight, "UInt", 0x4)  ; SWP_NOZORDER
+            
+            ; Restore original style
+            DllCall("SetWindowLong", "Ptr", hwnd, "Int", -16, "Int", oldStyle)
+            
+            ; Force redraw
+            DllCall("RedrawWindow", "Ptr", hwnd, "Ptr", 0, "Ptr", 0, "UInt", 0x1)  ; RDW_INVALIDATE
+        }
+    }
+    
+    ; Final check to see if resize succeeded
+    WinGetPos &cx, &cy, &cw, &ch, winTitle
+    
+    if (debugMode) {
+        if (ch <= targetHeight + 10)
+            ShowDebugMessage("Success! Final height: " ch "px")
+        else
+            ShowDebugMessage("Window resisted resize. Current height: " ch "px")
+    }
+    
+    ; Store the resulting height in the mapping
+    global titleBarHeights
+    winExe := WinGetProcessName(winTitle)
+    if (ch <= targetHeight + 10) {
+        titleBarHeights[winExe] := ch
+    }
+}
+
+; ShowDebugMessage(text) {
+;     ToolTip(text, 150, 150)
+;     SetTimer () => ToolTip(), -3000
+; }
+
+; Toggle debug mode
+^!d::  ; Ctrl+Alt+D
+{
+    global debugMode
+    debugMode := !debugMode
+    ToolTip("Debug mode " (debugMode ? "enabled" : "disabled"))
+    SetTimer () => ToolTip(), -2000
+}

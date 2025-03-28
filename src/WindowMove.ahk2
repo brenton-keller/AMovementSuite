@@ -61,22 +61,20 @@ global positioningGui := ""
     While (GetKeyState("RButton", "P") && GetKeyState("LAlt", "P"))
     {
         ; Check S key state - snapping only enabled when S is held
-        currentSKeyState := GetKeyState("S", "P")
+        currentSKeyState := GetKeyState("1", "P")
         
-; Check S key state for toggle
-currentSKeyState := GetKeyState("S", "P")
 
-; Toggle snapping when S is pressed (transition from up to down)
-if (currentSKeyState && !lastSKeyState) {
-    enableWindowSnapping := !enableWindowSnapping
-    if (enableWindowSnapping)
-        ShowSnapIndicator("Snapping: Enabled (toggled on)")
-    else
-        ShowSnapIndicator("Snapping: Disabled (toggled off)")
-}
+        ; Toggle snapping when S is pressed (transition from up to down)
+        if (currentSKeyState && !lastSKeyState) {
+            enableWindowSnapping := !enableWindowSnapping
+            if (enableWindowSnapping)
+                ShowSnapIndicator("Snapping: Enabled (toggled on)")
+            else
+                ShowSnapIndicator("Snapping: Disabled (toggled off)")
+        }
 
-; Update last key state
-lastSKeyState := currentSKeyState
+        ; Update last key state
+        lastSKeyState := currentSKeyState
         
         MouseGetPos &currentX, &currentY
         
@@ -107,7 +105,7 @@ lastSKeyState := currentSKeyState
         ; Check for edge snapping (hold Ctrl to temporarily disable)
         if (!GetKeyState("Ctrl", "P"))
         {
-            ; Try window edge snapping first (prioritized over screen edges) - only if S is held
+            ; Try window edge snapping first (prioritized over screen edges)
             if (enableWindowSnapping) {
                 windowSnapResult := ProcessWindowSnapping(newX, newY, winWidth, winHeight, windowEdges)
                 if (windowSnapResult.snapped) {
@@ -155,92 +153,32 @@ lastSKeyState := currentSKeyState
     ; Clear tooltip
     ToolTip("", , , 1)
 
-; Check if we need to activate a button based on release position
-if (guiShown && IsObject(positioningGui)) {
-    MouseGetPos &releaseX, &releaseY, &mouseWin, &mouseCtrl
-    
-    ; Check if mouse is over the GUI window
-    if (mouseWin == positioningGui.Hwnd && mouseCtrl) {
-        ; Safer approach - look up the control directly from the GUI
-        try {
-            ; Get the control object from the GUI
-            ctrl := positioningGui[mouseCtrl]
-            if (ctrl) {
-                ; Activate the button
-                ButtonClick(ctrl)
+    ; Check if we need to activate a button based on release position
+    if (guiShown && IsObject(positioningGui)) {
+        MouseGetPos &releaseX, &releaseY, &mouseWin, &mouseCtrl
+        
+        ; Check if mouse is over the GUI window
+        if (mouseWin == positioningGui.Hwnd && mouseCtrl) {
+            ; Safer approach - look up the control directly from the GUI
+            try {
+                ; Get the control object from the GUI
+                ctrl := positioningGui[mouseCtrl]
+                if (ctrl) {
+                    ; Activate the button
+                    ButtonClick(ctrl)
+                }
+            } catch {
+                ; Nothing to do if control lookup fails
             }
-        } catch {
-            ; Nothing to do if control lookup fails
         }
+        
+        ; Always destroy the GUI
+        positioningGui.Destroy()
+        positioningGui := ""
     }
-    
-    ; Always destroy the GUI
-    positioningGui.Destroy()
-    positioningGui := ""
-}
 
     DllCall("SetWindowPos", "Ptr", mwin, "Ptr", 0, "Int", 0, "Int", 0, 
             "Int", 0, "Int", 0, "UInt", 0x0001|0x0002|0x0004|0x0400)
-}
-
-ShowWindowPositioningGUI(mwin, cursorX, cursorY) {
-    global positioningGui
-    
-    ; Create the GUI
-    positioningGui := Gui("-Caption +AlwaysOnTop")
-    
-    ; Add buttons in the specified layout
-    positioningGui.buttons := []
-    
-    ; Row 1: Left 50% | Right 50%
-    positioningGui.buttons.Push(positioningGui.Add("Button", "w100 h30 x10 y10", "Left 50%").OnEvent("Click", ButtonClick))
-    positioningGui.buttons.Push(positioningGui.Add("Button", "w100 h30 x+5", "Right 50%").OnEvent("Click", ButtonClick))
-    
-    ; Row 2: Left 25% | Middle 50% | Right 25%
-    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x10 y+5", "Left 25%").OnEvent("Click", ButtonClick))
-    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x+5", "Middle 50%").OnEvent("Click", ButtonClick))
-    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x+5", "Right 25%").OnEvent("Click", ButtonClick))
-    
-    ; Row 3: Left 33% | Middle 33% | Right 33%
-    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x10 y+5", "Left 33%").OnEvent("Click", ButtonClick))
-    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x+5", "Middle 33%").OnEvent("Click", ButtonClick))
-    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x+5", "Right 33%").OnEvent("Click", ButtonClick))
-    
-    ; Calculate GUI size
-    guiWidth := 215  ; Width for buttons plus margins
-    guiHeight := 115  ; Height for three rows of buttons plus margins
-    
-    ; Get the monitor where the cursor currently is
-    MonitorGetWorkArea(MonitorFromPoint(cursorX, cursorY), &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
-    
-    ; Calculate position under cursor, but keep it on screen
-    guiX := cursorX - 10  ; Offset slightly so it's not directly under the cursor
-    guiY := cursorY + 10
-    
-    ; Adjust if off the screen
-    if (guiX + guiWidth > monitorRight)
-        guiX := monitorRight - guiWidth
-    if (guiY + guiHeight > monitorBottom)
-        guiY := cursorY - guiHeight - 10  ; Show above cursor if not enough space below
-    
-    ; Show the GUI
-    positioningGui.Show(Format("x{1} y{2} w{3} h{4}", guiX, guiY, guiWidth, guiHeight))
-    
-    ; Store the window handle for potential use in button clicks
-    positioningGui.mwin := mwin
-    
-    return positioningGui
-}
-
-; Helper function to determine which monitor contains a point
-MonitorFromPoint(x, y) {
-    MonitorCount := MonitorGetCount()
-    Loop MonitorCount {
-        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
-        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
-            return A_Index
-    }
-    return MonitorGetPrimary()  ; Default to primary monitor if not found
 }
 
 ; Updated button click function
@@ -329,226 +267,99 @@ ButtonClick(ctrl, *) {
     SetTimer () => ToolTip("", , , 2), -1000
 }
 
-IsValidWindowForMove(hwnd) { ; Check if the window is valid for moving
-    if (!hwnd)
-        return false
-        
-    ; Don't allow moving certain system windows
-    windowClass := WinGetClass("ahk_id " hwnd)
-    
-    ; List of classes that shouldn't be moved
-    excludedClasses := ["Progman", "WorkerW", "Shell_TrayWnd", "Windows.UI.Core.CoreWindow"]
-    
-    for class in excludedClasses {
-        if (windowClass == class)
-            return false
-    }
-    
-    ; Check if the window is a system dialog
-    if (WinGetStyle("ahk_id " hwnd) & 0x08000000) { ; WS_POPUP
-        title := WinGetTitle("ahk_id " hwnd)
-        if (title ~= "i)^(Error|Warning|Info|Confirm|Prompt)")
-            return false
-    }
-    
-    ; Check if window can be moved (not minimized)
-    minMax := WinGetMinMax("ahk_id " hwnd)
-    if (minMax == -1) ; Window is minimized
-        return false
-        
-    return true
-}
+; Left Shift + Left Alt + Right Mouse Button to move snapped windows together
+<+<!RButton::  ; LEFT Shift + LEFT Alt + Right Mouse Button (multi-window moving)
+{
+    global enableWindowSnapping, positioningGui
 
-GetWindowEdges(excludeHwnd) { ; Get all visible windows' edges for snapping
-    edges := []
+    MouseGetPos &startX, &startY, &mwin
     
-    ; Get all windows
-    hwnd := WinGetList(,, "Program Manager")
+    ; Check if it's a valid window for moving
+    if (!IsValidWindowForMove(mwin)) {
+        return
+    }
     
-    ; Debug information (uncomment to see all windows)
-    ; DebugInfo := "Windows found: " hwnd.Length "`n"
+    ; Check if window is maximized
+    isMaximized := WinGetMinMax("ahk_id " mwin)
+    if (isMaximized = 1) {
+        WinRestore "ahk_id " mwin
+        Sleep 10  ; Ensure restore completes
+    }
     
-    Loop hwnd.Length {
-        current := hwnd[A_Index]
+    WinGetPos &initialWX, &initialWY, &winWidth, &winHeight, "ahk_id " mwin
+    
+    ; Get the monitor the window is primarily on
+    primaryMonitor := GetWindowMonitor(initialWX, initialWY, winWidth, winHeight)
+    MonitorGetWorkArea(primaryMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+    
+    ; Calculate initial offset between mouse and window position
+    offsetX := startX - initialWX
+    offsetY := startY - initialWY
+    
+    ; Get all window edges for snapping detection
+    allWindowEdges := GetWindowEdges(mwin)
+    
+    ; Find snapped windows (windows with edges very close to our target window)
+    snappedWindows := FindSnappedWindows(mwin, initialWX, initialWY, winWidth, winHeight, allWindowEdges)
+    
+    ; If no windows are snapped, show indicator
+    if (snappedWindows.Length == 0) {
+        ShowSnapIndicator("No snapped windows detected - moving single window")
+    } else {
+        ShowSnapIndicator("Moving " snappedWindows.Length + 1 " windows together")
+    }
+    
+    ; Store initial positions of all snapped windows
+    snappedWindowsInitialPositions := []
+    for idx, snapWin in snappedWindows {
+        WinGetPos &wx, &wy, &ww, &wh, "ahk_id " snapWin
+        snappedWindowsInitialPositions.Push({hwnd: snapWin, x: wx, y: wy, w: ww, h: wh})
+    }
+    
+    While (GetKeyState("RButton", "P") && GetKeyState("LAlt", "P") && GetKeyState("LShift", "P"))
+    {
+        MouseGetPos &currentX, &currentY
         
-        ; Skip the window being moved
-        if (current == excludeHwnd)
-            continue
-            
-        ; Skip if window no longer exists
-        if (!WinExist("ahk_id " current))
-            continue
+        ; Calculate new position for main window
+        newX := Round(currentX - offsetX)
+        newY := Round(currentY - offsetY)
         
-        ; Get more details about the window for better filtering
-        try {
-            ; Skip if minimized, invisible, or has zero size
-            if (WinGetMinMax("ahk_id " current) == -1)
-                continue
-                
-            ; Skip system windows and special windows (expanded list)
-            windowClass := WinGetClass("ahk_id " current)
-            windowTitle := WinGetTitle("ahk_id " current)
-            windowStyle := WinGetStyle("ahk_id " current)
-            windowExStyle := WinGetExStyle("ahk_id " current)
+        ; Calculate movement delta
+        deltaX := newX - initialWX
+        deltaY := newY - initialWY
+        
+        ; Get the monitor for the new position
+        currentMonitor := GetWindowMonitor(newX, newY, winWidth, winHeight)
+        MonitorGetWorkArea(currentMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+        
+        ; Constrain main window to screen boundaries
+        newX := Max(MonitorWorkAreaLeft - 1, Min(MonitorWorkAreaRight - winWidth + 1, newX))
+        newY := Max(MonitorWorkAreaTop - 1, Min(MonitorWorkAreaBottom - winHeight + 1, newY))
+        
+        ; Recalculate actual delta after constraints
+        actualDeltaX := newX - initialWX
+        actualDeltaY := newY - initialWY
+        
+        ; Move the main window
+        WinMove newX, newY, , , "ahk_id " mwin
+        
+        ; Move all snapped windows by the same delta
+        for idx, winInfo in snappedWindowsInitialPositions {
+            snapNewX := winInfo.x + actualDeltaX
+            snapNewY := winInfo.y + actualDeltaY
             
-            ; Debug info (uncomment to see details of each window)
-            ; DebugInfo .= "Window: " windowTitle " | Class: " windowClass " | Style: " windowStyle "`n"
+            ; Optionally constrain snapped windows to their respective monitors
+            ; This is a design decision - you might want them to be able to move off-screen
+            snapMonitor := GetWindowMonitor(snapNewX, snapNewY, winInfo.w, winInfo.h)
+            MonitorGetWorkArea(snapMonitor, &snapMonLeft, &snapMonTop, &snapMonRight, &snapMonBottom)
             
-            ; Skip windows that are likely not relevant for snapping
-            if (windowClass ~= "i)^(Progman|WorkerW|Shell_TrayWnd|Windows\.UI\.Core\.CoreWindow|DV2ControlHost|BaseBar|NotifyIconOverflowWindow)$")
-                continue
-                
-            ; Skip windows with certain attributes
-            if (!(windowStyle & 0x10000000)) ; WS_VISIBLE
-                continue
-                
-            if (windowExStyle & 0x00000080) ; WS_EX_TOOLWINDOW (skip tool windows)
-                continue
-                
-            ; Skip windows with empty titles (likely system windows)
-            if (windowTitle == "")
-                continue
-                
-            ; Get window position
-            WinGetPos &wx, &wy, &ww, &wh, "ahk_id " current
-            if (ww < 50 || wh < 50)  ; Skip tiny windows (likely not main app windows)
-                continue
-                
-            ; Add window edges with title for feedback
-            title := windowTitle ? windowTitle : "Window"
-                
-            ; Create edge objects
-            edges.Push({type: "left", position: wx, title: title})
-            edges.Push({type: "right", position: wx + ww, title: title})
-            edges.Push({type: "top", position: wy, title: title})
-            edges.Push({type: "bottom", position: wy + wh, title: title})
-        }
-        catch {
-            ; Skip this window if any error occurs while getting its properties
-            continue
+            snapNewX := Max(snapMonLeft - 1, Min(snapMonRight - winInfo.w + 1, snapNewX))
+            snapNewY := Max(snapMonTop - 1, Min(snapMonBottom - winInfo.h + 1, snapNewY))
+            
+            WinMove snapNewX, snapNewY, , , "ahk_id " winInfo.hwnd
         }
     }
     
-    ; Debug: Show list of found windows (uncomment to debug)
-    ; MsgBox DebugInfo
-    
-    return edges
-}
-
-; Add this helper function to check parent-child relationships
-IsWindowChildOf(childHwnd, parentHwnd) {
-    try {
-        parentWindow := DllCall("GetParent", "Ptr", childHwnd, "Ptr")
-        if (parentWindow && parentWindow == parentHwnd)
-            return true
-            
-        ; Also check for owner relationship
-        ownerWindow := DllCall("GetWindow", "Ptr", childHwnd, "UInt", 4, "Ptr") ; GW_OWNER = 4
-        if (ownerWindow && ownerWindow == parentHwnd)
-            return true
-    }
-    catch {
-        return false
-    }
-    return false
-}
-
-; Process window edge snapping
-ProcessWindowSnapping(x, y, width, height, edges) {
-    result := {snapped: false, x: x, y: y, message: ""}
-    
-    ; Check horizontal edges
-    for edge in edges {
-        if (edge.type == "left" || edge.type == "right") {
-            ; Check left edge of current window
-            if (Abs(x - edge.position) < snapDistance) {
-                result.x := edge.position
-                result.snapped := true
-                result.message := "Left to " edge.title " " edge.type
-                break
-            }
-            
-            ; Check right edge of current window
-            if (Abs(x + width - edge.position) < snapDistance) {
-                result.x := edge.position - width
-                result.snapped := true
-                result.message := "Right to " edge.title " " edge.type
-                break
-            }
-        }
-    }
-    
-    ; Check vertical edges
-    for edge in edges {
-        if (edge.type == "top" || edge.type == "bottom") {
-            ; Check top edge of current window
-            if (Abs(y - edge.position) < snapDistance) {
-                result.y := edge.position
-                result.snapped := true
-                result.message := result.message ? result.message ", Top" : "Top to " edge.title " " edge.type
-                break
-            }
-            
-            ; Check bottom edge of current window
-            if (Abs(y + height - edge.position) < snapDistance) {
-                result.y := edge.position - height
-                result.snapped := true
-                result.message := result.message ? result.message ", Bottom" : "Bottom to " edge.title " " edge.type
-                break
-            }
-        }
-    }
-    
-    return result
-}
-
-; Process screen edge snapping
-ProcessScreenSnapping(x, y, width, height, left, top, right, bottom) {
-    result := {snapped: false, x: x, y: y, message: ""}
-    
-    ; Left edge snapping
-    if (Abs(x - left) < snapDistance) {
-        result.x := left
-        result.snapped := true
-        result.message := "Screen Left"
-    }
-    
-    ; Right edge snapping
-    if (Abs(x + width - right) < snapDistance) {
-        result.x := right - width
-        result.snapped := true
-        result.message := "Screen Right"
-    }
-    
-    ; Top edge snapping
-    if (Abs(y - top) < snapDistance) {
-        result.y := top
-        result.snapped := true
-        result.message := result.message ? result.message ", Top" : "Screen Top"
-    }
-    
-    ; Bottom edge snapping
-    if (Abs(y + height - bottom) < snapDistance) {
-        result.y := bottom - height
-        result.snapped := true
-        result.message := result.message ? result.message ", Bottom" : "Screen Bottom"
-    }
-    
-    ; ; Center horizontally
-    ; centerX := left + (right - left) / 2 - width / 2
-    ; if (Abs(x - centerX) < snapDistance) {
-    ;     result.x := Round(centerX)
-    ;     result.snapped := true
-    ;     result.message := result.message ? result.message ", Center H" : "Screen Center H"
-    ; }
-    
-    ; ; Center vertically
-    ; centerY := top + (bottom - top) / 2 - height / 2
-    ; if (Abs(y - centerY) < snapDistance) {
-    ;     result.y := Round(centerY)
-    ;     result.snapped := true
-    ;     result.message := result.message ? result.message ", Center V" : "Screen Center V"
-    ; }
-    
-    return result
+    ; Clear tooltip
+    ToolTip("", , , 1)
 }

@@ -5,79 +5,48 @@ SetWinDelay -1
 SetControlDelay -1
 CoordMode "Mouse", "Screen"
 
-CalculateColorWidth(currentWidth, initialWidth, maxWidth) {
-    if (currentWidth >= initialWidth) {
-        ; Safety check for division by zero
-        if (maxWidth <= initialWidth) {
-            ; Return the teal color since we're at max width
-            return Format("{:02X}{:02X}{:02X}", Colors.TEAL.R, Colors.TEAL.G, Colors.TEAL.B)
-        }
-        
-        percentage := (currentWidth - initialWidth) / (maxWidth - initialWidth)
-        ; Clamp percentage to valid range
-        percentage := Max(0, Min(1, percentage))
-        r := Colors.BASELINE.R + (Colors.TEAL.R - Colors.BASELINE.R) * percentage
-        g := Colors.BASELINE.G + (Colors.TEAL.G - Colors.BASELINE.G) * percentage
-        b := Colors.BASELINE.B + (Colors.TEAL.B - Colors.BASELINE.B) * percentage
-    }
-    else {
-        ; Safety check for minimum width
-        if (initialWidth <= Colors.MIN_WIDTH) {
-            return Format("{:02X}{:02X}{:02X}", Colors.DEEP_PURPLE.R, Colors.DEEP_PURPLE.G, Colors.DEEP_PURPLE.B)
-        }
-        
-        percentage := (initialWidth - currentWidth) / (initialWidth - Colors.MIN_WIDTH)
-        percentage := Min(1, percentage)
-        r := Colors.BASELINE.R + (Colors.DEEP_PURPLE.R - Colors.BASELINE.R) * percentage
-        g := Colors.BASELINE.G + (Colors.DEEP_PURPLE.G - Colors.BASELINE.G) * percentage
-        b := Colors.BASELINE.B + (Colors.DEEP_PURPLE.B - Colors.BASELINE.B) * percentage
-    }
-    
-    ; Clamp values between 0-255
-    r := Round(Max(0, Min(255, r)))
-    g := Round(Max(0, Min(255, g)))
-    b := Round(Max(0, Min(255, b)))
-    
-    ; Return RGB color in hex format
-    return Format("{:02X}{:02X}{:02X}", r, g, b)
-}
-
 ^RButton::  ; Left Ctrl + Right Mouse Button
 {
-    global scalingModeActive
+    global scalingModeActive, widthScalingEnabled
 
-    ; If a scaling operation is already active, exit
     if (scalingModeActive)
         return
 
-    ; Set flag to lock scaling mode
     scalingModeActive := true
 
-    ; Check if functionality is enabled
-    if (!widthScalingEnabled)
+    if (!widthScalingEnabled) {
+        scalingModeActive := false
         return
+    }
         
     MouseGetPos ,, &mwin
     
     ; Check if it's a valid window for resizing
     if (!IsValidWindowForResize(mwin)) {
+        scalingModeActive := false
         return
     }
 
     MouseGetPos &startX, &startY, &mwin
     WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
 
-    ; Get the monitor containing the window
     monitorIndex := GetWindowMonitor(wx, wy, ww, wh)
     MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
     MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
 
-
-    ; Initial values
     initialW := ww
-    edgeThreshold := 50  ; Pixels from edge to trigger snap
+    initialX := wx
+    rightEdgePos := wx + ww  ; Store original right edge position
+    
+    snapEdgeThreshold := 50  ; Pixels from edge to trigger snap
+    
+    ; Calculate the 1/8 threshold for edge detection
+    edgeThreshold := initialW / 8
+    
+    ; Determine if mouse is near the edges - this mode will be maintained throughout the drag
+    isNearLeftEdge := (startX - wx) <= edgeThreshold
+    isNearRightEdge := (wx + ww - startX) <= edgeThreshold
 
-    ; Calculate maximum width and add safety check
     maxWidth := workRight - workLeft
     if (maxWidth <= initialW) {
         maxWidth := initialW + 1  ; Add 1 pixel buffer to prevent division by zero
@@ -96,37 +65,81 @@ CalculateColorWidth(currentWidth, initialWidth, maxWidth) {
         if !GetKeyState("RButton", "P") || !GetKeyState("LControl", "P")
             break
 
-        MouseGetPos &currentX
+        MouseGetPos &currentX, &currentY
+        
+        ; Check for monitor changes during drag
+        newMonitorIndex := MonitorFromPoint(currentX, currentY)
+        if (newMonitorIndex != monitorIndex) {
+            monitorIndex := newMonitorIndex
+            MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+            MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+            
+            maxWidth := workRight - workLeft
+            if (maxWidth <= initialW) {
+                maxWidth := initialW + 1
+            }
+        }
 
         deltaX := currentX - startX
         
-        ; Check if mouse is near screen edge
-        if (currentX >= workRight - edgeThreshold)
-        {
-            ; Snap to max width
-            newW := maxWidth
-            newX := workLeft
-        }
-        else
-        {
-            ; Dynamic sensitivity based on target width
-            if (deltaX < 0) {
-                ; For reduction (moving mouse left)
-                scaleFactor := 1 + (deltaX * 0.003)
-            } else {
-                ; For expansion (moving mouse right)
-                scaleFactor := 1 + (deltaX * 0.003)
-            }
-            scaleFactor := Max(0.25, scaleFactor)
-            newW := Round(initialW * scaleFactor)
-            newW := Max(Colors.MIN_WIDTH, Min(newW + 2, maxWidth + 2))  ; Added Min width constraint
+        ; Calculate new dimensions based on the edge detection mode
+        if (isNearLeftEdge) {
+            ; LEFT EDGE ONLY MODE: Right edge stays fixed
+            newX := initialX + deltaX
             
-            ; Calculate horizontal position
-            newX := Round(startX - (newW * relativeX))
-            newX := Max(workLeft - 1, Min(workRight - newW - 1, newX))
+            ; Constrain left edge from moving beyond right edge
+            newX := Min(newX, rightEdgePos - Colors.MIN_WIDTH)
+            
+            ; Constrain left edge from moving beyond screen left
+            newX := Max(newX, workLeft)
+            
+            ; Calculate width based on fixed right edge
+            newW := rightEdgePos - newX
+        } 
+        else if (isNearRightEdge) {
+            ; RIGHT EDGE ONLY MODE: Left edge stays fixed
+            newX := initialX  ; Keep left position fixed
+            
+            ; Calculate width based on mouse position
+            newW := initialW + deltaX
+            
+            ; Constrain width so right edge doesn't exceed screen right
+            newW := Min(newW, workRight - initialX)
+            
+            ; Ensure minimum width
+            newW := Max(newW, Colors.MIN_WIDTH)
+        }
+        else {
+            ; PROPORTIONAL MODE: Both edges can move
+            ; Check if mouse is near screen edge for snapping
+            if (currentX >= workRight - snapEdgeThreshold) {
+                ; Snap to max width
+                newW := maxWidth
+                newX := workLeft
+            }
+            else {
+                ; Dynamic sensitivity based on target width
+                if (deltaX < 0) {
+                    ; For reduction (moving mouse left)
+                    scaleFactor := 1 + (deltaX * 0.003)
+                } else {
+                    ; For expansion (moving mouse right)
+                    scaleFactor := 1 + (deltaX * 0.003)
+                }
+                scaleFactor := Max(0.25, scaleFactor)
+                
+                newW := Round(initialW * scaleFactor)
+                newW := Max(Colors.MIN_WIDTH, Min(newW, maxWidth))
+                
+                ; Apply proportional positioning
+                ; newX := Round(startX - (newW * relativeX))
+                ; newX := Max(workLeft, Min(workRight - newW, newX))
+                newX := Round(initialX - (newW - initialW) * (1 - relativeX))
+                newX := Max(workLeft, Min(workRight - newW, newX))
+            }
         }
 
-        ; Update preview color based on new height
+        ; Update preview color based on new width
         newColor := CalculateColorWidth(newW, initialW, maxWidth)
         previewGui.BackColor := newColor
 
@@ -157,6 +170,6 @@ CalculateColorWidth(currentWidth, initialWidth, maxWidth) {
         WinHide "ahk_id " mwin
         WinShow "ahk_id " mwin
     }
-    resizeActive := false
+    
     scalingModeActive := false
 }

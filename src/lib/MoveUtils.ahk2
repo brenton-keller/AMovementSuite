@@ -1,0 +1,481 @@
+/** MonitorFromPoint
+ * Determines which monitor contains a specified point (x,y) coordinate.
+ * 
+ * @param x The x-coordinate to check
+ * @param y The y-coordinate to check
+ * 
+ * @returns {Integer} The monitor index that contains the point,
+ *          or the primary monitor index if the point is not on any monitor
+ */
+MonitorFromPoint(x, y) {
+    MonitorCount := MonitorGetCount()
+    Loop MonitorCount {
+        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
+        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
+            return A_Index
+    }
+    return MonitorGetPrimary()  ; Default to primary monitor if not found
+}
+
+/** IsValidWindowForMove
+ * Checks if a window can be moved by the window management script.
+ * Prevents modification of system windows, dialogs, and minimized windows.
+ * 
+ * @param hwnd The window handle to check
+ * 
+ * @returns {Boolean} True if the window can be moved, false otherwise
+ * 
+ * @example
+ * if (IsValidWindowForMove(WinExist("A")))
+ *     MsgBox "This window can be moved!"
+ */
+IsValidWindowForMove(hwnd) { ; Check if the window is valid for moving
+    if (!hwnd)
+        return false
+        
+    ; Don't allow moving certain system windows
+    windowClass := WinGetClass("ahk_id " hwnd)
+    
+    ; List of classes that shouldn't be moved
+    excludedClasses := ["Progman", "WorkerW", "Shell_TrayWnd", "Windows.UI.Core.CoreWindow"]
+    
+    for class in excludedClasses {
+        if (windowClass == class)
+            return false
+    }
+    
+    ; Check if the window is a system dialog
+    if (WinGetStyle("ahk_id " hwnd) & 0x08000000) { ; WS_POPUP
+        title := WinGetTitle("ahk_id " hwnd)
+        if (title ~= "i)^(Error|Warning|Info|Confirm|Prompt)")
+            return false
+    }
+    
+    ; Check if window can be moved (not minimized)
+    minMax := WinGetMinMax("ahk_id " hwnd)
+    if (minMax == -1) ; Window is minimized
+        return false
+        
+    return true
+}
+
+/** IsWindowChildOf
+ * Determines if a window is a child or owned by another window.
+ * 
+ * @param {Ptr} childHwnd Handle of the potential child window
+ * @param {Ptr} parentHwnd Handle of the potential parent window
+ * 
+ * @returns {Boolean} True if the child window is a direct child or owned by the parent window
+ * 
+ * @example
+ * isChild := IsWindowChildOf(childWindow, parentWindow)
+ */
+IsWindowChildOf(childHwnd, parentHwnd) {
+    try {
+        parentWindow := DllCall("GetParent", "Ptr", childHwnd, "Ptr")
+        if (parentWindow && parentWindow == parentHwnd)
+            return true
+            
+        ; Also check for owner relationship
+        ownerWindow := DllCall("GetWindow", "Ptr", childHwnd, "UInt", 4, "Ptr") ; GW_OWNER = 4
+        if (ownerWindow && ownerWindow == parentHwnd)
+            return true
+    }
+    catch {
+        return false
+    }
+    return false
+}
+
+/** GetWindowEdges
+ * Retrieves a list of edges from all visible windows, excluding certain system windows.
+ * 
+ * @param {Ptr} excludeHwnd Window handle to exclude from edge collection
+ * 
+ * @returns {Array} List of window edges with type, position, title, and handle
+ * 
+ * @example
+ * windowEdges := GetWindowEdges(currentWindowHandle)
+ */
+GetWindowEdges(excludeHwnd) {
+    edges := []
+    
+    ; Get all windows
+    hwnd := WinGetList(,, "Program Manager")
+    
+    Loop hwnd.Length {
+        current := hwnd[A_Index]
+        
+        ; Skip the window being moved
+        if (current == excludeHwnd)
+            continue
+            
+        ; Skip if window no longer exists
+        if (!WinExist("ahk_id " current))
+            continue
+        
+        ; Get more details about the window for better filtering
+        try {
+            ; Skip if minimized, invisible, or has zero size
+            if (WinGetMinMax("ahk_id " current) == -1)
+                continue
+                
+            ; Skip system windows and special windows
+            windowClass := WinGetClass("ahk_id " current)
+            windowTitle := WinGetTitle("ahk_id " current)
+            windowStyle := WinGetStyle("ahk_id " current)
+            windowExStyle := WinGetExStyle("ahk_id " current)
+            
+            ; Skip windows that are likely not relevant for snapping
+            if (windowClass ~= "i)^(Progman|WorkerW|Shell_TrayWnd|Windows\.UI\.Core\.CoreWindow|DV2ControlHost|BaseBar|NotifyIconOverflowWindow)$")
+                continue
+                
+            ; Skip windows with certain attributes
+            if (!(windowStyle & 0x10000000)) ; WS_VISIBLE
+                continue
+                
+            if (windowExStyle & 0x00000080) ; WS_EX_TOOLWINDOW (skip tool windows)
+                continue
+                
+            ; Skip windows with empty titles (likely system windows)
+            if (windowTitle == "")
+                continue
+                
+            ; Get window position
+            WinGetPos &wx, &wy, &ww, &wh, "ahk_id " current
+            if (ww < 50 || wh < 50)  ; Skip tiny windows (likely not main app windows)
+                continue
+                
+            ; Add window edges with title for feedback
+            title := windowTitle ? windowTitle : "Window"
+                
+            ; Create edge objects with window handle included
+            edges.Push({type: "left", position: wx, title: title, hwnd: current})
+            edges.Push({type: "right", position: wx + ww, title: title, hwnd: current})
+            edges.Push({type: "top", position: wy, title: title, hwnd: current})
+            edges.Push({type: "bottom", position: wy + wh, title: title, hwnd: current})
+        }
+        catch {
+            ; Skip this window if any error occurs while getting its properties
+            continue
+        }
+    }
+    
+    return edges
+}
+
+/**
+ * ProcessWindowSnapping
+ * Calculates window snapping based on proximity to other window edges,
+ * but only when windows have overlapping regions.
+ * 
+ * @param {Integer} x X-coordinate of the window
+ * @param {Integer} y Y-coordinate of the window
+ * @param {Integer} width Width of the window
+ * @param {Integer} height Height of the window
+ * @param {Array} edges List of window edges to snap against
+ * 
+ * @returns {Object} Snapping result with updated coordinates and snapping status
+ */
+ProcessWindowSnapping(x, y, width, height, edges) {
+    result := {snapped: false, x: x, y: y, message: ""}
+    
+    ; Group edges by their parent window
+    windowEdges := Map()
+    for edge in edges {
+        if !windowEdges.Has(edge.hwnd)
+            windowEdges[edge.hwnd] := {title: edge.title, edges: []}
+        
+        windowEdges[edge.hwnd].edges.Push(edge)
+    }
+    
+    ; Check each window for possible snapping
+    for hwnd, window in windowEdges {
+        ; Extract window dimensions from its edges
+        targetWindow := {left: 0, right: 0, top: 0, bottom: 0}
+        
+        for edge in window.edges {
+            if (edge.type == "left")
+                targetWindow.left := edge.position
+            else if (edge.type == "right")
+                targetWindow.right := edge.position
+            else if (edge.type == "top")
+                targetWindow.top := edge.position
+            else if (edge.type == "bottom")
+                targetWindow.bottom := edge.position
+        }
+        
+        ; Current window dimensions
+        currentWindow := {
+            left: x,
+            right: x + width,
+            top: y,
+            bottom: y + height
+        }
+        
+        ; Check for horizontal overlap (for vertical snapping)
+        horizontalOverlap := !(currentWindow.right < targetWindow.left || currentWindow.left > targetWindow.right)
+        
+        ; Check for vertical overlap (for horizontal snapping)
+        verticalOverlap := !(currentWindow.bottom < targetWindow.top || currentWindow.top > targetWindow.bottom)
+        
+        ; Check edges for snapping, but only if there's appropriate overlap
+        for edge in window.edges {
+            ; For horizontal edges (top/bottom), require horizontal overlap
+            if ((edge.type == "top" || edge.type == "bottom") && horizontalOverlap) {
+                ; Check top edge of current window to this edge
+                if (Abs(y - edge.position) < snapDistance) {
+                    result.y := edge.position
+                    result.snapped := true
+                    result.message := result.message ? result.message ", Top" : "Top to " window.title " " edge.type
+                    break
+                }
+                
+                ; Check bottom edge of current window to this edge
+                if (Abs(y + height - edge.position) < snapDistance) {
+                    result.y := edge.position - height
+                    result.snapped := true
+                    result.message := result.message ? result.message ", Bottom" : "Bottom to " window.title " " edge.type
+                    break
+                }
+            }
+            
+            ; For vertical edges (left/right), require vertical overlap
+            if ((edge.type == "left" || edge.type == "right") && verticalOverlap) {
+                ; Check left edge of current window to this edge
+                if (Abs(x - edge.position) < snapDistance) {
+                    result.x := edge.position
+                    result.snapped := true
+                    result.message := "Left to " window.title " " edge.type
+                    break
+                }
+                
+                ; Check right edge of current window to this edge
+                if (Abs(x + width - edge.position) < snapDistance) {
+                    result.x := edge.position - width
+                    result.snapped := true
+                    result.message := "Right to " window.title " " edge.type
+                    break
+                }
+            }
+        }
+        
+        ; If we've snapped, no need to check other windows
+        if (result.snapped)
+            break
+    }
+    
+    return result
+}
+
+/** ProcessScreenSnapping
+ * Calculates window snapping based on proximity to screen edges.
+ * 
+ * @param {Integer} x X-coordinate of the window
+ * @param {Integer} y Y-coordinate of the window
+ * @param {Integer} width Width of the window
+ * @param {Integer} height Height of the window
+ * @param {Integer} left Left boundary of the screen
+ * @param {Integer} top Top boundary of the screen
+ * @param {Integer} right Right boundary of the screen
+ * @param {Integer} bottom Bottom boundary of the screen
+ * 
+ * @returns {Object} Snapping result with updated coordinates and snapping status
+ * 
+ * @example
+ * screenSnapResult := ProcessScreenSnapping(windowX, windowY, windowWidth, windowHeight, monitorLeft, monitorTop, monitorRight, monitorBottom)
+ */
+ProcessScreenSnapping(x, y, width, height, left, top, right, bottom) {
+    result := {snapped: false, x: x, y: y, message: ""}
+    
+    ; Left edge snapping
+    if (Abs(x - left) < snapDistance) {
+        result.x := left
+        result.snapped := true
+        result.message := "Screen Left"
+    }
+    
+    ; Right edge snapping
+    if (Abs(x + width - right) < snapDistance) {
+        result.x := right - width
+        result.snapped := true
+        result.message := "Screen Right"
+    }
+    
+    ; Top edge snapping
+    if (Abs(y - top) < snapDistance) {
+        result.y := top
+        result.snapped := true
+        result.message := result.message ? result.message ", Top" : "Screen Top"
+    }
+    
+    ; Bottom edge snapping
+    if (Abs(y + height - bottom) < snapDistance) {
+        result.y := bottom - height
+        result.snapped := true
+        result.message := result.message ? result.message ", Bottom" : "Screen Bottom"
+    }
+    
+    ; ; Center horizontally
+    ; centerX := left + (right - left) / 2 - width / 2
+    ; if (Abs(x - centerX) < snapDistance) {
+    ;     result.x := Round(centerX)
+    ;     result.snapped := true
+    ;     result.message := result.message ? result.message ", Center H" : "Screen Center H"
+    ; }
+    
+    ; ; Center vertically
+    ; centerY := top + (bottom - top) / 2 - height / 2
+    ; if (Abs(y - centerY) < snapDistance) {
+    ;     result.y := Round(centerY)
+    ;     result.snapped := true
+    ;     result.message := result.message ? result.message ", Center V" : "Screen Center V"
+    ; }
+    
+    return result
+}
+
+/** FindSnappedWindows
+ * Identifies windows that are closely aligned with the main window.
+ * 
+ * @param {Ptr} mainWinHwnd Handle of the main window
+ * @param {Integer} mainX X-coordinate of the main window
+ * @param {Integer} mainY Y-coordinate of the main window
+ * @param {Integer} mainWidth Width of the main window
+ * @param {Integer} mainHeight Height of the main window
+ * @param {Array} allWindowEdges List of all window edges
+ * 
+ * @returns {Array} List of window handles that are snapped to the main window
+ * 
+ * @example
+ * snappedWindows := FindSnappedWindows(activeWindowHandle, windowX, windowY, windowWidth, windowHeight, windowEdges)
+ */
+FindSnappedWindows(mainWinHwnd, mainX, mainY, mainWidth, mainHeight, allWindowEdges) {
+    snappedWindows := []
+    snapTolerance := 5  ; How close windows need to be to be considered "snapped" (in pixels)
+    
+    ; Define the edges of our main window
+    mainLeft := mainX
+    mainRight := mainX + mainWidth
+    mainTop := mainY
+    mainBottom := mainY + mainHeight
+    
+    ; Find windows with edges that align with our main window
+    processedWindows := Map()  ; Track windows we've already added
+    
+    ; Group edges by window handle for easier checking
+    windowEdgesByHwnd := Map()
+    
+    for edge in allWindowEdges {
+        if (!windowEdgesByHwnd.Has(edge.hwnd))
+            windowEdgesByHwnd[edge.hwnd] := []
+        
+        windowEdgesByHwnd[edge.hwnd].Push(edge)
+    }
+    
+    ; Check each window's edges against our main window
+    for hwnd, edges in windowEdgesByHwnd {
+        ; Skip our main window and already processed windows
+        if (hwnd == mainWinHwnd || processedWindows.Has(hwnd))
+            continue
+        
+        isSnapped := false
+        
+        ; Get this window's coordinates
+        WinGetPos &wx, &wy, &ww, &wh, "ahk_id " hwnd
+        otherLeft := wx
+        otherRight := wx + ww
+        otherTop := wy
+        otherBottom := wy + wh
+        
+        ; Check horizontal alignment
+        if (Abs(mainRight - otherLeft) <= snapTolerance || 
+            Abs(mainLeft - otherRight) <= snapTolerance) {
+            ; Check if there's vertical overlap
+            if ((mainTop <= otherBottom && mainBottom >= otherTop) ||
+                Abs(mainBottom - otherTop) <= snapTolerance || 
+                Abs(mainTop - otherBottom) <= snapTolerance) {
+                isSnapped := true
+            }
+        }
+        
+        ; Check vertical alignment
+        if (Abs(mainBottom - otherTop) <= snapTolerance ||
+            Abs(mainTop - otherBottom) <= snapTolerance) {
+            ; Check if there's horizontal overlap
+            if ((mainLeft <= otherRight && mainRight >= otherLeft) ||
+                Abs(mainRight - otherLeft) <= snapTolerance || 
+                Abs(mainLeft - otherRight) <= snapTolerance) {
+                isSnapped := true
+            }
+        }
+        
+        if (isSnapped) {
+            snappedWindows.Push(hwnd)
+            processedWindows[hwnd] := true
+        }
+    }
+    
+    return snappedWindows
+}
+
+/** ShowWindowPositioningGUI
+ * Displays a GUI with window positioning options.
+ * 
+ * @param {Ptr} mwin Handle of the window to be positioned
+ * @param {Integer} cursorX X-coordinate of the cursor
+ * @param {Integer} cursorY Y-coordinate of the cursor
+ * 
+ * @returns {Object} GUI object with positioning buttons
+ * 
+ * @example
+ * positioningGui := ShowWindowPositioningGUI(activeWindow, cursorX, cursorY)
+ */
+ShowWindowPositioningGUI(mwin, cursorX, cursorY) {
+    global positioningGui
+    
+    ; Create the GUI
+    positioningGui := Gui("-Caption +AlwaysOnTop")
+    
+    ; Add buttons in the specified layout
+    positioningGui.buttons := []
+    
+    ; Row 1: Left 50% | Right 50%
+    positioningGui.buttons.Push(positioningGui.Add("Button", "w100 h30 x10 y10", "Left 50%").OnEvent("Click", ButtonClick))
+    positioningGui.buttons.Push(positioningGui.Add("Button", "w100 h30 x+5", "Right 50%").OnEvent("Click", ButtonClick))
+    
+    ; Row 2: Left 25% | Middle 50% | Right 25%
+    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x10 y+5", "Left 25%").OnEvent("Click", ButtonClick))
+    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x+5", "Middle 50%").OnEvent("Click", ButtonClick))
+    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x+5", "Right 25%").OnEvent("Click", ButtonClick))
+    
+    ; Row 3: Left 33% | Middle 33% | Right 33%
+    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x10 y+5", "Left 33%").OnEvent("Click", ButtonClick))
+    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x+5", "Middle 33%").OnEvent("Click", ButtonClick))
+    positioningGui.buttons.Push(positioningGui.Add("Button", "w65 h30 x+5", "Right 33%").OnEvent("Click", ButtonClick))
+    
+    ; Calculate GUI size
+    guiWidth := 215  ; Width for buttons plus margins
+    guiHeight := 115  ; Height for three rows of buttons plus margins
+    
+    ; Get the monitor where the cursor currently is
+    MonitorGetWorkArea(MonitorFromPoint(cursorX, cursorY), &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
+    
+    ; Calculate position under cursor, but keep it on screen
+    guiX := cursorX - 10  ; Offset slightly so it's not directly under the cursor
+    guiY := cursorY + 10
+    
+    ; Adjust if off the screen
+    if (guiX + guiWidth > monitorRight)
+        guiX := monitorRight - guiWidth
+    if (guiY + guiHeight > monitorBottom)
+        guiY := cursorY - guiHeight - 10  ; Show above cursor if not enough space below
+    
+    ; Show the GUI
+    positioningGui.Show(Format("x{1} y{2} w{3} h{4}", guiX, guiY, guiWidth, guiHeight))
+    
+    ; Store the window handle for potential use in button clicks
+    positioningGui.mwin := mwin
+    
+    return positioningGui
+}

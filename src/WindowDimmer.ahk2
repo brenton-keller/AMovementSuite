@@ -1,0 +1,66 @@
+#SingleInstance Force
+
+SetWinDelay -1
+SetControlDelay -1
+CoordMode "Mouse", "Screen"
+
+; Left Ctrl + Left Alt + Right Mouse Button to adjust transparency
+^!RButton::
+{
+    MouseGetPos(&startX, &startY, &mwin)
+    currentTrans := WinGetTransparent("ahk_id " mwin)
+    if (!currentTrans)  ; If no transparency is set, assume window is fully opaque
+        currentTrans := 255
+    
+    initialTrans := currentTrans  ; Store for reference
+    startMouseX := startX  ; Store initial mouse position
+    
+    ; Show initial transparency as tooltip
+    ToolTip("Transparency: " Round((currentTrans/255)*100) "%")
+    
+    While (GetKeyState("RButton", "P") && GetKeyState("LAlt", "P") && GetKeyState("LCtrl", "P"))
+    {
+        MouseGetPos(&currentX)
+        ; Calculate percentage change based on mouse movement
+        movementPercent := (currentX - startMouseX) / 200  ; Adjust 200 for sensitivity
+        
+        ; Apply a non-linear curve for more natural feel
+        if (initialTrans > 127) {
+            ; For mostly opaque windows, make transparency changes more gradual
+            newTrans := initialTrans + (movementPercent * 127)
+        } else {
+            ; For mostly transparent windows, make changes more pronounced
+            newTrans := initialTrans + (movementPercent * initialTrans)
+        }
+        
+        ; Constrain transparency between 20 (mostly transparent) and 255 (fully opaque)
+        newTrans := Max(20, Min(255, Round(newTrans)))
+        
+        ; Only update if value changed and window exists
+        if (currentTrans != newTrans && WinExist("ahk_id " mwin)) {
+            WinSetTransparent(newTrans, "ahk_id " mwin)
+            currentTrans := newTrans
+            
+            ; Show current transparency as tooltip
+            ToolTip("Transparency: " Round((newTrans/255)*100) "%")
+        }
+        Sleep(10)
+    }
+    
+    ToolTip()  ; Hide tooltip when done
+}
+
+; Left Ctrl + Left Alt + Left Mouse Button to reset transparency
+^!LButton::
+{
+    ; MouseGetPos(, , &mwin)
+    ; WinSetTransparent("Off", "ahk_id " mwin)
+    ResetAllTransparentWindows()
+}
+
+ResetAllTransparentWindows() {
+    windowList := WinGetList()
+    For hwnd in windowList {
+        WinSetTransparent("Off", "ahk_id " hwnd)
+    }
+}

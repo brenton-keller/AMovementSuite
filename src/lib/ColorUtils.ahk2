@@ -1,0 +1,235 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+/** Colors
+ * Static color and dimension constants for window scaling visualization.
+ * 
+ * @property {Object} BASELINE Base color for initial window state
+ * @property {Object} TEAL Color representing maximum expansion
+ * @property {Object} DEEP_PURPLE Color representing minimum size
+ * @property {Integer} MIN_HEIGHT Minimum allowed window height
+ * @property {Integer} MIN_WIDTH Minimum allowed window width
+ */
+class Colors {
+    static BASELINE := {R: 34, G: 177, B: 76}    
+    static TEAL := {R: 0, G: 150, B: 136}        
+    static DEEP_PURPLE := {R: 103, G: 58, B: 183} 
+    static MIN_HEIGHT := 100
+    static MIN_WIDTH := 100
+}
+
+/** CalculateColorHeight
+ * Calculates a color gradient based on window height progression.
+ * Transitions from baseline color to teal when expanding, and baseline to deep purple when shrinking.
+ * 
+ * @param {Integer} currentHeight Current window height
+ * @param {Integer} initialHeight Initial window height
+ * @param {Integer} maxHeight Maximum possible window height
+ * 
+ * @returns {String} Hex color representing the current height state
+ * 
+ * @example
+ * color := CalculateColorHeight(150, 100, 200)  ; Returns a color between baseline and teal
+ */
+CalculateColorHeight(currentHeight, initialHeight, maxHeight) {
+    ; Safety check - prevent division by zero
+    if (currentHeight >= initialHeight) {
+        ; If maxHeight and initialHeight are the same, we're already at max
+        if (maxHeight <= initialHeight) {
+            ; Return the teal color since we're at max height
+            return Format("{:02X}{:02X}{:02X}", Colors.TEAL.R, Colors.TEAL.G, Colors.TEAL.B)
+        }
+        
+        percentage := (currentHeight - initialHeight) / (maxHeight - initialHeight)
+        ; Clamp percentage to valid range
+        percentage := Max(0, Min(1, percentage))
+        r := Colors.BASELINE.R + (Colors.TEAL.R - Colors.BASELINE.R) * percentage
+        g := Colors.BASELINE.G + (Colors.TEAL.G - Colors.BASELINE.G) * percentage
+        b := Colors.BASELINE.B + (Colors.TEAL.B - Colors.BASELINE.B) * percentage
+    }
+    else {
+        ; Add safety check for minimum height too
+        if (initialHeight <= Colors.MIN_HEIGHT) {
+            return Format("{:02X}{:02X}{:02X}", Colors.DEEP_PURPLE.R, Colors.DEEP_PURPLE.G, Colors.DEEP_PURPLE.B)
+        }
+        
+        percentage := (initialHeight - currentHeight) / (initialHeight - Colors.MIN_HEIGHT)
+        percentage := Min(1, percentage)
+        r := Colors.BASELINE.R + (Colors.DEEP_PURPLE.R - Colors.BASELINE.R) * percentage
+        g := Colors.BASELINE.G + (Colors.DEEP_PURPLE.G - Colors.BASELINE.G) * percentage
+        b := Colors.BASELINE.B + (Colors.DEEP_PURPLE.B - Colors.BASELINE.B) * percentage
+    }
+    
+    ; Clamp values between 0-255
+    r := Round(Max(0, Min(255, r)))
+    g := Round(Max(0, Min(255, g)))
+    b := Round(Max(0, Min(255, b)))
+    
+    ; Return RGB color in hex format
+    return Format("{:02X}{:02X}{:02X}", r, g, b)
+}
+
+/** CalculateColorWidth
+ * Calculates a color gradient based on window width progression.
+ * Transitions from baseline color to teal when expanding, and baseline to deep purple when shrinking.
+ * 
+ * @param {Integer} currentWidth Current window width
+ * @param {Integer} initialWidth Initial window width
+ * @param {Integer} maxWidth Maximum possible window width
+ * 
+ * @returns {String} Hex color representing the current width state
+ * 
+ * @example
+ * color := CalculateColorWidth(200, 100, 300)  ; Returns a color between baseline and teal
+ */
+CalculateColorWidth(currentWidth, initialWidth, maxWidth) {
+    if (currentWidth >= initialWidth) {
+        ; Safety check for division by zero
+        if (maxWidth <= initialWidth) {
+            ; Return the teal color since we're at max width
+            return Format("{:02X}{:02X}{:02X}", Colors.TEAL.R, Colors.TEAL.G, Colors.TEAL.B)
+        }
+        
+        percentage := (currentWidth - initialWidth) / (maxWidth - initialWidth)
+        ; Clamp percentage to valid range
+        percentage := Max(0, Min(1, percentage))
+        r := Colors.BASELINE.R + (Colors.TEAL.R - Colors.BASELINE.R) * percentage
+        g := Colors.BASELINE.G + (Colors.TEAL.G - Colors.BASELINE.G) * percentage
+        b := Colors.BASELINE.B + (Colors.TEAL.B - Colors.BASELINE.B) * percentage
+    }
+    else {
+        ; Safety check for minimum width
+        if (initialWidth <= Colors.MIN_WIDTH) {
+            return Format("{:02X}{:02X}{:02X}", Colors.DEEP_PURPLE.R, Colors.DEEP_PURPLE.G, Colors.DEEP_PURPLE.B)
+        }
+        
+        percentage := (initialWidth - currentWidth) / (initialWidth - Colors.MIN_WIDTH)
+        percentage := Min(1, percentage)
+        r := Colors.BASELINE.R + (Colors.DEEP_PURPLE.R - Colors.BASELINE.R) * percentage
+        g := Colors.BASELINE.G + (Colors.DEEP_PURPLE.G - Colors.BASELINE.G) * percentage
+        b := Colors.BASELINE.B + (Colors.DEEP_PURPLE.B - Colors.BASELINE.B) * percentage
+    }
+    
+    ; Clamp values between 0-255
+    r := Round(Max(0, Min(255, r)))
+    g := Round(Max(0, Min(255, g)))
+    b := Round(Max(0, Min(255, b)))
+    
+    ; Return RGB color in hex format
+    return Format("{:02X}{:02X}{:02X}", r, g, b)
+}
+
+/** CalculateColorXY
+ * Calculates a color gradient based on both window width and height progression.
+ * Blends colors from both dimensions, giving more weight to larger changes.
+ * 
+ * @param {Integer} currentW Current window width
+ * @param {Integer} currentH Current window height
+ * @param {Integer} initialW Initial window width
+ * @param {Integer} initialH Initial window height
+ * @param {Integer} maxWidth Maximum possible window width
+ * @param {Integer} maxHeight Maximum possible window height
+ * 
+ * @returns {String} Hex color representing the current window size state
+ * 
+ * @example
+ * color := CalculateColorXY(200, 150, 100, 100, 300, 200)  ; Returns a blended color
+ */
+CalculateColorXY(currentW, currentH, initialW, initialH, maxWidth, maxHeight) {
+    ; Calculate percentage changes for both dimensions
+    if (currentW >= initialW) {
+        ; Safety check for X-axis division by zero
+        if (maxWidth <= initialW) {
+            ; We're at max width, use full teal color for X
+            rX := Colors.TEAL.R
+            gX := Colors.TEAL.G
+            bX := Colors.TEAL.B
+            percentageW := 1
+        } else {
+            percentageW := (currentW - initialW) / (maxWidth - initialW)
+            percentageW := Max(0, Min(1, percentageW))
+            ; X-axis expansion color tends toward teal
+            rX := Colors.BASELINE.R + (Colors.TEAL.R - Colors.BASELINE.R) * percentageW
+            gX := Colors.BASELINE.G + (Colors.TEAL.G - Colors.BASELINE.G) * percentageW
+            bX := Colors.BASELINE.B + (Colors.TEAL.B - Colors.BASELINE.B) * percentageW
+        }
+    } else {
+        ; Safety check for minimum width
+        if (initialW <= Colors.MIN_WIDTH) {
+            rX := Colors.DEEP_PURPLE.R
+            gX := Colors.DEEP_PURPLE.G
+            bX := Colors.DEEP_PURPLE.B
+            percentageW := 1
+        } else {
+            percentageW := (initialW - currentW) / (initialW - Colors.MIN_WIDTH)
+            percentageW := Min(1, percentageW)
+            ; X-axis shrinking color tends toward deep purple
+            rX := Colors.BASELINE.R + (Colors.DEEP_PURPLE.R - Colors.BASELINE.R) * percentageW
+            gX := Colors.BASELINE.G + (Colors.DEEP_PURPLE.G - Colors.BASELINE.G) * percentageW
+            bX := Colors.BASELINE.B + (Colors.DEEP_PURPLE.B - Colors.BASELINE.B) * percentageW
+        }
+    }
+
+    if (currentH >= initialH) {
+        ; Safety check for Y-axis division by zero
+        if (maxHeight <= initialH) {
+            ; We're at max height, use full teal color for Y
+            rY := Colors.TEAL.R
+            gY := Colors.TEAL.G
+            bY := Colors.TEAL.B
+            percentageH := 1
+        } else {
+            percentageH := (currentH - initialH) / (maxHeight - initialH)
+            percentageH := Max(0, Min(1, percentageH))
+            ; Y-axis expansion color tends toward teal
+            rY := Colors.BASELINE.R + (Colors.TEAL.R - Colors.BASELINE.R) * percentageH
+            gY := Colors.BASELINE.G + (Colors.TEAL.G - Colors.BASELINE.G) * percentageH
+            bY := Colors.BASELINE.B + (Colors.TEAL.B - Colors.BASELINE.B) * percentageH
+        }
+    } else {
+        ; Safety check for minimum height
+        if (initialH <= Colors.MIN_HEIGHT) {
+            rY := Colors.DEEP_PURPLE.R
+            gY := Colors.DEEP_PURPLE.G
+            bY := Colors.DEEP_PURPLE.B
+            percentageH := 1
+        } else {
+            percentageH := (initialH - currentH) / (initialH - Colors.MIN_HEIGHT)
+            percentageH := Min(1, percentageH)
+            ; Y-axis shrinking color tends toward deep purple
+            rY := Colors.BASELINE.R + (Colors.DEEP_PURPLE.R - Colors.BASELINE.R) * percentageH
+            gY := Colors.BASELINE.G + (Colors.DEEP_PURPLE.G - Colors.BASELINE.G) * percentageH
+            bY := Colors.BASELINE.B + (Colors.DEEP_PURPLE.B - Colors.BASELINE.B) * percentageH
+        }
+    }
+
+    ; Blend the colors from both axes
+    ; Using a weighted average that gives more weight to larger changes
+    weightX := Abs(currentW - initialW) / Max(1, initialW) ; Prevent division by zero
+    weightY := Abs(currentH - initialH) / Max(1, initialH) ; Prevent division by zero
+    totalWeight := weightX + weightY
+    
+    if (totalWeight = 0) {
+        ; If no change, return baseline color
+        r := Colors.BASELINE.R
+        g := Colors.BASELINE.G
+        b := Colors.BASELINE.B
+    } else {
+        ; Normalize weights
+        weightX := weightX / totalWeight
+        weightY := weightY / totalWeight
+        
+        ; Weighted blend of both axis colors
+        r := (rX * weightX + rY * weightY)
+        g := (gX * weightX + gY * weightY)
+        b := (bX * weightX + bY * weightY)
+    }
+
+    ; Clamp values between 0-255
+    r := Round(Max(0, Min(255, r)))
+    g := Round(Max(0, Min(255, g)))
+    b := Round(Max(0, Min(255, b)))
+
+    ; Return RGB color in hex format
+    return Format("{:02X}{:02X}{:02X}", r, g, b)
+}

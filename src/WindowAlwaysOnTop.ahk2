@@ -12,6 +12,30 @@ global windowsAlwaysOnTop := Map() ; Track which windows are set as always-on-to
 ; Hotkey: Left Control + Middle Mouse Button
 <^MButton::AlwaysOnTop()
 
+/** AlwaysOnTop
+ * Toggles the always-on-top state for the window currently under the mouse cursor.
+ * Provides visual feedback and handles Z-order management for window activation.
+ * 
+ * @global {Boolean} windowAlwaysOnTopEnabled Controls whether the always-on-top functionality is active
+ * @global {Object} windowsAlwaysOnTop Tracks windows currently set to always-on-top
+ * 
+ * @returns {void}
+ * 
+ * @behavior
+ * - Checks if always-on-top functionality is enabled
+ * - Validates the window under the mouse cursor
+ * - Toggles always-on-top state with visual notification
+ * - Manages window Z-order when changing always-on-top state
+ * 
+ * @example
+ * ; User can trigger this function to make the window under the mouse always visible
+ * AlwaysOnTop()  ; Toggles always-on-top for window under mouse
+ * 
+ * @notes
+ * - Requires valid window handle under mouse cursor
+ * - Provides debug messages for invalid windows
+ * - Shows toggle notification for user feedback
+ */
 AlwaysOnTop() {
     global windowAlwaysOnTopEnabled
 

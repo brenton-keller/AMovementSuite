@@ -13,13 +13,17 @@ global snapDistance := 10
 global safetyTimer := 0
 
 ; Include the scaling scripts
-#Include src/WindowScaleColors.ahk2
+#Include src/lib/ColorUtils.ahk2
+#Include src/lib/MoveUtils.ahk2
 #Include src/WindowScaleWidth.ahk2
 #Include src/WindowScaleHeight.ahk2
 ;#Include src/WindowScaleProportional.ahk2
 #Include src/WindowScaleXY.ahk2
 #Include src/WindowMove.ahk2
+#Include src/WindowDimmer.ahk2
 #Include src/WindowAlwaysOnTop.ahk2
+#Include src/WindowRollUp.ahk2
+#Include src/DisableWindowModifications.ahk2
 ;#Include src/WindowZOrder.ahk2
 
 ; Create the tray menu
@@ -49,6 +53,20 @@ InitSafetyTimer() {
 }
 
 InitSafetyTimer()
+
+; ; Helper function to get monitor index from a point
+; MonitorFromPoint(x, y) {
+;     monitorCount := MonitorGetCount()
+    
+;     Loop monitorCount {
+;         MonitorGet(A_Index, &left, &top, &right, &bottom)
+;         if (x >= left && x <= right && y >= top && y <= bottom) {
+;             return A_Index
+;         }
+;     }
+    
+;     return 1  ; Default to primary monitor
+; }
 
 CheckForKeyRelease() {
     global scalingModeActive
