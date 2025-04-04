@@ -12,6 +12,12 @@ global windowsAlwaysOnTop := Map() ; Track which windows are set as always-on-to
 ; Hotkey: Left Control + Middle Mouse Button
 <^MButton::AlwaysOnTop()
 
+; Hotkey: Left Control + Left Shift + Middle Mouse Button - Send to Back
+<^+MButton::SendWindowToBack()
+
+; Hotkey: Left Control + Left Alt + Middle Mouse Button - Minimize
+<^<!MButton::MinimizeWindow()
+
 /** AlwaysOnTop
  * Toggles the always-on-top state for the window currently under the mouse cursor.
  * Provides visual feedback and handles Z-order management for window activation.
@@ -89,6 +95,69 @@ AlwaysOnTop() {
     }
 }
 
+/** SendWindowToBack
+ * Sends the window under the mouse cursor to the back of the Z-order stack.
+ * Provides visual feedback when the window is sent to back.
+ */
+SendWindowToBack() {
+    MouseGetPos , , &mwin
+    
+    ; Check if we have a valid window
+    if (!mwin) {
+        ShowDebugMessage("No window detected under cursor")
+        return
+    }
+    
+    ; Check if it's a valid window for manipulation
+    if (!IsValidWindowForManipulation(mwin)) {
+        ShowDebugMessage("This window cannot be sent to back")
+        return
+    }
+    
+    winTitle := WinGetTitle("ahk_id " mwin)
+    
+    ; Check if this is the active window
+    isActiveWindow := (mwin = WinGetID("A"))
+    
+    ; Send window to back using Windows API
+    ; HWND_BOTTOM = 1
+    DllCall("SetWindowPos", "Ptr", mwin, "Ptr", 1, "Int", 0, "Int", 0, "Int", 0, "Int", 0, "UInt", 0x213)
+    
+    ; If we sent the active window to back, activate the next window
+    if (isActiveWindow) {
+        SendInput "!{Esc}"  ; Use Alt+Esc to activate the next window in Z-order
+    }
+    
+    ShowToggleNotification("Window sent to back", winTitle)
+}
+
+/** MinimizeWindow
+ * Minimizes the window under the mouse cursor.
+ * Provides visual feedback when the window is minimized.
+ */
+MinimizeWindow() {
+    MouseGetPos , , &mwin
+    
+    ; Check if we have a valid window
+    if (!mwin) {
+        ShowDebugMessage("No window detected under cursor")
+        return
+    }
+    
+    ; Check if it's a valid window for manipulation
+    if (!IsValidWindowForManipulation(mwin)) {
+        ShowDebugMessage("This window cannot be minimized")
+        return
+    }
+    
+    winTitle := WinGetTitle("ahk_id " mwin)
+    
+    ; Minimize the window
+    WinMinimize "ahk_id " mwin
+    
+    ShowToggleNotification("Window minimized", winTitle)
+}
+
 ; Show a brief notification about the toggle action
 ShowToggleNotification(message, winTitle := "") {
     winInfo := winTitle ? " (" winTitle ")" : ""
@@ -130,5 +199,32 @@ IsValidWindowForTopMost(hwnd) {
     if (WinGetMinMax("ahk_id " hwnd) == -1)
         return false
         
+    return true
+}
+
+; Check if it's a valid window for general manipulation (send to back, minimize)
+IsValidWindowForManipulation(hwnd) {
+    if (!hwnd)
+        return false
+        
+    ; Don't allow manipulating certain system windows
+    windowClass := WinGetClass("ahk_id " hwnd)
+    
+    ; List of classes that shouldn't be manipulated
+    excludedClasses := ["Progman", "WorkerW", "Shell_TrayWnd", "Windows.UI.Core.CoreWindow", 
+                       "SysListView32", "NotifyIconOverflowWindow"]
+    
+    for class in excludedClasses {
+        if (windowClass == class)
+            return false
+    }
+    
+    ; Check if the window is a system dialog
+    if (WinGetStyle("ahk_id " hwnd) & 0x08000000) { ; WS_POPUP
+        title := WinGetTitle("ahk_id " hwnd)
+        if (title ~= "i)^(Error|Warning|Info|Confirm|Prompt)")
+            return false
+    }
+    
     return true
 }

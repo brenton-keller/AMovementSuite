@@ -60,10 +60,9 @@ global positioningGui := ""
 
     While (GetKeyState("RButton", "P") && GetKeyState("LAlt", "P"))
     {
-        ; Check S key state - snapping only enabled when S is held
+        ; Check Snapping key state - snapping only enabled when key is toggled
         currentSKeyState := GetKeyState("1", "P")
         
-
         ; Toggle snapping when S is pressed (transition from up to down)
         if (currentSKeyState && !lastSKeyState) {
             enableWindowSnapping := !enableWindowSnapping

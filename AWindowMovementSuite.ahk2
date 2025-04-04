@@ -15,16 +15,14 @@ global safetyTimer := 0
 ; Include the scaling scripts
 #Include src/lib/ColorUtils.ahk2
 #Include src/lib/MoveUtils.ahk2
+#Include src/WindowMove.ahk2
 #Include src/WindowScaleWidth.ahk2
 #Include src/WindowScaleHeight.ahk2
-;#Include src/WindowScaleProportional.ahk2
 #Include src/WindowScaleXY.ahk2
-#Include src/WindowMove.ahk2
-#Include src/WindowDimmer.ahk2
 #Include src/WindowAlwaysOnTop.ahk2
 #Include src/WindowRollUp.ahk2
+#Include src/WindowDimmer.ahk2
 #Include src/DisableWindowModifications.ahk2
-;#Include src/WindowZOrder.ahk2
 
 ; Create the tray menu
 A_TrayMenu.Delete  ; Clear default menu
