@@ -1,12 +1,5 @@
-#Requires AutoHotkey v2.0
-#SingleInstance Force
-
-SetWinDelay -1
-SetControlDelay -1
-CoordMode "Mouse", "Screen"
-
-^RButton::  ; Left Ctrl + Right Mouse Button
-{
+; Left Ctrl + Right Mouse Button
+^RButton::{
     global scalingModeActive, widthScalingEnabled
 
     if (scalingModeActive)

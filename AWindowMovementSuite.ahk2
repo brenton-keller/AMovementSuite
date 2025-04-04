@@ -1,5 +1,13 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
+#WinActivateForce
+
+; Setup
+ListLines 0
+KeyHistory 0
+SetWinDelay -1
+SetControlDelay -1
+CoordMode "Mouse", "Screen"
 
 ; Global settings for window management
 global scalingModeActive := false
@@ -52,20 +60,6 @@ InitSafetyTimer() {
 
 InitSafetyTimer()
 
-; ; Helper function to get monitor index from a point
-; MonitorFromPoint(x, y) {
-;     monitorCount := MonitorGetCount()
-    
-;     Loop monitorCount {
-;         MonitorGet(A_Index, &left, &top, &right, &bottom)
-;         if (x >= left && x <= right && y >= top && y <= bottom) {
-;             return A_Index
-;         }
-;     }
-    
-;     return 1  ; Default to primary monitor
-; }
-
 CheckForKeyRelease() {
     global scalingModeActive
 
@@ -83,8 +77,7 @@ CheckForKeyRelease() {
     }
 }
 
-ToggleWidthScaling(*)
-{
+ToggleWidthScaling(*) {
     global widthScalingEnabled
     widthScalingEnabled := !widthScalingEnabled
     if widthScalingEnabled
@@ -93,8 +86,7 @@ ToggleWidthScaling(*)
         A_TrayMenu.Uncheck "Width Scaling (LCtrl+RButton)"
 }
 
-ToggleHeightScaling(*)
-{
+ToggleHeightScaling(*) {
     global heightScalingEnabled
     heightScalingEnabled := !heightScalingEnabled
     if heightScalingEnabled
@@ -103,8 +95,7 @@ ToggleHeightScaling(*)
         A_TrayMenu.Uncheck "Height Scaling (LShift+RButton)"
 }
 
-ToggleXYScaling(*)
-{
+ToggleXYScaling(*) {
     global xyScalingEnabled
     xyScalingEnabled := !xyScalingEnabled
     if xyScalingEnabled
@@ -113,8 +104,7 @@ ToggleXYScaling(*)
         A_TrayMenu.Uncheck "XY Scaling (LCtrl+LShift+RButton)"
 }
 
-ToggleWindowAlwaysOnTop(*)
-{
+ToggleWindowAlwaysOnTop(*) {
     global windowAlwaysOnTopEnabled
     windowAlwaysOnTopEnabled := !windowAlwaysOnTopEnabled
     if windowAlwaysOnTopEnabled
@@ -123,8 +113,7 @@ ToggleWindowAlwaysOnTop(*)
         A_TrayMenu.Uncheck "Window Always On Top (LCtrl+MButton)"
 }
 
-ToggleWindowMove(*)
-{
+ToggleWindowMove(*) {
     global windowMoveEnabled
     windowMoveEnabled := !windowMoveEnabled
     if windowMoveEnabled
@@ -133,8 +122,7 @@ ToggleWindowMove(*)
         A_TrayMenu.Uncheck "Window Move (LAlt+RButton)"
 }
 
-ShowWindowMoveSettings(*)
-{
+ShowWindowMoveSettings(*) {
     global enableWindowSnapping, snapDistance
     
     ; Create the settings window
@@ -177,7 +165,6 @@ ShowWindowMoveSettings(*)
     }
 }
 
-; Using the same helper function from previous versions for consistency
 GetWindowMonitor(winX, winY, winWidth, winHeight) {
     winCenterX := winX + (winWidth / 2)
     winCenterY := winY + (winHeight / 2)

@@ -164,8 +164,7 @@ GetWindowEdges(excludeHwnd) {
     return edges
 }
 
-/**
- * ProcessWindowSnapping
+/** ProcessWindowSnapping
  * Calculates window snapping based on proximity to other window edges,
  * but only when windows have overlapping regions.
  * 
@@ -265,6 +264,84 @@ ProcessWindowSnapping(x, y, width, height, edges) {
             break
     }
     
+    return result
+}
+
+ProcessWindowSnappingForResize(newX, y, newW, height, edges, snapDistance, isNearLeftEdge, isNearRightEdge) {
+    result := {snapped: false, x: newX, width: newW}
+
+    ; If neither edge is being actively resized, just return
+    if (!isNearLeftEdge && !isNearRightEdge)
+        return result
+
+    currentLeft := newX
+    currentRight := newX + newW
+
+    ; Group edges by parent window
+    windowEdges := Map()
+    for edge in edges {
+        if !windowEdges.Has(edge.hwnd)
+            windowEdges[edge.hwnd] := {title: edge.title, edges: []}
+        
+        windowEdges[edge.hwnd].edges.Push(edge)
+    }
+
+    for hwnd, window in windowEdges {
+        ; Determine the bounding box of this other window from its edges
+        targetWindow := {left: 0, right: 0, top: 0, bottom: 0}
+        for edge in window.edges {
+            if (edge.type == "left")
+                targetWindow.left := edge.position
+            else if (edge.type == "right")
+                targetWindow.right := edge.position
+            else if (edge.type == "top")
+                targetWindow.top := edge.position
+            else if (edge.type == "bottom")
+                targetWindow.bottom := edge.position
+        }
+        
+        ; Find overlap in vertical dimension so we only snap if the windows
+        ; have some overlapping region vertically
+        thisTop    := y
+        thisBottom := y + height
+        thatTop    := targetWindow.top
+        thatBottom := targetWindow.bottom
+        
+        verticalOverlap := !(thisBottom < thatTop || thisTop > thatBottom)
+        if (!verticalOverlap)
+            continue
+        
+        ; Now check horizontal edges for snapping
+        for edge in window.edges {
+            if (edge.type == "left" || edge.type == "right") {
+                ; The other window's edge position
+                targetPos := edge.position
+                
+                ; Snap left edge if we are resizing from the left
+                if (isNearLeftEdge) {
+                    ; If our new left edge is within snapDistance of targetPos
+                    if (Abs(currentLeft - targetPos) < snapDistance) {
+                        result.x := targetPos
+                        result.width := currentRight - targetPos  ; keep right the same
+                        result.snapped := true
+                        return result
+                    }
+                }
+                
+                ; Snap right edge if we are resizing from the right
+                if (isNearRightEdge) {
+                    ; If our new right edge is within snapDistance of targetPos
+                    if (Abs(currentRight - targetPos) < snapDistance) {
+                        ; new width = targetPos - left
+                        result.width := targetPos - currentLeft
+                        result.snapped := true
+                        return result
+                    }
+                }
+            }
+        }
+    }
+
     return result
 }
 
@@ -390,7 +467,9 @@ FindSnappedWindows(mainWinHwnd, mainX, mainY, mainWidth, mainHeight, allWindowEd
         
         ; Check horizontal alignment
         if (Abs(mainRight - otherLeft) <= snapTolerance || 
-            Abs(mainLeft - otherRight) <= snapTolerance) {
+            Abs(mainLeft - otherRight) <= snapTolerance || 
+            Abs(mainLeft - otherLeft) <= snapTolerance || 
+            Abs(mainRight - otherRight) <= snapTolerance) {
             ; Check if there's vertical overlap
             if ((mainTop <= otherBottom && mainBottom >= otherTop) ||
                 Abs(mainBottom - otherTop) <= snapTolerance || 
@@ -401,7 +480,9 @@ FindSnappedWindows(mainWinHwnd, mainX, mainY, mainWidth, mainHeight, allWindowEd
         
         ; Check vertical alignment
         if (Abs(mainBottom - otherTop) <= snapTolerance ||
-            Abs(mainTop - otherBottom) <= snapTolerance) {
+            Abs(mainTop - otherBottom) <= snapTolerance ||
+            Abs(mainTop - otherTop) <= snapTolerance ||
+            Abs(mainBottom - otherBottom) <= snapTolerance) {
             ; Check if there's horizontal overlap
             if ((mainLeft <= otherRight && mainRight >= otherLeft) ||
                 Abs(mainRight - otherLeft) <= snapTolerance || 

@@ -13,8 +13,8 @@ ShowSnapIndicator(message) {
 
 global positioningGui := ""
 
-<!RButton::  ; LEFT Alt + Right Mouse Button (window moving)
-{
+; LEFT Alt + Right Mouse Button (window moving)
+<!RButton::{
     global enableWindowSnapping, positioningGui
 
     ; Check if functionality is enabled
@@ -266,9 +266,8 @@ ButtonClick(ctrl, *) {
     SetTimer () => ToolTip("", , , 2), -1000
 }
 
-; Left Shift + Left Alt + Right Mouse Button to move snapped windows together
-<+<!RButton::  ; LEFT Shift + LEFT Alt + Right Mouse Button (multi-window moving)
-{
+; LEFT Shift + LEFT Alt + Right Mouse Button (multi-window moving)
+<+<!RButton::{
     global enableWindowSnapping, positioningGui
 
     MouseGetPos &startX, &startY, &mwin

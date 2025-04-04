@@ -1,12 +1,5 @@
-#Requires AutoHotkey v2.0
-#SingleInstance Force
-
-SetWinDelay -1
-SetControlDelay -1
-CoordMode "Mouse", "Screen"
-
-+RButton::  ; Left Shift + Right Mouse Button
-{
+; Left Shift + Right Mouse Button
++RButton::{
     global scalingModeActive, heightScalingEnabled
 
     ; If a scaling operation is already active, exit

@@ -1,6 +1,3 @@
-#Requires AutoHotkey v2.0
-#SingleInstance Force
-
 ; Global storage for tracking rolled-up windows
 global rolledUpWindows := Map()
 global titleBarHeights := Map(
@@ -179,16 +176,16 @@ ForceWindowResize(hwnd, x, y, w, targetHeight) {
     }
 }
 
-; ShowDebugMessage(text) {
-;     ToolTip(text, 150, 150)
-;     SetTimer () => ToolTip(), -3000
-; }
+; ; ShowDebugMessage(text) {
+; ;     ToolTip(text, 150, 150)
+; ;     SetTimer () => ToolTip(), -3000
+; ; }
 
-; Toggle debug mode
-^!d::  ; Ctrl+Alt+D
-{
-    global debugMode
-    debugMode := !debugMode
-    ToolTip("Debug mode " (debugMode ? "enabled" : "disabled"))
-    SetTimer () => ToolTip(), -2000
-}
+; ; Toggle debug mode
+; ^!d::  ; Ctrl+Alt+D
+; {
+;     global debugMode
+;     debugMode := !debugMode
+;     ToolTip("Debug mode " (debugMode ? "enabled" : "disabled"))
+;     SetTimer () => ToolTip(), -2000
+; }

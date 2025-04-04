@@ -1,12 +1,5 @@
-#SingleInstance Force
-
-SetWinDelay -1
-SetControlDelay -1
-CoordMode "Mouse", "Screen"
-
 ; Left Ctrl + Left Alt + Right Mouse Button to adjust transparency
-^!RButton::
-{
+^!RButton::{
     MouseGetPos(&startX, &startY, &mwin)
     currentTrans := WinGetTransparent("ahk_id " mwin)
     if (!currentTrans)  ; If no transparency is set, assume window is fully opaque
@@ -51,8 +44,7 @@ CoordMode "Mouse", "Screen"
 }
 
 ; Left Ctrl + Left Alt + Left Mouse Button to reset transparency
-^!LButton::
-{
+^!LButton::{
     ; MouseGetPos(, , &mwin)
     ; WinSetTransparent("Off", "ahk_id " mwin)
     ResetAllTransparentWindows()

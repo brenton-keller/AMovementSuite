@@ -1,11 +1,6 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
-; Setup
-SetWinDelay -1
-SetControlDelay -1
-CoordMode "Mouse", "Screen"
-
 ; Initialize global variables
 global windowsAlwaysOnTop := Map() ; Track which windows are set as always-on-top
 
