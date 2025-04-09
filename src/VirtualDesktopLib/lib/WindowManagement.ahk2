@@ -1,0 +1,263 @@
+; Window management methods
+static MoveWindowToDesktopNum(wintitle, desktopNum) {
+  found := this._tryGetValidWindow(wintitle)
+  if (!found) {
+    return -1
+  }
+  theHwnd := found[1]
+  thePView := found[2]
+  needActivateWindowUnder := false
+  if (activeHwnd := WinExist("A")) {
+    if (activeHwnd == theHwnd) {
+      currentDesktopNum := this.getCurrentDesktopNum()
+      if (!(currentDesktopNum == desktopNum)) {
+        needActivateWindowUnder := true
+      }
+    }
+  }
+  IVirtualDesktop := this._GetDesktops_Obj().GetAt(desktopNum)
+  this._dll_MoveViewToDesktop(thePView, IVirtualDesktop)
+  if (needActivateWindowUnder) {
+    firstWindowId := this._getFirstWindowInVD(currentDesktopNum, theHwnd)
+    if (firstWindowId) {
+      this.SetForegroundWindow(firstWindowId)
+    } else {
+      this._activateDesktopBackground()
+    }
+  }
+}
+static MoveWindowToRelativeDesktopNum(wintitle, relative_count) {
+  desktopNum_ofWindow := this.getDesktopNumOfWindow(wintitle)
+  absolute_desktopNum := this.getRelativeDesktopNum(desktopNum_ofWindow, relative_count)
+  this.MoveWindowToDesktopNum(wintitle, absolute_desktopNum)
+  return absolute_desktopNum
+}
+static MoveWindowToCurrentDesktop(wintitle, activateYourWindow := true) {
+  found := this._tryGetValidWindow(wintitle)
+  if (!found) {
+    return -1
+  }
+  theHwnd := found[1]
+  thePView := found[2]
+  currentDesktopNum := this.getCurrentDesktopNum()
+  IVirtualDesktop := this._GetDesktops_Obj().GetAt(currentDesktopNum)
+  this._dll_MoveViewToDesktop(thePView, IVirtualDesktop)
+  if (activateYourWindow) {
+    WinActivate "ahk_id " theHwnd
+  }
+}
+static getDesktopNumOfWindow(wintitle) {
+  found := this._tryGetValidWindow(wintitle)
+  if (!found) {
+    return -1
+  }
+  thePView := found[2]
+  desktopNum_ofWindow := this._desktopNum_from_pView(thePView)
+  return desktopNum_ofWindow
+}
+static goToDesktopOfWindow(wintitle, activateYourWindow := true) {
+  found := this._tryGetValidWindow(wintitle)
+  if (!found) {
+    return -1
+  }
+  theHwnd := found[1]
+  thePView := found[2]
+  desktopNum_ofWindow := this._desktopNum_from_pView(thePView)
+  this.goToDesktopNum(desktopNum_ofWindow)
+  if (activateYourWindow) {
+    WinActivate "ahk_id " theHwnd
+  }
+}
+static IsWindowPinned(wintitle) {
+  found := this._tryGetValidWindow(wintitle)
+  if (!found) {
+    return -1
+  }
+  thePView := found[2]
+  viewIsPinned := this._dll_IsViewPinned(thePView)
+  return viewIsPinned
+}
+static TogglePinWindow(wintitle) {
+  found := this._tryGetValidWindow(wintitle)
+  if (!found) {
+    return -1
+  }
+  thePView := found[2]
+  viewIsPinned := this._dll_IsViewPinned(thePView)
+  if (viewIsPinned) {
+    this._dll_UnPinView(thePView)
+  } else {
+    this._dll_PinView(thePView)
+  }
+}
+static PinWindow(wintitle) {
+  found := this._tryGetValidWindow(wintitle)
+  if (!found) {
+    return -1
+  }
+  thePView := found[2]
+  this._dll_PinView(thePView)
+}
+static UnPinWindow(wintitle) {
+  found := this._tryGetValidWindow(wintitle)
+  if (!found) {
+    return -1
+  }
+  thePView := found[2]
+  this._dll_UnPinView(thePView)
+}
+
+; Window focus and activation methods
+static SetForegroundWindow(hWnd) {
+  if (DllCall("AllowSetForegroundWindow", "Uint", DllCall("GetCurrentProcessId"))) {
+    DllCall("SetForegroundWindow", "Ptr", hwnd)
+  } else {
+    LCtrlDown := GetKeyState("LCtrl")
+    RCtrlDown := GetKeyState("RCtrl")
+    LShiftDown := GetKeyState("LShift")
+    RShiftDown := GetKeyState("RShift")
+    LWinDown := GetKeyState("LWin")
+    RWinDown := GetKeyState("RWin")
+    LAltDown := GetKeyState("LAlt")
+    RAltDown := GetKeyState("RAlt")
+    if ((LCtrlDown || RCtrlDown) && (LWinDown || RWinDown)) {
+      toRelease := ""
+      if (LShiftDown) {
+        toRelease .= "{LShift Up}"
+      }
+      if (RShiftDown) {
+        toRelease .= "{RShift Up}"
+      }
+      if (toRelease) {
+        Send "{Blind}" toRelease
+      }
+    }
+    Send "{LAlt Down}{LAlt Down}"
+    DllCall("SetForegroundWindow", "Ptr", hwnd)
+    toAppend := ""
+    if (!LAltDown) {
+      toAppend .= "{LAlt Up}"
+    }
+    if (RAltDown) {
+      toAppend .= "{RAlt Down}"
+    }
+    if (LCtrlDown) {
+      toAppend .= "{LCtrl Down}"
+    }
+    if (RCtrlDown) {
+      toAppend .= "{RCtrl Down}"
+    }
+    if (LShiftDown) {
+      toAppend .= "{LShift Down}"
+    }
+    if (RShiftDown) {
+      toAppend .= "{RShift Down}"
+    }
+    if (LWinDown) {
+      toAppend .= "{LWin Down}"
+    }
+    if (RWinDown) {
+      toAppend .= "{RWin Down}"
+    }
+    if (toAppend) {
+      Send "{Blind}" toAppend
+    }
+  }
+}
+static _activateDesktopBackground() {
+  DllCall("SetForegroundWindow", "Ptr", WinExist("ahk_class Progman ahk_exe explorer.exe"))
+}
+static _getFirstWindowInVD(desktopNum, excludeHwnd := 0) {
+  bak_DetectHiddenWindows := A_DetectHiddenWindows
+  DetectHiddenWindows true
+  returnValue := 0
+  outHwndList := WinGetList()
+  GUID_Desktop := Buffer(16)
+  IVirtualDesktop := this._GetDesktops_Obj().GetAt(desktopNum)
+  ptr_GetId := this._vtable(IVirtualDesktop, this.idx_GetId)
+  DllCall(ptr_GetId, "Ptr", IVirtualDesktop, "Ptr", GUID_Desktop)
+  n1 := NumGet(GUID_Desktop, 0x0, "Int64")
+  n2 := NumGet(GUID_Desktop, 0x8, "Int64")
+  loop outHwndList.Length {
+    theHwnd := outHwndList[A_Index] + 0
+    if (theHwnd == excludeHwnd) {
+      continue
+    }
+    arr_success_pView_hWnd := this._isValidWindow(theHwnd)
+    if (arr_success_pView_hWnd[1] == 0) {
+      thePView := arr_success_pView_hWnd[2]
+      OutputVar_MinMax := WinGetMinMax("ahk_id " theHwnd)
+      if (!(OutputVar_MinMax == -1)) {
+        ptr_GetVirtualDesktopId := this._vtable(thePView, 25)
+        DllCall(ptr_GetVirtualDesktopId, "Ptr", thePView, "Ptr", GUID_Desktop)
+        if (n1 == NumGet(GUID_Desktop, 0x0, "Int64") && n2 == NumGet(GUID_Desktop, 0x8, "Int64")) {
+          returnValue := theHwnd
+          break
+        }
+      }
+    }
+  }
+  DetectHiddenWindows bak_DetectHiddenWindows
+  return returnValue
+}
+static _tryGetValidWindow(wintitle) {
+  bak_DetectHiddenWindows := A_DetectHiddenWindows
+  bak_TitleMatchMode := A_TitleMatchMode
+  DetectHiddenWindows true
+  SetTitleMatchMode "2"
+  outHwndList := WinGetList(wintitle)
+  returnValue := false
+  loop outHwndList.Length {
+    theHwnd := outHwndList[A_Index] + 0
+    arr_success_pView_hWnd := this._isValidWindow(theHwnd)
+    pView := arr_success_pView_hWnd[2]
+    if (pView) {
+      returnValue := [arr_success_pView_hWnd[3], pView]
+      break
+    }
+  }
+  SetTitleMatchMode bak_TitleMatchMode
+  DetectHiddenWindows bak_DetectHiddenWindows
+  return returnValue
+}
+static _isValidWindow(hWnd, checkUpper := true) {
+  returnValue := [1, 0, 0]
+  breakToReturnFalse:
+  loop 1 {
+    dwStyle := DllCall("GetWindowLongPtrW", "Ptr", hWnd, "Int", -16, "Ptr")
+    if (!(dwStyle & 0x10000000)) {
+      break breakToReturnFalse
+    }
+    dwExStyle := DllCall("GetWindowLongPtrW", "Ptr", hWnd, "Int", -20, "Ptr")
+    if (!(dwExStyle & 0x00040000)) {
+      if (dwExStyle & 0x00000080 || dwExStyle & 0x08000000) {
+        break breakToReturnFalse
+      }
+      if (checkUpper) {
+        toCheck := []
+        upHwnd := hWnd
+        while (upHwnd := DllCall("GetWindow", "Ptr", upHwnd, "Uint", 4)) {
+          if (upHwnd == 65552) {
+            break breakToReturnFalse
+          }
+          toCheck.Push(upHwnd)
+        }
+        i := toCheck.Length + 1
+        while (i-- > 1) {
+          arr_success_pView_hWnd := this._isValidWindow(toCheck[i], false)
+          if (arr_success_pView_hWnd[1] == 0) {
+            arr_success_pView_hWnd[1] := 2
+            returnValue := arr_success_pView_hWnd
+            break breakToReturnFalse
+          }
+        }
+      }
+    }
+    pView := this._dll_GetViewForHwnd(hWnd)
+    if (!pView) {
+      break breakToReturnFalse
+    }
+    returnValue := [0, pView, hWnd]
+  }
+  return returnValue
+}

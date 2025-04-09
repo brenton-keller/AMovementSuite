@@ -1,0 +1,26 @@
+#SingleInstance Force
+ListLines 0
+KeyHistory 0
+#WinActivateForce
+#UseHook true
+
+SetWinDelay -1
+SetControlDelay -1
+
+SetNumLockState("Off")
+
+; DllCall("RegisterShellHookWindow", "Ptr", A_ScriptHwnd)
+; MsgNum := DllCall("RegisterWindowMessage", "Str", "SHELLHOOK")
+
+#Include hk_basic.ahk2
+#Include hk_tab.ahk2
+#Include hk_code.ahk2
+#Include hk_wheel.ahk2
+#Include hk_programs.ahk2
+
+; Hyper - Up
+NumpadUp::1
+; Hyper - Down
+NumpadIns::2
+
+; NumpadDel

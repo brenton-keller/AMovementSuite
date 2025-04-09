@@ -1,0 +1,124 @@
+; NumpadMult::3
+
+; Global variables for each buffer
+global Buffer_color := ""
+global defaultBuffer := ""
+global shiftBuffer := ""
+global ctrlBuffer := ""
+global altBuffer := ""
+
+; Copy hotkeys
+ NumpadSub::
+^NumpadSub::Send("^c")
++NumpadSub::ExtractColorUnderCursor()
+!NumpadSub::SaveToBuffer("alt")
+; #NumpadSub::SaveToBuffer("win")
+
+; Paste hotkeys
+ NumpadAdd::
+^NumpadAdd::Send("^v")
++NumpadAdd::PasteColor()
+!NumpadAdd::PasteBuffer("alt")
+; #NumpadAdd::PasteBuffer("win")
+
+; Copy to buffer while preserving system clipboard
+SaveToBuffer(bufferType) {
+    ; Save current clipboard
+    originalClip := ClipboardAll()
+    
+    ; Clear and perform copy
+    A_Clipboard := ""
+    Send "^c"
+    
+    ; Store copied content in appropriate buffer
+    if ClipWait(0.5) {
+        clipContent := A_Clipboard
+        
+        if (bufferType = "default")
+            global defaultBuffer := clipContent
+        else if (bufferType = "shift")
+            global shiftBuffer := clipContent
+        else if (bufferType = "ctrl")
+            global ctrlBuffer := clipContent
+        else if (bufferType = "alt")
+            global altBuffer := clipContent
+        else if (bufferType = "win")
+            global winBuffer := clipContent
+            
+        ; ToolTip("Copied to " bufferType " buffer: " SubStr(clipContent, 1, 20) (StrLen(clipContent) > 20 ? "..." : ""), A_ScreenWidth/2, A_ScreenHeight/2)
+        ; SetTimer () => ToolTip(), -1200
+    }
+    
+    ; Restore original clipboard
+    A_Clipboard := originalClip
+}
+
+; Paste from buffer while preserving system clipboard
+PasteBuffer(bufferType) {
+    ; Determine which buffer to use
+    bufferContent := ""
+    if (bufferType = "default")
+        bufferContent := defaultBuffer
+    else if (bufferType = "shift")
+        bufferContent := shiftBuffer
+    else if (bufferType = "ctrl")
+        bufferContent := ctrlBuffer
+    else if (bufferType = "alt")
+        bufferContent := altBuffer
+    else if (bufferType = "win")
+        bufferContent := winBuffer
+    
+    if (bufferContent = "") {
+        ; ToolTip(bufferType " buffer is empty!", A_ScreenWidth/2, A_ScreenHeight/2)
+        ; SetTimer () => ToolTip(), -1200
+        return
+    }
+    
+    ; Save current clipboard
+    originalClip := ClipboardAll()
+    
+    ; Use buffer content for pasting
+    A_Clipboard := bufferContent
+    ClipWait(0.5)
+    
+    ; ; Show tooltip with preview of what's being pasted
+    ; ToolTip("Pasting from " bufferType " buffer: " SubStr(bufferContent, 1, 20) (StrLen(bufferContent) > 20 ? "..." : ""), A_ScreenWidth/2, A_ScreenHeight/2)
+    Send "^v"
+    Sleep 100
+    
+    ; Restore original clipboard
+    A_Clipboard := originalClip
+    
+    SetTimer () => ToolTip(), -1200
+}
+
+ExtractColorUnderCursor() {
+    global Buffer_color
+    ; Get the mouse position
+    MouseGetPos &mouseX, &mouseY
+    
+    ; Extract the color at the cursor position
+    color := PixelGetColor(mouseX, mouseY, "Alt")
+    
+    ; Format the color (removing the leading "0x")
+    color := SubStr(color, 3)
+    
+    ; Store in Buffer_color
+    Buffer_color := color
+    
+    ; Show tooltip to confirm extraction
+    ToolTip("Color #" . color . " extracted!", mouseX, mouseY)
+    SetTimer () => ToolTip(), -1000
+}
+
+PasteColor() {
+    global Buffer_color
+    ; Send the color with # prefix (for hex format)
+    if (Buffer_color = "") {
+        ToolTip("No color in Buffer_color!")
+        SetTimer () => ToolTip(), -1000
+        return
+    }
+    
+    SendInput(Buffer_color)
+}

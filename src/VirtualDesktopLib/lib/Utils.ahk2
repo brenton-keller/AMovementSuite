@@ -1,0 +1,90 @@
+; Utility methods
+static _getLocalizedWord_Desktop() {
+  if (this.savedLocalizedWord_Desktop) {
+    return this.savedLocalizedWord_Desktop
+  }
+  hModule := DllCall("GetModuleHandle", "Str", "shell32.dll", "Ptr")
+  length := DllCall("LoadString", "Uint", hModule, "Uint", 21769, "Ptr*", &lpBuffer := 0, "Int", 0)
+  this.savedLocalizedWord_Desktop := StrGet(lpBuffer, length, "UTF-16")
+  return this.savedLocalizedWord_Desktop
+}
+static getNameFromDesktopNum(desktopNum) {
+  desktopName := ""
+  if (desktopNum > 0 && this.idx_GetName > -1) {
+    IVirtualDesktop := this._GetDesktops_Obj().GetAt(desktopNum)
+    if (IVirtualDesktop) {
+      ptr_GetName := this._vtable(IVirtualDesktop, this.idx_GetName)
+      DllCall(ptr_GetName, "Ptr", IVirtualDesktop, "Ptr*", &HSTRING := 0)
+      desktopName := StrGet(DllCall("combase\WindowsGetStringRawBuffer", "Ptr", HSTRING, "Uint*", &length := 0, "Ptr"), "UTF-16")
+      DllCall("combase\WindowsDeleteString", "Ptr", HSTRING)
+    }
+  }
+  if (!desktopName) {
+    desktopName := this._getLocalizedWord_Desktop() " " desktopNum
+  }
+  return desktopName
+}
+static setNameToDesktopNum(desktopName, desktopNum) {
+  if (desktopNum > 0 && this.idx_SetDesktopName > -1) {
+    IVirtualDesktop := this._GetDesktops_Obj().GetAt(desktopNum)
+    if (IVirtualDesktop) {
+      DllCall("combase\WindowsCreateString", "WStr", desktopName, "Uint", StrLen(desktopName), "Ptr*", &HSTRING := 0)
+      DllCall(this.ptr_SetDesktopName, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr", IVirtualDesktop, "Ptr", HSTRING)
+      DllCall("combase\WindowsDeleteString", "Ptr", HSTRING)
+    }
+  }
+}
+static getWallpaperFromDesktopNum(desktopNum) {
+  desktopWallpaper := ""
+  if (desktopNum > 0 && this.idx_GetWallpaper > -1) {
+    IVirtualDesktop := this._GetDesktops_Obj().GetAt(desktopNum)
+    if (IVirtualDesktop) {
+      ptr_GetWallpaper := this._vtable(IVirtualDesktop, this.idx_GetWallpaper)
+      DllCall(ptr_GetWallpaper, "Ptr", IVirtualDesktop, "Ptr*", &HSTRING := 0)
+      desktopWallpaper := StrGet(DllCall("combase\WindowsGetStringRawBuffer", "Ptr", HSTRING, "Uint*", &length := 0, "Ptr"), "UTF-16")
+      DllCall("combase\WindowsDeleteString", "Ptr", HSTRING)
+    }
+  }
+  return desktopWallpaper
+}
+static setWallpaperToDesktopNum(desktopWallpaper, desktopNum) {
+  if (desktopNum > 0 && this.idx_SetDesktopWallpaper > -1) {
+    IVirtualDesktop := this._GetDesktops_Obj().GetAt(desktopNum)
+    if (IVirtualDesktop) {
+      DllCall("combase\WindowsCreateString", "WStr", desktopWallpaper, "Uint", StrLen(desktopWallpaper), "Ptr*", &HSTRING := 0)
+      DllCall(this.ptr_SetDesktopWallpaper, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr", IVirtualDesktop, "Ptr", HSTRING)
+      DllCall("combase\WindowsDeleteString", "Ptr", HSTRING)
+    }
+  }
+}
+static _desktopNum_from_IVirtualDesktop(IVirtualDesktop) {
+  Desktops_Obj := this._GetDesktops_Obj()
+  loop Desktops_Obj.GetCount() {
+    IVirtualDesktop_ofDesktop := Desktops_Obj.GetAt(A_Index)
+    if (IVirtualDesktop_ofDesktop == IVirtualDesktop) {
+      return A_Index
+    }
+  }
+  return 0
+}
+static _desktopNum_from_pView(thePView) {
+  GUID_Desktop := Buffer(16)
+  ptr_GetVirtualDesktopId := this._vtable(thePView, 25)
+  DllCall(ptr_GetVirtualDesktopId, "Ptr", thePView, "Ptr", GUID_Desktop)
+  n1 := NumGet(GUID_Desktop, 0x0, "Int64")
+  n2 := NumGet(GUID_Desktop, 0x8, "Int64")
+  Desktops_Obj := this._GetDesktops_Obj()
+  loop Desktops_Obj.GetCount() {
+    IVirtualDesktop := Desktops_Obj.GetAt(A_Index)
+    ptr_GetId := this._vtable(IVirtualDesktop, this.idx_GetId)
+    DllCall(ptr_GetId, "Ptr", IVirtualDesktop, "Ptr", GUID_Desktop)
+    if (n1 == NumGet(GUID_Desktop, 0x0, "Int64") && n2 == NumGet(GUID_Desktop, 0x8, "Int64")) {
+      return A_Index
+    }
+  }
+  return 0
+}
+static _GetDesktops_Obj() {
+  IObjectArray := this._dll_GetDesktops()
+  return this.IObjectArray_Wrapper(IObjectArray, this.IID_IVirtualDesktop_ptr)
+}

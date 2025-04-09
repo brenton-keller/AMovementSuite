@@ -1,0 +1,161 @@
+; Main desktop action methods
+static getCount() {
+  return this._GetDesktops_Obj().GetCount()
+}
+static goToDesktopNum(desktopNum) {
+  firstWindowId := this._getFirstWindowInVD(desktopNum)
+  VD_animation_gui := Gui("-Border -SysMenu +Owner -Caption")
+  VD_animation_gui_hwnd := VD_animation_gui.Hwnd + 0
+  IVirtualDesktop := this._GetDesktops_Obj().GetAt(desktopNum)
+  GUID_Desktop := Buffer(16)
+  ptr_GetId := this._vtable(IVirtualDesktop, this.idx_GetId)
+  DllCall(ptr_GetId, "Ptr", IVirtualDesktop, "Ptr", GUID_Desktop)
+  DllCall(this.ptr_MoveWindowToDesktop, "Ptr", this.IVirtualDesktopManager.Ptr, "Ptr", VD_animation_gui_hwnd, "Ptr", GUID_Desktop)
+  DllCall("ShowWindow", "Ptr", VD_animation_gui_hwnd, "Int", 4)
+  this.SetForegroundWindow(VD_animation_gui_hwnd)
+  loop 20 {
+    if (this.getCurrentDesktopNum() == desktopNum) {
+      if (firstWindowId) {
+        DllCall("SetForegroundWindow", "Ptr", firstWindowId)
+      } else {
+        this._activateDesktopBackground()
+      }
+      break
+    }
+    Sleep 25
+  }
+  VD_animation_gui.Destroy()
+}
+static getCurrentDesktopNum() {
+  IVirtualDesktop_ofCurrentDesktop := this._dll_GetCurrentDesktop()
+  desktopNum := this._desktopNum_from_IVirtualDesktop(IVirtualDesktop_ofCurrentDesktop)
+  return desktopNum
+}
+static createDesktop(goThere := false) {
+  IVirtualDesktop_ofNewDesktop := this._dll_CreateDesktop()
+  if (goThere) {
+    desktopNum := this._desktopNum_from_IVirtualDesktop(IVirtualDesktop_ofNewDesktop)
+    this.goToDesktopNum(desktopNum)
+  }
+}
+static removeDesktop(desktopNum, fallback_desktopNum := false) {
+  Desktops_Obj := this._GetDesktops_Obj()
+  if (!fallback_desktopNum) {
+    if (desktopNum > 1) {
+      fallback_desktopNum := desktopNum - 1
+    } else if (desktopNum < Desktops_Obj.GetCount()) {
+      fallback_desktopNum := desktopNum + 1
+    } else {
+      return false
+    }
+  }
+  IVirtualDesktop := Desktops_Obj.GetAt(desktopNum)
+  IVirtualDesktop_fallback := Desktops_Obj.GetAt(fallback_desktopNum)
+  this._dll_RemoveDesktop(IVirtualDesktop, IVirtualDesktop_fallback)
+}
+static createUntil(howMany, goToLastlyCreated := false) {
+  howManyThereAlreadyAre := this.getCount()
+  if (howManyThereAlreadyAre >= howMany) {
+    return
+  }
+  loop howMany - howManyThereAlreadyAre - 1 {
+    this.createDesktop(false)
+  }
+  this.createDesktop(goToLastlyCreated)
+}
+static goToDesktopByName(targetName) {
+  desktopCount := this.getCount()
+  
+  ; Loop through all desktops to find one with the matching name
+  Loop desktopCount {
+    currentName := this.getNameFromDesktopNum(A_Index)
+    if (currentName = targetName) {
+      ; Found it! Switch to this desktop
+      this.goToDesktopNum(A_Index)
+      return A_Index
+    }
+  }
+  
+  ; Desktop with that name wasn't found
+  return 0
+}
+static getRelativeDesktopNum(anchor_desktopNum, relative_count) {
+  Desktops_Obj := this._GetDesktops_Obj()
+  count_Desktops := Desktops_Obj.GetCount()
+  absolute_desktopNum := anchor_desktopNum + relative_count
+  absolute_desktopNum := Mod(absolute_desktopNum, count_Desktops)
+  if (absolute_desktopNum <= 0) {
+    absolute_desktopNum := absolute_desktopNum + count_Desktops
+  }
+  return absolute_desktopNum
+}
+static gotoRelativeDesktopNum(relative_count) {
+  this.goToDesktopNum(this.getRelativeDesktopNum(this.getCurrentDesktopNum(), relative_count))
+}
+static goToLastActiveDesktop() {
+  static lastDesktopNum := 0
+  currentDesktopNum := this.getCurrentDesktopNum()
+  
+  ; Save current desktop before changing
+  tempDesktopNum := lastDesktopNum
+  lastDesktopNum := currentDesktopNum
+  
+  ; If a toggle pair is fully defined, use that
+  if (this.isTogglePairDefined && this.toggleDesktop2 != 0) {
+    ; If on desktop1, go to desktop2
+    if (currentDesktopNum = this.toggleDesktop1) {
+      this.goToDesktopNum(this.toggleDesktop2)
+      return this.toggleDesktop2
+    }
+    ; If on desktop2, go to desktop1
+    else if (currentDesktopNum = this.toggleDesktop2) {
+      this.goToDesktopNum(this.toggleDesktop1)
+      return this.toggleDesktop1
+    }
+    ; If on neither, go to desktop1
+    else {
+      this.goToDesktopNum(this.toggleDesktop1)
+      return this.toggleDesktop1
+    }
+  }
+  
+  ; Fall back to original behavior if no toggle pair is defined
+  if (tempDesktopNum > 0) {
+    this.goToDesktopNum(tempDesktopNum)
+    return tempDesktopNum
+  }
+  return 0
+}
+
+; Define or update toggle pair of desktops
+static defineTogglePair() {
+  currentDesktop := this.getCurrentDesktopNum()
+  
+  ; If this is the first desktop in the pair or we're redefining
+  if (!this.isTogglePairDefined || (this.isTogglePairDefined && this.toggleDesktop2 != 0)) {
+    this.toggleDesktop1 := currentDesktop
+    this.toggleDesktop2 := 0
+    this.isTogglePairDefined := true
+    return 1  ; First desktop set
+  }
+  
+  ; If this is the second desktop in the pair
+  if (currentDesktop != this.toggleDesktop1) {
+    this.toggleDesktop2 := currentDesktop
+    return 2  ; Second desktop set
+  }
+  
+  return 0  ; Same desktop - invalid pair
+}
+
+; Clear the defined toggle pair
+static clearTogglePair() {
+  this.toggleDesktop1 := 0
+  this.toggleDesktop2 := 0
+  this.isTogglePairDefined := false
+}
+  
+; Desktop toggle state variables
+static toggleDesktop1 := 0
+static toggleDesktop2 := 0
+static isTogglePairDefined := false

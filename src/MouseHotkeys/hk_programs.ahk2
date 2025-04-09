@@ -1,0 +1,4 @@
+#HotIf WinActive("ahk_exe photoshop.exe") and WinActive("ahk_class CameraRaw_WindowClass")
+WheelUp::Send("^{=}")
+WheelDown::Send("^{-}")
+#HotIf

@@ -1,0 +1,32 @@
+#SingleInstance force
+ListLines 0
+KeyHistory 0
+#WinActivateForce
+
+SetWinDelay -1
+SetControlDelay -1
+ProcessSetPriority "H"
+
+SendMode "Input"
+
+;include the library
+;https://github.com/FuPeiJiang/VD.ahk/tree/v2_port
+#Include VD.ahk2
+
+;a::VD.goToDesktopByName("AArrow")
+; ^+#left::VD.goToRelativeDesktopNum(-1)
+; ^+#right::VD.goToRelativeDesktopNum(+1)
+; !NumpadSub::VD.removeDesktop(VD.getCurrentDesktopNum())
+; maybe move file to new desktop !NumpadAdd::VD.createDesktop(true) ;go to newly created
+
+NumpadMult::VD.goToLastActiveDesktop()
+
+#NumpadSub::VD.goToRelativeDesktopNum(-1)
+#NumpadAdd::VD.goToRelativeDesktopNum(+1)
+; ^#NumpadAdd::VD.goToRelativeDesktopNum(+2)
+
+#NumpadRight::VD.removeDesktop(VD.getCurrentDesktopNum())
+
+; Hyper - Up
++NumpadUp::VD.goToDesktopByName("AArrow")
+!NumpadUp::VD.goToDesktopByName("AHK")

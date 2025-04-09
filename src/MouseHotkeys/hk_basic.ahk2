@@ -1,0 +1,77 @@
+;Send {1} - Backspace
+ NumpadEnd::{
+    Send("{Backspace}")
+}
+^NumpadEnd::{
+    ActiveProcess := WinGetProcessName("A")
+    switch ActiveProcess {
+        case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe":
+            Send("!{Left}")
+        default:
+            Send("^{Backspace}")
+    }
+}
+!NumpadEnd::{
+    ActiveProcess := WinGetProcessName("A")
+    switch ActiveProcess {
+        case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe", "Vivaldi.exe":
+            Send("!{Left}")
+        default:
+            Send("!{Backspace}")
+    }
+}
++NumpadEnd::{
+    ActiveProcess := WinGetProcessName("A")
+    switch ActiveProcess {
+        case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe", "Vivaldi.exe":
+            Send("!{Left}")
+        default:
+            Send("+{Backspace}")
+    }
+}
+
+global distraction_free := Map()
+
+;Send {2} - Enter
+NumpadDown::{
+    Send("{Enter}")
+}
+^NumpadDown::{
+    ActiveProcess := WinGetProcessName("A")
+    switch ActiveProcess {
+        case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe":
+            Send("!{Right}")
+        default:
+            Send("^{Enter}")
+    }
+}
+!NumpadDown::{
+    ActiveProcess := WinGetProcessName("A")
+    if (ActiveProcess = "vivaldi.exe") {
+        current_id := WinGetID("A")  ; Get the active window's ID
+        
+        if distraction_free.Has(current_id) {
+            ; Window is in distraction_free mode, just toggle UI
+            Send("^{F11}")
+            distraction_free.Delete(current_id)  ; Remove from distraction_free list
+        } else {
+            ; Window is in normal mode, do both toggles
+            Send("^{F11}")
+            ; Sleep(5)  ; Small delay to ensure commands don't overlap
+            Send("^!{F11}")
+            distraction_free[current_id] := true  ; Add to distraction_free list
+        }
+        ; Send("{Enter}")
+    } else {
+        Send("{Enter}")
+    }
+}
++NumpadDown::{
+    ActiveProcess := WinGetProcessName("A")
+    switch ActiveProcess {
+        case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe":
+            Send("!{Right}")
+        default:
+            Send("+{Enter}")
+    }
+}

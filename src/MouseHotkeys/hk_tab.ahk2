@@ -1,0 +1,31 @@
+;Send {4} - Previous tab
+ NumpadLeft::
++NumpadLeft::
+^NumpadLeft::
+!NumpadLeft::{
+    Send("{Blind}{Ctrl Down}{Shift Down}{Tab}{Shift Up}{Ctrl Up}")
+}
+
+;Send {5} - Next tab
+ NumpadClear::
++NumpadClear::
+^NumpadClear::
+!NumpadClear::{
+    Send("^{Tab}")
+}
+
+;Send {6} - Close tab
+ NumpadRight::
++NumpadRight::
+^NumpadRight::
+!NumpadRight::{
+    Send("^w")
+}
+
+;Send {9} - Reopen closed tab
+ NumpadPgUp::
++NumpadPgUp::
+^NumpadPgUp::
+!NumpadPgUp::{
+    Send("^+t")
+}

@@ -1,0 +1,50 @@
+; All _dll_* methods from the original class
+static _dll_MoveViewToDesktop_normal(IApplicationView, IVirtualDesktop) {
+  DllCall(this.ptr_MoveViewToDesktop, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr", IApplicationView, "Ptr", IVirtualDesktop)
+}
+static _dll_GetCurrentDesktop_normal() {
+  DllCall(this.ptr_GetCurrentDesktop, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr*", &IVirtualDesktop_currentDesktop := 0)
+  return IVirtualDesktop_currentDesktop
+}
+static _dll_GetDesktops_normal() {
+  DllCall(this.ptr_GetDesktops, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr*", &IObjectArray := 0)
+  return IObjectArray
+}
+static _dll_CreateDesktop_normal() {
+  DllCall(this.ptr_CreateDesktop, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr*", &IVirtualDesktop_created := 0)
+  return IVirtualDesktop_created
+}
+static _dll_RemoveDesktop_normal(IVirtualDesktop, IVirtualDesktop_fallback) {
+  DllCall(this.ptr_RemoveDesktop, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr", IVirtualDesktop, "Ptr", IVirtualDesktop_fallback)
+}
+static _dll_GetCurrentDesktop_HMONITOR() {
+  DllCall(this.ptr_GetCurrentDesktop, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr", 0, "Ptr*", &IVirtualDesktop_currentDesktop := 0)
+  return IVirtualDesktop_currentDesktop
+}
+static _dll_GetDesktops_HMONITOR() {
+  DllCall(this.ptr_GetDesktops, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr", 0, "Ptr*", &IObjectArray := 0)
+  return IObjectArray
+}
+static _dll_CreateDesktop_HMONITOR() {
+  DllCall(this.ptr_CreateDesktop, "Ptr", this.IVirtualDesktopManagerInternal.Ptr, "Ptr", 0, "Ptr*", &IVirtualDesktop_created := 0)
+  return IVirtualDesktop_created
+}
+static _dll_IsViewPinned(IApplicationView) {
+  DllCall(this.ptr_IsViewPinned, "Ptr", this.IVirtualDesktopPinnedApps.Ptr, "Ptr", IApplicationView, "Int*", &viewIsPinned := 0)
+  return viewIsPinned
+}
+static _dll_PinView(IApplicationView) {
+  DllCall(this.ptr_PinView, "Ptr", this.IVirtualDesktopPinnedApps.Ptr, "Ptr", IApplicationView)
+}
+static _dll_UnpinView(IApplicationView) {
+  DllCall(this.ptr_UnpinView, "Ptr", this.IVirtualDesktopPinnedApps.Ptr, "Ptr", IApplicationView)
+}
+static _dll_GetViewForHwnd(HWND) {
+  DllCall(this.ptr_GetViewForHwnd, "Ptr", this.IApplicationViewCollection.Ptr, "Ptr", HWND, "Ptr*", &IApplicationView := 0)
+  return IApplicationView
+}
+
+; Other DLL-related utility methods
+static _vtable(ppv, index) {
+  Return NumGet(NumGet(0 + ppv, 0, "Ptr") + A_PtrSize * index, 0, "Ptr")
+}

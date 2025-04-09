@@ -1,0 +1,53 @@
+;Send {7} - Nest code
+ NumpadHome::
++NumpadHome::
+!NumpadHome::{
+  Send("^+{[}")
+}
+^NumpadHome::{
+  Send("^a")
+  Send("^k")
+  Send("^1")
+  Send("{Escape}")
+}
++^NumpadHome::{
+  Send("^k")
+  Send("^j")
+  Send("^a")
+  Send("^k")
+  Send("^2")
+  Send("{Escape}")
+}
++^!NumpadHome::{
+  Send("^k")
+  Send("^j")
+  Send("^a")
+  Send("^k")
+  Send("^3")
+  Send("{Escape}")
+}
+
+;Send {10} - Unnest code
+ NumpadDiv::
++NumpadDiv::
+!NumpadDiv::{
+  Send("^+{]}")
+}
+^NumpadDiv::{
+  Send("^k")
+  Send("^j")
+}
+
+;Send {11} - Comment/Uncomment
+ NumpadEnter::
++NumpadEnter::
+^NumpadEnter::
+!NumpadEnter::{
+  ActiveProcess := WinGetProcessName("A")
+  switch ActiveProcess {
+    case "cursor.exe", "Code.exe":
+      Send("^/")
+    default:
+      Send("{11}")
+  }
+}

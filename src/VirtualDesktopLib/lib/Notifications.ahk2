@@ -1,0 +1,145 @@
+
+; Notification registration and handlers
+static RegisterDesktopNotifications() {
+  methods_ptr := DllCall("GlobalAlloc", "Uint", 0x40, "Uint", this.IVirtualDesktopNotification_methods_count * A_PtrSize)
+  NumPut("Ptr", CallbackCreate(this._dll_QueryInterface_Same, "F"), methods_ptr + 0 * A_PtrSize, "Ptr")
+  NumPut("Ptr", CallbackCreate(this._dll_AddRef_Same, "F"), methods_ptr + 1 * A_PtrSize, "Ptr")
+  NumPut("Ptr", CallbackCreate(this._dll_Release_Same, "F"), methods_ptr + 2 * A_PtrSize, "Ptr")
+  NumPut("Ptr", CallbackCreate(this._dll_VirtualDesktopCreated, "F"), methods_ptr + this.idx_VirtualDesktopCreated * A_PtrSize, "Ptr")
+  NumPut("Ptr", CallbackCreate(this._dll_VirtualDesktopDestroyBegin, "F"), methods_ptr + this.idx_VirtualDesktopDestroyBegin * A_PtrSize, "Ptr")
+  NumPut("Ptr", CallbackCreate(this._dll_VirtualDesktopDestroyFailed, "F"), methods_ptr + this.idx_VirtualDesktopDestroyFailed * A_PtrSize, "Ptr")
+  NumPut("Ptr", CallbackCreate(this._dll_VirtualDesktopDestroyed, "F"), methods_ptr + this.idx_VirtualDesktopDestroyed * A_PtrSize, "Ptr")
+  NumPut("Ptr", CallbackCreate(this._dll_ViewVirtualDesktopChanged, "F"), methods_ptr + this.idx_ViewVirtualDesktopChanged * A_PtrSize, "Ptr")
+  NumPut("Ptr", CallbackCreate(this._dll_CurrentVirtualDesktopChanged, "F"), methods_ptr + this.idx_CurrentVirtualDesktopChanged * A_PtrSize, "Ptr")
+  if (this.idx_VirtualDesktopNameChanged > -1) {
+    NumPut("Ptr", CallbackCreate(this._dll_VirtualDesktopNameChanged, "F"), methods_ptr + this.idx_VirtualDesktopNameChanged * A_PtrSize, "Ptr")
+  }
+  if (this.idx_VirtualDesktopWallpaperChanged > -1) {
+    NumPut("Ptr", CallbackCreate(this._dll_VirtualDesktopWallpaperChanged, "F"), methods_ptr + this.idx_VirtualDesktopWallpaperChanged * A_PtrSize, "Ptr")
+  }
+  ptr := methods_ptr
+  end := methods_ptr + this.IVirtualDesktopNotification_methods_count * A_PtrSize
+  callback_noop := 0
+  while (ptr < end) {
+    if (!NumGet(ptr + 0, "Ptr")) {
+      if (!callback_noop) {
+        callback_noop := CallbackCreate(VD._No_Op, "F")
+      }
+      NumPut("Ptr", callback_noop, ptr + 0)
+    }
+    ptr += A_PtrSize
+  }
+  this.RegisterDesktopNotifications_Same(methods_ptr)
+}
+static RegisterDesktopNotifications_Same(methods_ptr) {
+  obj := DllCall("GlobalAlloc", "Uint", 0x00, "Uint", A_PtrSize + 4)
+  NumPut("Ptr", methods_ptr, obj + 0, 0)
+  NumPut("UInt", 0, obj + 0, A_PtrSize)
+  IDesktopNotificationService := ComObjQuery(this.CImmersiveShell_IServiceProvider.Ptr, "{A501FDEC-4A09-464C-AE4E-1B9C21B84918}", "{0CD45E71-D927-4F15-8B0A-8FEF525337BF}")
+  ptr_Register := this._vtable(IDesktopNotificationService.Ptr, 3)
+  DllCall(ptr_Register, "Ptr", IDesktopNotificationService.Ptr, "Ptr", obj, "Uint*", &pdwCookie := 0)
+}
+  
+; Notification callback methods
+static _dll_QueryInterface_Same(riid, ppvObject) {
+  if (!ppvObject) {
+    return 0x80070057
+  }
+  if ((NumGet(riid + 0, 0x0, "Int64") == 0 && NumGet(riid + 0, 0x8, "Int64") == 5044031582654955712) || (NumGet(riid + 0, 0x0, "Int64") == VD.IID_IVirtualDesktopNotification_n1 && NumGet(riid + 0, 0x8, "Int64") == VD.IID_IVirtualDesktopNotification_n2)) {
+    NumPut("Ptr", this, ppvObject + 0, 0)
+    VD._dll_AddRef_Same.Call(this)
+    return 0
+  }
+  NumPut("Ptr", 0, ppvObject + 0, "Ptr")
+  return 0x80004002
+}
+static _dll_AddRef_Same() {
+  refCount := NumGet(this + 0, A_PtrSize, "UInt")
+  refCount++
+  NumPut("UInt", refCount, this + 0, A_PtrSize)
+  return refCount
+}
+static _dll_Release_Same() {
+  refCount := NumGet(this + 0, A_PtrSize, "UInt")
+  refCount--
+  NumPut("UInt", refCount, this + 0, A_PtrSize)
+  return refCount
+}
+static _No_Op() {
+}
+  
+; Notification virtual methods (can be overridden)
+static VirtualDesktopCreated(desktopNum := 0) {
+}
+static VirtualDesktopDestroyBegin(desktopNum_Destroyed := 0, desktopNum_Fallback := 0) {
+}
+static VirtualDesktopDestroyFailed(desktopNum_Destroyed := 0, desktopNum_Fallback := 0) {
+}
+static VirtualDesktopDestroyed(desktopNum_Destroyed := 0, desktopNum_Fallback := 0) {
+}
+static ViewVirtualDesktopChanged(pView := 0) {
+}
+static CurrentVirtualDesktopChanged(desktopNum_Old := 0, desktopNum_New := 0) {
+}
+static VirtualDesktopNameChanged(desktopNum := 0, desktopName := "") {
+}
+static VirtualDesktopWallpaperChanged(desktopNum := 0, desktopWallpaper := "") {
+}
+  
+; Notification handler methods
+static _dll_VirtualDesktopCreated_normal(IVirtualDesktop_created) {
+  VD.VirtualDesktopCreated.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_created))
+  return 0
+}
+static _dll_VirtualDesktopDestroyBegin_normal(IVirtualDesktop_destroyed, IVirtualDesktop_fallback) {
+  VD.VirtualDesktopDestroyBegin.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_destroyed), VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_fallback))
+  return 0
+}
+static _dll_VirtualDesktopDestroyFailed_normal(IVirtualDesktop_destroyed, IVirtualDesktop_fallback) {
+  VD.VirtualDesktopDestroyFailed.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_destroyed), VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_fallback))
+  return 0
+}
+static _dll_VirtualDesktopDestroyed_normal(IVirtualDesktop_destroyed, IVirtualDesktop_fallback) {
+  VD.VirtualDesktopDestroyed.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_destroyed), VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_fallback))
+  return 0
+}
+static _dll_ViewVirtualDesktopChanged_normal(IApplicationView) {
+  VD.ViewVirtualDesktopChanged.Call(IApplicationView)
+  return 0
+}
+static _dll_CurrentVirtualDesktopChanged_normal(IVirtualDesktop_old, IVirtualDesktop_new) {
+  VD.CurrentVirtualDesktopChanged.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_old), VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_new))
+  return 0
+}
+static _dll_VirtualDesktopNameChanged_normal(IVirtualDesktop, HSTRING) {
+  desktopName := StrGet(DllCall("combase\WindowsGetStringRawBuffer", "Ptr", HSTRING, "Uint*", &length := 0, "Ptr"), "UTF-16")
+  DllCall("combase\WindowsDeleteString", "Ptr", HSTRING)
+  VD.VirtualDesktopNameChanged.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop), desktopName)
+  return 0
+}
+static _dll_VirtualDesktopWallpaperChanged_normal(IVirtualDesktop, HSTRING) {
+  desktopName := StrGet(DllCall("combase\WindowsGetStringRawBuffer", "Ptr", HSTRING, "Uint*", &length := 0, "Ptr"), "UTF-16")
+  DllCall("combase\WindowsDeleteString", "Ptr", HSTRING)
+  VD.VirtualDesktopWallpaperChanged.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop), desktopName)
+  return 0
+}
+static _dll_VirtualDesktopCreated_IObjectArray(IObjectArray, IVirtualDesktop_created) {
+  VD.VirtualDesktopCreated.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_created))
+  return 0
+}
+static _dll_VirtualDesktopDestroyBegin_IObjectArray(IObjectArray, IVirtualDesktop_destroyed, IVirtualDesktop_fallback) {
+  VD.VirtualDesktopDestroyBegin.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_destroyed), VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_fallback))
+  return 0
+}
+static _dll_VirtualDesktopDestroyFailed_IObjectArray(IObjectArray, IVirtualDesktop_destroyed, IVirtualDesktop_fallback) {
+  VD.VirtualDesktopDestroyFailed.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_destroyed), VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_fallback))
+  return 0
+}
+static _dll_VirtualDesktopDestroyed_IObjectArray(IObjectArray, IVirtualDesktop_destroyed, IVirtualDesktop_fallback) {
+  VD.VirtualDesktopDestroyed.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_destroyed), VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_fallback))
+  return 0
+}
+static _dll_CurrentVirtualDesktopChanged_IObjectArray(IObjectArray, IVirtualDesktop_old, IVirtualDesktop_new) {
+  VD.CurrentVirtualDesktopChanged.Call(VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_old), VD._desktopNum_from_IVirtualDesktop(IVirtualDesktop_new))
+  return 0
+}

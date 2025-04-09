@@ -1,0 +1,95 @@
+#SingleInstance Force
+ListLines 0
+KeyHistory 0
+#WinActivateForce
+#UseHook true
+
+SetWinDelay -1
+SetControlDelay -1
+
+DetectHiddenWindows True
+
+; Initialize global variables
+global action := ""
+global active := ""
+global taskbar := ""
+
+; Get window handles
+active := WinGetID("ahk_class Progman")
+taskbar := WinGetID("ahk_class Shell_TrayWnd")
+
+; Initialize
+AutohideTaskbar()
+HideTaskbar()
+
+; Set up exit handling
+OnExit ExitFunc
+
+; Win+Space to show taskbar
+#Space::{
+    WinSetRegion(, "ahk_id " taskbar)
+    
+    If (WinExist("A") != taskbar)
+        active := WinExist("A")
+    
+    ; Add error handling for Shell_TrayWnd
+    if WinExist("ahk_class Shell_TrayWnd")
+        WinActivate("ahk_class Shell_TrayWnd")
+    
+    SetTimer HideTaskbar, 100
+}
+; #Space::#Space
+
+HideTaskbar(){
+    global taskbar
+    MouseGetPos(,,&mwin)
+    If (mwin = taskbar)
+        Return
+    
+    if WinExist("ahk_id " active)
+        WinActivate("ahk_id " active)
+    
+    ShrinkTaskbar()
+}
+
+ShrinkTaskbar(){
+    global taskbar
+    WinGetPos(&wx, &wy, &ww, &wh, "ahk_id " taskbar)
+    ww -= 2
+    wh -= 2
+    WinSetRegion("2-2 W" ww " H" wh, "ahk_id " taskbar)
+    SetTimer HideTaskbar, 0
+}
+
+ExitFunc(ExitReason, ExitCode){
+    global taskbar
+    WinSetRegion(, "ahk_id " taskbar)
+    NormalTaskbar()
+    ExitApp
+}
+
+AutohideTaskbar(){
+    static ABM_SETSTATE := 0xA, ABS_NORMAL := 0x0, ABS_AUTOHIDE := 0x1, ABS_ALWAYSONTOP := 0x2
+    
+    APPBARDATA := Buffer(size := 2*A_PtrSize + 2*4 + 16 + A_PtrSize, 0)
+    NumPut("UInt", size, APPBARDATA, 0)
+    NumPut("Ptr", WinExist("ahk_class Shell_TrayWnd"), APPBARDATA, A_PtrSize)
+    
+    ; Apply BOTH flags together with bitwise OR
+    NumPut("UInt", ABS_AUTOHIDE|ABS_ALWAYSONTOP, APPBARDATA, size - A_PtrSize)
+    
+    DllCall("Shell32\SHAppBarMessage", "UInt", ABM_SETSTATE, "Ptr", APPBARDATA)
+}
+
+NormalTaskbar(){
+    static ABM_SETSTATE := 0xA, ABS_NORMAL := 0x0, ABS_AUTOHIDE := 0x1, ABS_ALWAYSONTOP := 0x2
+    
+    APPBARDATA := Buffer(size := 2*A_PtrSize + 2*4 + 16 + A_PtrSize, 0)
+    NumPut("UInt", size, APPBARDATA, 0)
+    NumPut("Ptr", WinExist("ahk_class Shell_TrayWnd"), APPBARDATA, A_PtrSize)
+    
+    ; Set to ALWAYSONTOP only (removing AUTOHIDE)
+    NumPut("UInt", ABS_ALWAYSONTOP, APPBARDATA, size - A_PtrSize)
+    
+    DllCall("Shell32\SHAppBarMessage", "UInt", ABM_SETSTATE, "Ptr", APPBARDATA)
+}

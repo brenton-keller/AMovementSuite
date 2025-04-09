@@ -23,6 +23,7 @@ global safetyTimer := 0
 ; Include the scaling scripts
 #Include src/lib/ColorUtils.ahk2
 #Include src/lib/MoveUtils.ahk2
+#Include src/lib/ToggleUtils.ahk2
 #Include src/WindowMove.ahk2
 #Include src/WindowScaleWidth.ahk2
 #Include src/WindowScaleHeight.ahk2
@@ -75,51 +76,6 @@ CheckForKeyRelease() {
     } else if (scalingModeActive && wasReleased) {
         wasReleased := false
     }
-}
-
-ToggleWidthScaling(*) {
-    global widthScalingEnabled
-    widthScalingEnabled := !widthScalingEnabled
-    if widthScalingEnabled
-        A_TrayMenu.Check "Width Scaling (LCtrl+RButton)"
-    else
-        A_TrayMenu.Uncheck "Width Scaling (LCtrl+RButton)"
-}
-
-ToggleHeightScaling(*) {
-    global heightScalingEnabled
-    heightScalingEnabled := !heightScalingEnabled
-    if heightScalingEnabled
-        A_TrayMenu.Check "Height Scaling (LShift+RButton)"
-    else
-        A_TrayMenu.Uncheck "Height Scaling (LShift+RButton)"
-}
-
-ToggleXYScaling(*) {
-    global xyScalingEnabled
-    xyScalingEnabled := !xyScalingEnabled
-    if xyScalingEnabled
-        A_TrayMenu.Check "XY Scaling (LCtrl+LShift+RButton)"
-    else
-        A_TrayMenu.Uncheck "XY Scaling (LCtrl+LShift+RButton)"
-}
-
-ToggleWindowAlwaysOnTop(*) {
-    global windowAlwaysOnTopEnabled
-    windowAlwaysOnTopEnabled := !windowAlwaysOnTopEnabled
-    if windowAlwaysOnTopEnabled
-        A_TrayMenu.Check "Window Always On Top (LCtrl+MButton)"
-    else
-        A_TrayMenu.Uncheck "Window Always On Top (LCtrl+MButton)"
-}
-
-ToggleWindowMove(*) {
-    global windowMoveEnabled
-    windowMoveEnabled := !windowMoveEnabled
-    if windowMoveEnabled
-        A_TrayMenu.Check "Window Move (LAlt+RButton)"
-    else
-        A_TrayMenu.Uncheck "Window Move (LAlt+RButton)"
 }
 
 ShowWindowMoveSettings(*) {

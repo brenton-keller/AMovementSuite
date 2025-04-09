@@ -1,0 +1,11 @@
+class VD {
+  ; Main class definition with initialization
+  static dummyStatic1 := this._init()
+  
+  #Include Utils.ahk2
+  #Include DllCalls.ahk2
+  #Include WindowManagement.ahk2
+  #Include DesktopActions.ahk2 
+  #Include Notifications.ahk2
+  #Include ComInterfaces.ahk2
+}
