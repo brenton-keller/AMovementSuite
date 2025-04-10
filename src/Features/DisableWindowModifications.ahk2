@@ -14,10 +14,17 @@ DisableWindowModifications() {
         ; ; Skip windows that don't have a traditional title bar
         ; if !WinGetTitle(hwnd)
         ;     continue
+        
+        if (!IsValidWindowForResize(hwnd))
+            continue
             
         ; Skip specific windows we don't want to modify (add more as needed)
         if WinGetClass(hwnd) = "Shell_TrayWnd"  ; Taskbar
             continue
+            
+        if WinGetClass(hwnd) = "TaskManagerWindow"  
+            continue
+            
         ; if WinGetClass(hwnd) = "Windows.UI.Core.CoreWindow"  ; Modern UI windows
         ;     continue
         ; if WinGetClass(hwnd) = "ApplicationFrameWindow"  ; Modern UI app frames

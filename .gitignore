@@ -27,3 +27,7 @@ desktop.ini
 *-test.*
 
 src/WindowScaleProportional.ahk2
+src/VirtualDesktopLib/key_list.md
+*.gitignore
+AMovementSuite.code-workspace
+RunAHKAsAdmin.bat

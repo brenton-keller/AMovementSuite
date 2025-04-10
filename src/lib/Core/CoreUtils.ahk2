@@ -1,0 +1,192 @@
+InitSafetyTimer() {
+    ; Set a timer to check for key release in case of errors
+    safetyTimer := SetTimer(CheckForKeyRelease, 250)
+}
+
+ShowWindowMoveSettings(*) {
+    global enableWindowSnapping, snapDistance
+    
+    ; Create the settings window
+    settingsGui := Gui("+AlwaysOnTop +ToolWindow", "Window Move Settings")
+    
+    ; Add checkbox for window snapping
+    settingsGui.Add("CheckBox", "vWindowSnapping Checked" enableWindowSnapping, "Enable Window Snapping")
+    
+    ; Add snap distance slider
+    settingsGui.Add("Text", "xm y+15", "Snap Distance (pixels):")
+    settingsGui.Add("Slider", "vSnapDistance Range1-25 TickInterval5 Tooltip w200", snapDistance)
+    
+    ; Show current value
+    settingsGui.Add("Text", "x+5 w30 vCurrentValue", snapDistance)
+    
+    ; Add buttons
+    settingsGui.Add("Button", "xm y+15 w80 Default", "OK").OnEvent("Click", SaveSettings)
+    settingsGui.Add("Button", "x+10 w80", "Cancel").OnEvent("Click", CloseSettings)
+    
+    ; Event for updating the displayed value
+    sliderControl := settingsGui["SnapDistance"]
+    sliderControl.OnEvent("Change", UpdateValue)
+    
+    ; Show the GUI
+    settingsGui.Show()
+    
+    UpdateValue(*) {
+        settingsGui["CurrentValue"].Value := sliderControl.Value
+    }
+    
+    SaveSettings(*) {
+        Saved := settingsGui.Submit()
+        enableWindowSnapping := Saved.WindowSnapping
+        snapDistance := Saved.SnapDistance
+        settingsGui.Destroy()
+    }
+    
+    CloseSettings(*) {
+        settingsGui.Destroy()
+    }
+}
+
+GetWindowMonitor(winX, winY, winWidth, winHeight) {
+    winCenterX := winX + (winWidth / 2)
+    winCenterY := winY + (winHeight / 2)
+    
+    MonitorCount := MonitorGetCount()
+    Loop MonitorCount {
+        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
+        if (winCenterX >= MonLeft && winCenterX <= MonRight
+            && winCenterY >= MonTop && winCenterY <= MonBottom)
+            return A_Index
+    }
+    return 1
+}
+
+IsValidWindowForResize(hwnd) {
+    ; Get window class
+    windowClass := WinGetClass("ahk_id " hwnd)
+    
+    ; List of classes to exclude (add more as needed)
+    excludedClasses := [
+        ; "#32768",    ; Standard Windows context menus
+        ; "Windows.UI.Core.CoreWindow",  ; Modern context menus
+        ; "ToolbarWindow32"
+        ; "DropDown",
+        ; "Popup",
+        ; "PopupMenu"
+    ]
+    
+    ; ; Check if window is excluded
+    ; for excludedClass in excludedClasses {
+    ;     if (windowClass = excludedClass)
+    ;         return false
+    ; }
+    
+    ; Additional checks
+    ; if (!WinGetTitle("ahk_id " hwnd))  ; No title usually means temporary window
+    ;     return false
+        
+    ; if (WinGetStyle("ahk_id " hwnd) & 0x40000000)  ; Check if it's a child window
+    ;     return false
+    
+    return true
+}
+
+GetMonitorAtPos(x, y) {
+    MonitorCount := MonitorGetCount()
+    Loop MonitorCount {
+        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
+        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
+            return A_Index
+    }
+    return 1
+}
+
+CheckForKeyRelease() {
+    global scalingModeActive
+
+    static wasReleased := true
+    
+    ; If RButton is not pressed, reset the scaling state
+    if (!GetKeyState("RButton", "P")) {
+        if (scalingModeActive) {
+            scalingModeActive := false
+            wasReleased := true
+            ToolTip  ; Clear any tooltips
+        }
+    } else if (scalingModeActive && wasReleased) {
+        wasReleased := false
+    }
+}
+
+InitSafetyTimer()
+
+; When script starts, enter "click to analyze" mode
+AnalyzeWindow() {
+    ; Show instruction message
+    MsgBox("Click on a window to analyze whether it's valid for resizing.", "Window Validator")
+    
+    ; Make sure we start with mouse released
+    KeyWait "LButton"
+    
+    ; Then wait for a click
+    KeyWait "LButton", "D"
+    Sleep 100  ; Small delay to ensure click registers fully
+    
+    ; Get the window under the cursor
+    MouseGetPos(, , &clickedWin)
+    
+    ; Get window info
+    windowClass := WinGetClass("ahk_id " clickedWin)
+    windowTitle := WinGetTitle("ahk_id " clickedWin)
+    windowStyle := WinGetStyle("ahk_id " clickedWin)
+    
+    ; Check validity
+    isValid := IsValidWindowForMove(clickedWin)
+    
+    ; Determine why it might be invalid
+    reason := ""
+    
+    ; Check if window is in excluded classes
+    excludedClasses := [
+        "#32768",    ; Standard Windows context menus
+        "Windows.UI.Core.CoreWindow",  ; Modern context menus
+        "ToolbarWindow32",
+        "DropDown",
+        "Popup",
+        "PopupMenu"
+    ]
+    
+    for excludedClass in excludedClasses {
+        if (windowClass = excludedClass) {
+            reason .= "• Window class is in exclusion list: " excludedClass "`n"
+            break
+        }
+    }
+    
+    ; Check title
+    if (!windowTitle)
+        reason .= "• Window has no title`n"
+    
+    ; Check if child window
+    if (windowStyle & 0x40000000)
+        reason .= "• Window is a child window (WS_CHILD style detected)`n"
+    
+    ; Build result message
+    resultMsg := "Window Handle: " clickedWin "`n"
+    resultMsg .= "Window Class: " windowClass "`n"
+    resultMsg .= "Window Title: " windowTitle "`n"
+    resultMsg .= "Window Style: " Format("0x{:X}", windowStyle) "`n`n"
+    
+    if (isValid)
+        resultMsg .= "RESULT: Window IS valid for resizing"
+    else {
+        resultMsg .= "RESULT: Window is NOT valid for resizing`n`n"
+        resultMsg .= "Reasons:`n" reason
+    }
+    
+    ; Display result
+    MsgBox(resultMsg, "Window Validation Result")
+    
+}
+
+; Start the application
+; AnalyzeWindow()

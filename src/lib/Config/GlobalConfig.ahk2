@@ -1,0 +1,18 @@
+; src/lib/Config/GlobalConfig.ahk2
+
+; Global settings for window management
+global scalingModeActive := false
+global widthScalingEnabled := true
+global heightScalingEnabled := true
+global xyScalingEnabled := true
+global windowAlwaysOnTopEnabled := true
+global windowMoveEnabled := true
+global enableWindowSnapping := true
+global snapDistance := 10
+global safetyTimer := 0
+
+; Other global settings
+global debugMode := false
+global versionNumber := "1.0.0"
+
+; Add any other global variables here

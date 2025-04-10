@@ -1,9 +1,20 @@
-#Requires AutoHotkey v2.0
-#SingleInstance Force
+; #Requires AutoHotkey v2.0
+; #SingleInstance Force
+; #WinActivateForce
 
-SetWinDelay -1
-SetControlDelay -1
-CoordMode "Mouse", "Screen"
+; ; Setup
+; ListLines 0
+; KeyHistory 0
+; SetWinDelay -1
+; SetControlDelay -1
+; CoordMode "Mouse", "Screen"
+
+; ; Load core utilities
+; #Include %A_ScriptDir%\..\..\src\lib\Config\GlobalConfig.ahk2
+; #Include %A_ScriptDir%\..\..\src\lib\Core\CoreUtils.ahk2
+; #Include %A_ScriptDir%\..\..\src\lib\Core\ColorUtils.ahk2
+; #Include %A_ScriptDir%\..\..\src\lib\Core\MoveUtils.ahk2
+; #Include %A_ScriptDir%\..\..\src\lib\Core\ToggleUtils.ahk2
 
 ; Status indicators for snapping (can be disabled in production)
 ShowSnapIndicator(message) {

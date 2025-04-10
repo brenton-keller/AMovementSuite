@@ -1,0 +1,33 @@
+; SetupEnvironment.ahk2
+; This file defines consistent paths and handles includes
+
+; Get the script base directory
+scriptPath := A_ScriptFullPath
+scriptDir := A_ScriptDir
+
+if InStr(scriptPath, "src\Features\") || InStr(scriptPath, "src/Features/") {
+    ; We're running a feature script directly
+    baseDir := RegExReplace(scriptDir, "\\src\\Features$|/src/Features$", "")
+} else if InStr(scriptPath, "src\lib\") || InStr(scriptPath, "src/lib/") {
+    ; We're in a library file
+    baseDir := RegExReplace(scriptDir, "\\src\\lib\\.*$|/src/lib/.*$", "")
+} else {
+    ; We're in the main script
+    baseDir := scriptDir
+}
+
+; Store the base path globally (available for informational purposes)
+global SCRIPT_BASE_DIR := baseDir
+global LIB_DIR := baseDir . "/src/lib"
+global CONFIG_DIR := LIB_DIR . "/Config"
+global CORE_DIR := LIB_DIR . "/Core"
+global FEATURES_DIR := baseDir . "/src/Features"
+
+; Debug information
+debugText := "Script paths:`n"
+            . "SCRIPT_BASE_DIR: " . SCRIPT_BASE_DIR . "`n"
+            . "CONFIG_DIR: " . CONFIG_DIR
+
+; Show paths in tooltip that disappears after 5 seconds
+ToolTip(debugText)
+SetTimer () => ToolTip(), -5000

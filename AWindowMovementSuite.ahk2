@@ -9,29 +9,21 @@ SetWinDelay -1
 SetControlDelay -1
 CoordMode "Mouse", "Screen"
 
-; Global settings for window management
-global scalingModeActive := false
-global widthScalingEnabled := true
-global heightScalingEnabled := true
-global xyScalingEnabled := true
-global windowAlwaysOnTopEnabled := true
-global windowMoveEnabled := true
-global enableWindowSnapping := true
-global snapDistance := 10
-global safetyTimer := 0
+; Load core utilities
+#Include %A_ScriptDir%\src\lib\Config\GlobalConfig.ahk2
+#Include %A_ScriptDir%\src\lib\Core\CoreUtils.ahk2
+#Include %A_ScriptDir%\src\lib\Core\ColorUtils.ahk2
+#Include %A_ScriptDir%\src\lib\Core\MoveUtils.ahk2
+#Include %A_ScriptDir%\src\lib\Core\ToggleUtils.ahk2
 
-; Include the scaling scripts
-#Include src/lib/ColorUtils.ahk2
-#Include src/lib/MoveUtils.ahk2
-#Include src/lib/ToggleUtils.ahk2
-#Include src/WindowMove.ahk2
-#Include src/WindowScaleWidth.ahk2
-#Include src/WindowScaleHeight.ahk2
-#Include src/WindowScaleXY.ahk2
-#Include src/WindowAlwaysOnTop.ahk2
-#Include src/WindowRollUp.ahk2
-#Include src/WindowDimmer.ahk2
-#Include src/DisableWindowModifications.ahk2
+#Include src\Features\WindowMove.ahk2
+#Include src\Features\WindowScaleWidth.ahk2
+#Include src\Features\WindowScaleHeight.ahk2
+#Include src\Features\WindowScaleXY.ahk2
+#Include src\Features\WindowAlwaysOnTop.ahk2
+#Include src\Features\WindowRollUp.ahk2
+#Include src\Features\WindowDimmer.ahk2
+#Include src\Features\DisableWindowModifications.ahk2
 
 ; Create the tray menu
 A_TrayMenu.Delete  ; Clear default menu
@@ -53,124 +45,3 @@ A_TrayMenu.Check "Height Scaling (LShift+RButton)"
 A_TrayMenu.Check "XY Scaling (LCtrl+LShift+RButton)"
 A_TrayMenu.Check "Window Always On Top (LCtrl+MButton)"
 A_TrayMenu.Check "Window Move (LAlt+RButton)"
-
-InitSafetyTimer() {
-    ; Set a timer to check for key release in case of errors
-    safetyTimer := SetTimer(CheckForKeyRelease, 250)
-}
-
-InitSafetyTimer()
-
-CheckForKeyRelease() {
-    global scalingModeActive
-
-    static wasReleased := true
-    
-    ; If RButton is not pressed, reset the scaling state
-    if (!GetKeyState("RButton", "P")) {
-        if (scalingModeActive) {
-            scalingModeActive := false
-            wasReleased := true
-            ToolTip  ; Clear any tooltips
-        }
-    } else if (scalingModeActive && wasReleased) {
-        wasReleased := false
-    }
-}
-
-ShowWindowMoveSettings(*) {
-    global enableWindowSnapping, snapDistance
-    
-    ; Create the settings window
-    settingsGui := Gui("+AlwaysOnTop +ToolWindow", "Window Move Settings")
-    
-    ; Add checkbox for window snapping
-    settingsGui.Add("CheckBox", "vWindowSnapping Checked" enableWindowSnapping, "Enable Window Snapping")
-    
-    ; Add snap distance slider
-    settingsGui.Add("Text", "xm y+15", "Snap Distance (pixels):")
-    settingsGui.Add("Slider", "vSnapDistance Range1-25 TickInterval5 Tooltip w200", snapDistance)
-    
-    ; Show current value
-    settingsGui.Add("Text", "x+5 w30 vCurrentValue", snapDistance)
-    
-    ; Add buttons
-    settingsGui.Add("Button", "xm y+15 w80 Default", "OK").OnEvent("Click", SaveSettings)
-    settingsGui.Add("Button", "x+10 w80", "Cancel").OnEvent("Click", CloseSettings)
-    
-    ; Event for updating the displayed value
-    sliderControl := settingsGui["SnapDistance"]
-    sliderControl.OnEvent("Change", UpdateValue)
-    
-    ; Show the GUI
-    settingsGui.Show()
-    
-    UpdateValue(*) {
-        settingsGui["CurrentValue"].Value := sliderControl.Value
-    }
-    
-    SaveSettings(*) {
-        Saved := settingsGui.Submit()
-        enableWindowSnapping := Saved.WindowSnapping
-        snapDistance := Saved.SnapDistance
-        settingsGui.Destroy()
-    }
-    
-    CloseSettings(*) {
-        settingsGui.Destroy()
-    }
-}
-
-GetWindowMonitor(winX, winY, winWidth, winHeight) {
-    winCenterX := winX + (winWidth / 2)
-    winCenterY := winY + (winHeight / 2)
-    
-    MonitorCount := MonitorGetCount()
-    Loop MonitorCount {
-        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
-        if (winCenterX >= MonLeft && winCenterX <= MonRight
-            && winCenterY >= MonTop && winCenterY <= MonBottom)
-            return A_Index
-    }
-    return 1
-}
-
-IsValidWindowForResize(hwnd) {
-    ; Get window class
-    windowClass := WinGetClass("ahk_id " hwnd)
-    
-    ; List of classes to exclude (add more as needed)
-    excludedClasses := [
-        "#32768",    ; Standard Windows context menus
-        "Windows.UI.Core.CoreWindow",  ; Modern context menus
-        "ToolbarWindow32",
-        "DropDown",
-        "Popup",
-        "PopupMenu"
-    ]
-    
-    ; Check if window is excluded
-    for excludedClass in excludedClasses {
-        if (windowClass = excludedClass)
-            return false
-    }
-    
-    ; Additional checks
-    if (!WinGetTitle("ahk_id " hwnd))  ; No title usually means temporary window
-        return false
-        
-    if (WinGetStyle("ahk_id " hwnd) & 0x40000000)  ; Check if it's a child window
-        return false
-    
-    return true
-}
-
-GetMonitorAtPos(x, y) {
-    MonitorCount := MonitorGetCount()
-    Loop MonitorCount {
-        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
-        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
-            return A_Index
-    }
-    return 1
-}

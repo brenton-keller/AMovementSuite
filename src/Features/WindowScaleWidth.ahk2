@@ -1,0 +1,454 @@
+; Left Ctrl + Right Mouse Button
+^RButton::{
+    global scalingModeActive, widthScalingEnabled
+    
+    if (scalingModeActive)
+        return
+        
+    scalingModeActive := true
+    
+    if (!widthScalingEnabled) {
+        scalingModeActive := false
+        return
+    }
+    
+    MouseGetPos ,, &mwin
+    
+    ; Check if it's a valid window for resizing
+    if (!IsValidWindowForResize(mwin)) {
+        scalingModeActive := false
+        return
+    }
+
+    MouseGetPos &startX, &startY, &mwin
+    WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
+
+    monitorIndex := GetWindowMonitor(wx, wy, ww, wh)
+    MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+    MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+
+    initialW := ww
+    initialX := wx
+    rightEdgePos := wx + ww  ; Store original right edge position
+    
+    snapEdgeThreshold := 50  ; Pixels from edge to trigger snap
+    
+    ; Calculate the 1/8 threshold for edge detection
+    edgeThreshold := initialW / 8
+    
+    ; Determine if mouse is near the edges - this mode will be maintained throughout the drag
+    isNearLeftEdge := (startX - wx) <= edgeThreshold
+    isNearRightEdge := (wx + ww - startX) <= edgeThreshold
+
+    maxWidth := workRight - workLeft
+    if (maxWidth <= initialW) {
+        maxWidth := initialW + 1  ; Add 1 pixel buffer to prevent division by zero
+    }
+
+    relativeX := (startX - wx) / initialW
+
+    ; Create preview GUI for main window
+    previewGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    previewGui.BackColor := "22B14C"  ; Same nice green as previous version
+    WinSetTransparent 75, previewGui.Hwnd
+    previewGui.Show("x" wx " y" wy " w" ww " h" wh " NoActivate")
+
+    snappedWindows := []
+    snappedWindowsEnabled := false
+    if ( (isNearLeftEdge || isNearRightEdge) && !snappedWindowsEnabled){
+        
+        snappedWindowsEnabled := true
+        
+        snappedWindowsInfo := Map()  ; Store original positions and sizes
+        
+        ; First gather all window edges
+        allWindowEdges := []
+        DetectHiddenWindows True
+
+        ; Get ALL windows - don't pass any parameters
+        windowList := WinGetList()
+        ;ToolTip("Found " . windowList.Length . " total windows")
+        ;SetTimer () => ToolTip(), -2000
+
+        validWindowCount := 0
+        for hwnd in windowList {
+            ; Skip invalid windows
+            if (!IsValidWindowForResize(hwnd))
+                continue
+                
+            ; Skip windows that no longer exist or aren't valid
+            if (!WinExist("ahk_id " hwnd) || !IsValidWindowForResize(hwnd))
+                continue
+                
+            ; Skip windows that don't exist anymore
+            if (!WinExist("ahk_id " hwnd))
+                continue
+                
+            ; Use try/catch to handle any errors
+            try {
+                WinGetPos &x, &y, &w, &h, "ahk_id " hwnd
+                
+                ; Skip windows with invalid positions
+                if (x == "" || y == "" || w == "" || h == "")
+                    continue
+                    
+                ; Add edges to our list with window titles for debugging
+                try {
+                    title := WinGetTitle("ahk_id " hwnd)
+                } catch {
+                    title := "Unknown"
+                }
+                
+                allWindowEdges.Push({hwnd: hwnd, edge: "left", pos: x, title: title})
+                allWindowEdges.Push({hwnd: hwnd, edge: "right", pos: x + w, title: title})
+                allWindowEdges.Push({hwnd: hwnd, edge: "top", pos: y, title: title})
+                allWindowEdges.Push({hwnd: hwnd, edge: "bottom", pos: y + h, title: title})
+                
+                validWindowCount++
+            } catch {
+                ; Skip this window
+                continue
+            }
+        }
+        DetectHiddenWindows False
+
+        ; ToolTip("Found " . validWindowCount . " valid windows with " . allWindowEdges.Length . " edges")
+        ; SetTimer () => ToolTip(), -2000
+        
+        ; Determine which border we're operating on (only left or right)
+        activeBorder := isNearLeftEdge ? "left" : "right"
+        
+        ; Find windows snapped to the active border
+        snappedWindows := FindWindowsSnappedToBorder(activeBorder, mwin, wx, wy, ww, wh, allWindowEdges)
+        
+        ; Store original window positions and sizes
+        for winInfo in snappedWindows {
+            hwnd := winInfo.hwnd
+            WinGetPos &swx, &swy, &sww, &swh, "ahk_id " hwnd
+            snappedWindowsInfo[hwnd] := {x: swx, y: swy, w: sww, h: swh}
+        }
+        
+        ; ; Highlight snapped windows visually
+        ; if (snappedWindows.Length > 0) {
+        ;     highlightGuis := HighlightSnappedWindows(snappedWindows, activeBorder)
+        ; } else {
+        ;     ToolTip("No windows found snapped to " . activeBorder . " edge")
+        ;     SetTimer () => ToolTip(), -2000
+        ; }
+        
+        ; Create preview GUIs for snapped windows
+        previewGuis := Map()
+        if (snappedWindows.Length > 0) {
+            for snappedWindow in snappedWindows {
+                hwnd := snappedWindow.hwnd
+                border := snappedWindow.border
+                
+                ; Skip windows that no longer exist or aren't valid
+                if (!WinExist("ahk_id " hwnd) || !IsValidWindowForResize(hwnd))
+                    continue
+                
+                ; Get original position and size
+                swInfo := snappedWindowsInfo[hwnd]
+                swx := swInfo.x
+                swy := swInfo.y
+                sww := swInfo.w
+                swh := swInfo.h
+                
+                ; Create a preview GUI for this snapped window
+                snapPreview := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+                if (border == "left") {
+                    snapPreview.BackColor := "0000FF"  ; Blue for left borders
+                } else if (border == "right") {
+                    snapPreview.BackColor := "FF0000"  ; Red for right borders
+                } else {
+                    snapPreview.BackColor := "FFFF00"  ; Yellow for others
+                }
+                WinSetTransparent 75, snapPreview.Hwnd
+                ; snapPreview.Show("x" swx " y" swy " w" sww " h" swh " NoActivate")
+                
+                ; Store the preview GUI
+                previewGuis[hwnd] := {
+                    gui: snapPreview,
+                    border: border,
+                    originalX: swx,
+                    originalY: swy,
+                    originalW: sww,
+                    originalH: swh,
+                    isVisible: false  ; Track visibility state
+                }
+            }
+        }
+    }
+    
+    While true
+    {
+        if !GetKeyState("RButton", "P") || !GetKeyState("LControl", "P")
+            break
+
+        MouseGetPos &currentX, &currentY
+        
+        ; Check for monitor changes during drag
+        newMonitorIndex := MonitorFromPoint(currentX, currentY)
+        if (newMonitorIndex != monitorIndex) {
+            monitorIndex := newMonitorIndex
+            MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+            MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+            
+            maxWidth := workRight - workLeft
+            if (maxWidth <= initialW) {
+                maxWidth := initialW + 1
+            }
+        }
+
+        deltaX := currentX - startX
+        
+        ; Calculate new dimensions based on the edge detection mode
+        if (isNearLeftEdge) {
+            ; LEFT EDGE ONLY MODE: Right edge stays fixed
+            newX := initialX + deltaX
+            
+            ; Constrain left edge from moving beyond right edge
+            newX := Min(newX, rightEdgePos - Colors.MIN_WIDTH)
+            
+            ; Constrain left edge from moving beyond screen left
+            newX := Max(newX, workLeft)
+            
+            ; Calculate width based on fixed right edge
+            newW := rightEdgePos - newX
+            
+            ; Calculate main right edge position for snapped windows
+            mainRightEdge := newX + newW
+        } 
+        else if (isNearRightEdge) {
+            ; RIGHT EDGE ONLY MODE: Left edge stays fixed
+            newX := initialX  ; Keep left position fixed
+            
+            ; Calculate width based on mouse position
+            newW := initialW + deltaX
+            
+            ; Constrain width so right edge doesn't exceed screen right
+            newW := Min(newW, workRight - initialX)
+            
+            ; Ensure minimum width
+            newW := Max(newW, Colors.MIN_WIDTH)
+            
+            ; Calculate main right edge position for snapped windows
+            mainRightEdge := newX + newW
+        }
+        else {
+            ; PROPORTIONAL MODE: Both edges can move
+            ; Check if mouse is near screen edge for snapping
+            if (currentX >= workRight - snapEdgeThreshold) {
+                ; Snap to max width
+                newW := maxWidth
+                newX := workLeft
+            }
+            else {
+                ; Dynamic sensitivity based on target width
+                if (deltaX < 0) {
+                    ; For reduction (moving mouse left)
+                    scaleFactor := 1 + (deltaX * 0.003)
+                } else {
+                    ; For expansion (moving mouse right)
+                    scaleFactor := 1 + (deltaX * 0.003)
+                }
+                ; scaleFactor := Max(0.25, scaleFactor)
+                minScaleFactor := Colors.MIN_WIDTH / initialW
+                scaleFactor := Max(minScaleFactor, scaleFactor)
+                
+                newW := Round(initialW * scaleFactor)
+                newW := Max(Colors.MIN_WIDTH, Min(newW, maxWidth))
+                
+                ; Apply proportional positioning
+                newX := Round(initialX - (newW - initialW) * (1 - relativeX))
+                newX := Max(workLeft, Min(workRight - newW, newX))
+            }
+            
+            ; Calculate main right edge position for snapped windows
+            mainRightEdge := newX + newW
+        }
+
+        newColor := CalculateColorWidth(newW, initialW, maxWidth)
+        previewGui.BackColor := newColor
+        
+        ; Update main preview
+        WinMove newX, wy, newW, wh, previewGui.Hwnd
+        WinSetRegion "0-0 w" newW " h" wh, previewGui.Hwnd
+        
+        ; Update previews for snapped windows
+        if (snappedWindows.Length > 0) {
+            if ( GetKeyState("LShift","P") ) {
+                ; Show all hidden preview GUIs
+                for hwnd, guiInfo in previewGuis {
+                    if (!guiInfo.isVisible) {
+                        guiInfo.gui.Show("x" guiInfo.originalX " y" guiInfo.originalY 
+                                    " w" guiInfo.originalW " h" guiInfo.originalH " NoActivate")
+                        guiInfo.isVisible := true
+                    }
+                }
+                for snappedWindow in snappedWindows {
+                    hwnd := snappedWindow.hwnd
+                    border := snappedWindow.border
+                    
+                    if (!previewGuis.Has(hwnd))
+                        continue
+                        
+                    snapPreview := previewGuis[hwnd]
+                    
+                    ; Original values
+                    swx := snapPreview.originalX
+                    swy := snapPreview.originalY
+                    sww := snapPreview.originalW
+                    swh := snapPreview.originalH
+                    
+                    ; Calculate new positions/sizes based on relationship
+                    if (isNearLeftEdge) {
+                        if (border == "right") {
+                            ; Window with RIGHT edge touching our LEFT edge
+                            ; Resize this window's width as our left edge moves
+                            newSnapW := newX - swx
+                            newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
+                            
+                            ; Update preview
+                            WinMove swx, swy, newSnapW, swh, snapPreview.gui.Hwnd
+                            WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd
+                        } 
+                        else if (border == "left") {
+                            ; Window with LEFT edge touching our LEFT edge
+                            ; Move this window with our left edge
+                            WinMove newX, swy, sww, swh, snapPreview.gui.Hwnd
+                            WinSetRegion "0-0 w" sww " h" swh, snapPreview.gui.Hwnd
+                        }
+                    } 
+                    else if (isNearRightEdge) {
+                        if (border == "left") {
+                            ; Window with LEFT edge touching our RIGHT edge
+                            ; Move and resize this window as our right edge moves
+                            newSnapX := mainRightEdge
+                            newSnapW := (swx + sww) - mainRightEdge
+                            newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
+                            
+                            ; Update preview
+                            WinMove newSnapX, swy, newSnapW, swh, snapPreview.gui.Hwnd
+                            WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd
+                        } 
+                        else if (border == "right") {
+                            ; Window with RIGHT edge touching our RIGHT edge
+                            ; Resize this window to match our right edge
+                            newSnapW := mainRightEdge - swx
+                            newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
+                            
+                            ; Update preview
+                            WinMove swx, swy, newSnapW, swh, snapPreview.gui.Hwnd
+                            WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd
+                        }
+                    }
+                }
+            }
+            if ( !GetKeyState("LShift","P") ){
+                ; Iterate through all preview GUIs and hide each one
+                for hwnd, guiInfo in previewGuis {
+                    guiInfo.gui.Hide()
+                    guiInfo.isVisible := false
+                }
+            }
+        }
+        
+    }
+    
+    ; Apply final size and destroy previews
+    previewGui.Destroy()
+    
+    ; Set the new dimensions to main and snapped windows
+    if (IsSet(newW) && IsSet(newX)) {
+        ; Check if main window is maximized
+        isMaximized := WinGetMinMax("ahk_id " mwin)
+        
+        if (isMaximized = 1) ; 1 means maximized
+        {
+            ; Restore the window first
+            WinRestore "ahk_id " mwin
+            ; Small sleep to ensure the restore completes
+            Sleep 10
+        }
+        
+        ; Apply new dimensions to main window
+        WinMove newX, wy, newW, wh, "ahk_id " mwin
+        
+        ; Force a refresh to prevent visual artifacts
+        WinHide "ahk_id " mwin
+        WinShow "ahk_id " mwin
+        
+        ; Now apply the changes to snapped windows
+        if ( GetKeyState("LShift","P") ){
+            if (snappedWindows.Length > 0) {
+                for snappedWindow in snappedWindows {
+                    hwnd := snappedWindow.hwnd
+                    border := snappedWindow.border
+                    
+                    if (!previewGuis.Has(hwnd))
+                        continue
+                        
+                    snapPreview := previewGuis[hwnd]
+                    
+                    ; Use the last position we calculated during the preview updates
+                    finalX := 0
+                    finalY := 0
+                    finalW := 0
+                    finalH := 0
+                    
+                    ; Get the final calculated position based on the window relationship
+                    if (isNearLeftEdge) {
+                        finalY := snapPreview.originalY
+                        finalH := snapPreview.originalH
+                        
+                        if (border == "right") {
+                            ; Window with RIGHT edge touching our LEFT edge
+                            finalX := snapPreview.originalX
+                            finalW := newX - finalX
+                            finalW := Max(Colors.MIN_WIDTH, finalW)
+                        } 
+                        else if (border == "left") {
+                            ; Window with LEFT edge touching our LEFT edge
+                            finalX := newX
+                            finalW := snapPreview.originalW
+                        }
+                    } 
+                    else if (isNearRightEdge) {
+                        finalY := snapPreview.originalY
+                        finalH := snapPreview.originalH
+                        
+                        if (border == "left") {
+                            ; Window with LEFT edge touching our RIGHT edge
+                            finalX := mainRightEdge
+                            finalW := (snapPreview.originalX + snapPreview.originalW) - mainRightEdge
+                            finalW := Max(Colors.MIN_WIDTH, finalW)
+                        } 
+                        else if (border == "right") {
+                            ; Window with RIGHT edge touching our RIGHT edge
+                            finalX := snapPreview.originalX
+                            finalW := mainRightEdge - finalX
+                            finalW := Max(Colors.MIN_WIDTH, finalW)
+                        }
+                    }
+                    
+                    ; Apply the changes to the real window
+                    WinMove finalX, finalY, finalW, finalH, "ahk_id " hwnd
+                    
+                    ; Force refresh
+                    WinHide "ahk_id " hwnd
+                    WinShow "ahk_id " hwnd
+                }
+            }
+        }
+        
+        if (snappedWindowsEnabled){
+            ; Destroy snapped window previews - do this AFTER moving windows
+            for hwnd, snapPreview in previewGuis {
+                snapPreview.gui.Destroy()
+            }
+        }
+    }
+    
+    scalingModeActive := false
+}

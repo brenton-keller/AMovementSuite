@@ -1,3 +1,4 @@
+
 ToggleWidthScaling(*) {
     global widthScalingEnabled
     widthScalingEnabled := !widthScalingEnabled
