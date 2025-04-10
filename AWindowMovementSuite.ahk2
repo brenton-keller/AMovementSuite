@@ -30,7 +30,7 @@ A_TrayMenu.Delete  ; Clear default menu
 A_TrayMenu.Add "Width Scaling (LCtrl+RButton)", ToggleWidthScaling
 A_TrayMenu.Add "Height Scaling (LShift+RButton)", ToggleHeightScaling
 A_TrayMenu.Add "XY Scaling (LCtrl+LShift+RButton)", ToggleXYScaling
-A_TrayMenu.Add  ; Separatorg
+A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Always On Top (LCtrl+MButton)", ToggleWindowAlwaysOnTop
 A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move (LAlt+RButton)", ToggleWindowMove

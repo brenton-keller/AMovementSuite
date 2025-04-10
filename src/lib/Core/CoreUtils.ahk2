@@ -66,26 +66,26 @@ IsValidWindowForResize(hwnd) {
     
     ; List of classes to exclude (add more as needed)
     excludedClasses := [
-        ; "#32768",    ; Standard Windows context menus
-        ; "Windows.UI.Core.CoreWindow",  ; Modern context menus
-        ; "ToolbarWindow32"
-        ; "DropDown",
-        ; "Popup",
-        ; "PopupMenu"
+        "#32768",    ; Standard Windows context menus
+        "Windows.UI.Core.CoreWindow",  ; Modern context menus
+        "ToolbarWindow32"
+        "DropDown",
+        "Popup",
+        "PopupMenu"
     ]
     
     ; ; Check if window is excluded
-    ; for excludedClass in excludedClasses {
-    ;     if (windowClass = excludedClass)
-    ;         return false
-    ; }
+    for excludedClass in excludedClasses {
+        if (windowClass = excludedClass)
+            return false
+    }
     
     ; Additional checks
-    ; if (!WinGetTitle("ahk_id " hwnd))  ; No title usually means temporary window
-    ;     return false
+    if (!WinGetTitle("ahk_id " hwnd))  ; No title usually means temporary window
+        return false
         
-    ; if (WinGetStyle("ahk_id " hwnd) & 0x40000000)  ; Check if it's a child window
-    ;     return false
+    if (WinGetStyle("ahk_id " hwnd) & 0x40000000)  ; Check if it's a child window
+        return false
     
     return true
 }
