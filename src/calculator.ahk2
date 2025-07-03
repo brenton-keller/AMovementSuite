@@ -1,0 +1,161 @@
+#Requires AutoHotkey v2.0
+
+; Press F12 to calculate and insert the result
+F12::CalculateAndInsert()
+
+CalculateAndInsert() {
+    ; Copy selected text to clipboard
+    A_Clipboard := ""
+    Send "^c"
+    if !ClipWait(1)
+        return
+    
+    ; Parse the expression
+    expression := ""
+    lines := StrSplit(A_Clipboard, "`n", "`r")
+    
+    for i, line in lines {
+        line := Trim(line)
+        if (line = "")
+            continue
+        
+        firstChar := SubStr(line, 1, 1)
+        restOfLine := SubStr(line, 2)
+        
+        ; Format the expression
+        if (i = 1) {
+            ; First line - just set as the initial value
+            expression := line
+        } else if (firstChar = "+" || firstChar = "-" || firstChar = "*" || firstChar = "/") {
+            expression .= " " . firstChar . " " . restOfLine
+        } else {
+            expression := line  ; Reset if no operator
+        }
+    }
+    
+    ; Calculate the expression using Eval
+    try {
+        result := Eval(expression)
+    } catch as err {
+        MsgBox "Error calculating: " . err.Message
+        return
+    }
+    
+    ; Move down one line and insert the result
+    Send "{Down}{Home}= " . Format("{:.2f}", result)
+}
+
+; Evaluation function that respects order of operations
+Eval(expression) {
+    ; Convert expression to postfix notation
+    postfix := InfixToPostfix(expression)
+    
+    ; Evaluate the postfix expression
+    return EvaluatePostfix(postfix)
+}
+
+InfixToPostfix(expression) {
+    postfix := []
+    operatorStack := []
+    
+    ; Define operator precedence
+    precedence := Map(
+        "+", 1,
+        "-", 1,
+        "*", 2,
+        "/", 2,
+        "(", 0,
+        ")", 0
+    )
+    
+    tokens := TokenizeExpression(expression)
+    
+    for token in tokens {
+        if IsNumber(token) {
+            postfix.Push(token)
+        } else if (token = "(") {
+            operatorStack.Push(token)
+        } else if (token = ")") {
+            while (operatorStack.Length > 0 && operatorStack[operatorStack.Length] != "(") {
+                postfix.Push(operatorStack.Pop())
+            }
+            if (operatorStack.Length > 0 && operatorStack[operatorStack.Length] = "(") {
+                operatorStack.Pop()  ; Remove the "("
+            }
+        } else if (token = "+" || token = "-" || token = "*" || token = "/") {
+            while (operatorStack.Length > 0 && 
+                   precedence.Has(operatorStack[operatorStack.Length]) && 
+                   precedence[operatorStack[operatorStack.Length]] >= precedence[token]) {
+                postfix.Push(operatorStack.Pop())
+            }
+            operatorStack.Push(token)
+        }
+    }
+    
+    while (operatorStack.Length > 0) {
+        postfix.Push(operatorStack.Pop())
+    }
+    
+    return postfix
+}
+
+EvaluatePostfix(postfix) {
+    valueStack := []
+    
+    for token in postfix {
+        if IsNumber(token) {
+            valueStack.Push(token)
+        } else {
+            b := valueStack.Pop()
+            a := valueStack.Pop()
+            
+            if (token = "+")
+                valueStack.Push(a + b)
+            else if (token = "-")
+                valueStack.Push(a - b)
+            else if (token = "*")
+                valueStack.Push(a * b)
+            else if (token = "/")
+                valueStack.Push(a / b)
+        }
+    }
+    
+    return valueStack[1]
+}
+
+TokenizeExpression(expression) {
+    tokens := []
+    currentNumber := ""
+    
+    Loop Parse, expression {
+        char := A_LoopField
+        
+        if (char = " ") {
+            if (currentNumber != "") {
+                tokens.Push(currentNumber)
+                currentNumber := ""
+            }
+        } else if (char = "+" || char = "-" || char = "*" || char = "/" || char = "(" || char = ")") {
+            if (currentNumber != "") {
+                tokens.Push(currentNumber)
+                currentNumber := ""
+            }
+            tokens.Push(char)
+        } else if (IsDigit(char) || char = ".") {
+            currentNumber .= char
+        }
+    }
+    
+    if (currentNumber != "")
+        tokens.Push(currentNumber)
+    
+    return tokens
+}
+
+IsNumber(str) {
+    return RegExMatch(str, "^-?\d*\.?\d+$")
+}
+
+IsDigit(char) {
+    return RegExMatch(char, "\d")
+}
