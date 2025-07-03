@@ -1,3 +1,6 @@
+*.gitignore
+gitignore
+
 # Operating System Files
 .DS_Store
 Thumbs.db
@@ -28,6 +31,5 @@ desktop.ini
 
 src/WindowScaleProportional.ahk2
 src/VirtualDesktopLib/key_list.md
-*.gitignore
 AMovementSuite.code-workspace
 RunAHKAsAdmin.bat

@@ -2,3 +2,8 @@
 WheelUp::Send("^{=}")
 WheelDown::Send("^{-}")
 #HotIf
+
+#Space::
+{
+    Run '"C:\Program Files\Everything\Everything.exe" -newwindow'
+}

@@ -630,6 +630,13 @@ FindWindowsSnappedToBorder(mainBorder, mainWinHwnd, mainX, mainY, mainWidth, mai
                     snappedBorder := "left"
                 }
             }
+            ; else if (Abs(mainRight - otherRight) <= snapTolerance && 
+            ;          mainTop <= otherBottom && mainBottom >= otherTop) {
+            ;     if (mainBorder == "right") {
+            ;         isSnapped := true
+            ;         snappedBorder := "right"
+            ;     }
+            ; }
         }
         
         ; Similar checks for top/bottom if needed

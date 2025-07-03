@@ -128,14 +128,6 @@
             snappedWindowsInfo[hwnd] := {x: swx, y: swy, w: sww, h: swh}
         }
         
-        ; ; Highlight snapped windows visually
-        ; if (snappedWindows.Length > 0) {
-        ;     highlightGuis := HighlightSnappedWindows(snappedWindows, activeBorder)
-        ; } else {
-        ;     ToolTip("No windows found snapped to " . activeBorder . " edge")
-        ;     SetTimer () => ToolTip(), -2000
-        ; }
-        
         ; Create preview GUIs for snapped windows
         previewGuis := Map()
         if (snappedWindows.Length > 0) {
@@ -156,13 +148,7 @@
                 
                 ; Create a preview GUI for this snapped window
                 snapPreview := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
-                if (border == "left") {
-                    snapPreview.BackColor := "0000FF"  ; Blue for left borders
-                } else if (border == "right") {
-                    snapPreview.BackColor := "FF0000"  ; Red for right borders
-                } else {
-                    snapPreview.BackColor := "FFFF00"  ; Yellow for others
-                }
+                snapPreview.BackColor := "c74e83"
                 WinSetTransparent 75, snapPreview.Hwnd
                 ; snapPreview.Show("x" swx " y" swy " w" sww " h" swh " NoActivate")
                 
@@ -268,7 +254,7 @@
             mainRightEdge := newX + newW
         }
 
-        newColor := CalculateColorWidth(newW, initialW, maxWidth)
+        newColor := CalculateColorWidth(newW, initialW, maxWidth, 1)
         previewGui.BackColor := newColor
         
         ; Update main preview
@@ -310,6 +296,8 @@
                             newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
                             
                             ; Update preview
+                            newColor := CalculateColorWidth(newSnapW, sww, maxWidth, 2)
+                            snapPreview.gui.BackColor := newColor
                             WinMove swx, swy, newSnapW, swh, snapPreview.gui.Hwnd
                             WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd
                         } 
@@ -329,6 +317,8 @@
                             newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
                             
                             ; Update preview
+                            newColor := CalculateColorWidth(newSnapW, sww, maxWidth, 2)
+                            snapPreview.gui.BackColor := newColor
                             WinMove newSnapX, swy, newSnapW, swh, snapPreview.gui.Hwnd
                             WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd
                         } 
@@ -432,12 +422,12 @@
                         }
                     }
                     
-                    ; Apply the changes to the real window
+                    ; ; Apply the changes to the real window
                     WinMove finalX, finalY, finalW, finalH, "ahk_id " hwnd
                     
-                    ; Force refresh
-                    WinHide "ahk_id " hwnd
-                    WinShow "ahk_id " hwnd
+                    ; ; Force refresh
+                    ; WinHide "ahk_id " hwnd
+                    ; WinShow "ahk_id " hwnd
                 }
             }
         }

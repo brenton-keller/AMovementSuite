@@ -13,11 +13,16 @@
 }
 !NumpadEnd::{
     ActiveProcess := WinGetProcessName("A")
-    switch ActiveProcess {
-        case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe", "Vivaldi.exe":
-            Send("!{Left}")
-        default:
-            Send("!{Backspace}")
+    if (ActiveProcess = "msedge.exe" || 
+        ActiveProcess = "brave.exe" || 
+        ActiveProcess = "opera.exe" || 
+        ActiveProcess = "XYplorer.exe" || 
+        ActiveProcess = "Vivaldi.exe"
+        ) {
+        Send("!{Left}")
+    }
+    else {
+        Send("!{Backspace}")
     }
 }
 +NumpadEnd::{
@@ -47,24 +52,36 @@ NumpadDown::{
 }
 !NumpadDown::{
     ActiveProcess := WinGetProcessName("A")
-    if (ActiveProcess = "vivaldi.exe") {
-        current_id := WinGetID("A")  ; Get the active window's ID
-        
-        if distraction_free.Has(current_id) {
-            ; Window is in distraction_free mode, just toggle UI
-            Send("^{F11}")
-            distraction_free.Delete(current_id)  ; Remove from distraction_free list
-        } else {
-            ; Window is in normal mode, do both toggles
-            Send("^{F11}")
-            ; Sleep(5)  ; Small delay to ensure commands don't overlap
-            Send("^!{F11}")
-            distraction_free[current_id] := true  ; Add to distraction_free list
-        }
-        ; Send("{Enter}")
-    } else {
+    if (ActiveProcess = "msedge.exe" || 
+        ActiveProcess = "brave.exe" || 
+        ActiveProcess = "opera.exe" || 
+        ActiveProcess = "XYplorer.exe" || 
+        ActiveProcess = "Vivaldi.exe"
+        ) {
+        Send("!{Right}")
+    }
+    else {
         Send("{Enter}")
     }
+    ; ActiveProcess := WinGetProcessName("A")
+    ; if (ActiveProcess = "vivaldi.exe") {
+    ;     current_id := WinGetID("A")  ; Get the active window's ID
+        
+    ;     if distraction_free.Has(current_id) {
+    ;         ; Window is in distraction_free mode, just toggle UI
+    ;         Send("^{F11}")
+    ;         distraction_free.Delete(current_id)  ; Remove from distraction_free list
+    ;     } else {
+    ;         ; Window is in normal mode, do both toggles
+    ;         Send("^{F11}")
+    ;         ; Sleep(5)  ; Small delay to ensure commands don't overlap
+    ;         Send("^!{F11}")
+    ;         distraction_free[current_id] := true  ; Add to distraction_free list
+    ;     }
+    ;     ; Send("{Enter}")
+    ; } else {
+    ;     Send("{Enter}")
+    ; }
 }
 +NumpadDown::{
     ActiveProcess := WinGetProcessName("A")

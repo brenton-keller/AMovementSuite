@@ -45,3 +45,86 @@ A_TrayMenu.Check "Height Scaling (LShift+RButton)"
 A_TrayMenu.Check "XY Scaling (LCtrl+LShift+RButton)"
 A_TrayMenu.Check "Window Always On Top (LCtrl+MButton)"
 A_TrayMenu.Check "Window Move (LAlt+RButton)"
+
+; --- START: Monitor Information Display on Startup ---
+ShowMonitorInfo() {
+    monitorCount := MonitorGetCount()
+    infoText := "Detected " monitorCount " Monitor(s):`r`n`r`n" ; Use `r`n for Edit controls
+    primaryMon := MonitorGetPrimary()
+
+    Loop monitorCount {
+        thisMon := A_Index ; Current monitor number in the loop
+
+        ; Get full monitor coordinates and dimensions
+        MonitorGet(thisMon, &Left, &Top, &Right, &Bottom)
+        Width := Right - Left
+        Height := Bottom - Top
+
+        ; Get work area (excluding taskbar, usually) coordinates and dimensions
+        MonitorGetWorkArea(thisMon, &WorkLeft, &WorkTop, &WorkRight, &WorkBottom)
+        WorkWidth := WorkRight - WorkLeft
+        WorkHeight := WorkBottom - WorkTop
+
+        ; Check if this is the primary monitor
+        isPrimary := (thisMon == primaryMon) ? "Yes" : "No"
+
+        ; Build the text block for this monitor (use `r`n for newlines in Edit controls)
+        infoText .= "--- Monitor " thisMon " ---`r`n"
+        infoText .= "  Primary Monitor: " isPrimary "`r`n"
+        infoText .= "  Position (Top-Left Corner): X=" Left ", Y=" Top "`r`n"
+        infoText .= "  Full Resolution: " Width "x" Height "`r`n"
+        infoText .= "  Bounding Box (Raw Coords): Left=" Left ", Top=" Top ", Right=" Right ", Bottom=" Bottom "`r`n"
+        infoText .= "  Work Area Position (Top-Left): X=" WorkLeft ", Y=" WorkTop "`r`n"
+        infoText .= "  Work Area Size: " WorkWidth "x" WorkHeight "`r`n"
+        infoText .= "  Work Area Box (Raw Coords): Left=" WorkLeft ", Top=" WorkTop ", Right=" WorkRight ", Bottom=" WorkBottom "`r`n`r`n"
+    }
+
+    ; --- Create a Custom GUI instead of MsgBox ---
+    ; Estimate reasonable GUI size (adjust as needed)
+    guiWidth := 550
+    guiHeight := 300 + (monitorCount * 130) ; Base height + extra per monitor
+    if guiHeight > A_ScreenHeight * 0.8 ; Limit max height
+        guiHeight := Floor(A_ScreenHeight * 0.8)
+
+    ; Create the GUI window
+    InfoGui := Gui("+AlwaysOnTop +Resize", "Connected Monitor Information")
+    InfoGui.SetFont("s10", "Consolas") ; Use a monospaced font for better alignment
+
+    ; Add a ReadOnly Edit control to display the text
+    ; R = Rows (approximate height), W = Width, ReadOnly makes it non-editable but selectable
+    InfoGui.Add("Edit", "w" (guiWidth - 30) " R" (Floor(guiHeight/18)-3) " ReadOnly -VScroll", infoText)
+
+    ; Add an OK button to close the GUI
+    buttonYPos := guiHeight - 45
+    InfoGui.Add("Button", "xm+" (guiWidth/2 - 50) " w100 Default", "OK").OnEvent("Click", InfoGui_Close)
+
+    ; Function to close the GUI
+    InfoGui_Close(*) {
+        InfoGui.Destroy()
+    }
+
+    ; Handle GUI resize event (optional, but nice)
+    InfoGui.OnEvent("Size", InfoGui_Size)
+    InfoGui_Size(guiObj, MinMax, Width, Height) {
+        ; Resize the Edit control when the GUI is resized
+        ; Assuming the Edit control is the first control (adjust if not)
+        editCtrl := guiObj.GetCtrl(1)
+        if IsObject(editCtrl) {
+             ; Adjust Edit control width and height relative to GUI size
+             ; Leave some margin for borders and the button
+            editCtrl.Move(15, 15, Width - 30, Height - 65)
+        }
+         ; Reposition the OK button
+        buttonCtrl := guiObj.GetCtrl(2) ; Assuming Button is the second control
+        if IsObject(buttonCtrl) {
+            buttonCtrl.Move(Width/2 - 50, Height - 45)
+        }
+    }
+
+
+    ; Show the GUI modally (script pauses until it's closed)
+    InfoGui.Show("w" guiWidth " h" guiHeight) ; Show with calculated dimensions
+}
+
+ShowMonitorInfo() ; Call the function immediately on script start
+; --- END: Monitor Information Display on Startup ---

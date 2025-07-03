@@ -11,9 +11,12 @@
  * @property {Integer} MIN_WIDTH Minimum allowed window width
  */
 class Colors {
-    static BASELINE := {R: 34, G: 177, B: 76}    
-    static TEAL := {R: 0, G: 150, B: 136}        
-    static DEEP_PURPLE := {R: 103, G: 58, B: 183} 
+    static BASELINE := {R: 34, G: 177, B: 76}     ;oklch(0.67 0.191 146.12)
+    static TEAL := {R: 0, G: 150, B: 136}         ;oklch(0.6 0.1074 183.38)
+    static DEEP_PURPLE := {R: 103, G: 58, B: 183} ;oklch(0.47 0.1862 294.78)
+    static SOFT_MAGENTA := {R: 199, G: 78, B: 131}   ;complements baseline green rgb(199,78,131)
+    static SOFT_CORAL := {R: 220, G: 120, B: 100}    ;complements teal
+    static SOFT_OLIVE := {R: 180, G: 179, B: 87}     ;complements deep purple
     ; static BASELINE := {R: 0, G: 0, B: 0}    
     ; static TEAL := {R: 255, G: 0, B: 0}        
     ; static DEEP_PURPLE := {R: 0, G: 255, B: 0} 
@@ -79,61 +82,49 @@ CalculateColorHeight(currentHeight, initialHeight, maxHeight) {
  * @param {Integer} currentWidth Current window width
  * @param {Integer} initialWidth Initial window width
  * @param {Integer} maxWidth Maximum possible window width
+ * @param {Integer} colorSet
  * 
  * @returns {String} Hex color representing the current width state
  * 
  * @example
- * color := CalculateColorWidth(200, 100, 300)  ; Returns a color between baseline and teal
+ * color := CalculateColorWidth(200, 100, 300, 1)  ; Returns a color between baseline and teal
  */
-CalculateColorWidth(currentWidth, initialWidth, maxWidth) {
+CalculateColorWidth(currentWidth, initialWidth, maxWidth, colorSet) {
+    if (colorSet == 1){
+        color_base := Colors.BASELINE
+        color_grow := Colors.TEAL
+        color_shrink := Colors.DEEP_PURPLE
+    } else if (colorSet == 2){
+        color_base := Colors.SOFT_MAGENTA
+        color_grow := Colors.SOFT_OLIVE
+        color_shrink := Colors.SOFT_CORAL
+        
+    }
     if (currentWidth >= initialWidth) {
-        ; Safety check for division by zero
-        if (maxWidth <= initialWidth) {
-            return Format("{:02X}{:02X}{:02X}", Colors.TEAL.R, Colors.TEAL.G, Colors.TEAL.B)
-        }
-        
-        percentage := (currentWidth - initialWidth) / (maxWidth - initialWidth)
-        percentage := Max(0, Min(1, percentage))
-        
-        ; Convert baseline and target colors to LCh
-        baseLCh := RGBtoLCh(Colors.BASELINE.R, Colors.BASELINE.G, Colors.BASELINE.B)
-        tealLCh := RGBtoLCh(Colors.TEAL.R, Colors.TEAL.G, Colors.TEAL.B)
-        
-        ; Calculate shortest path hue delta
-        hueDelta := Mod(tealLCh.h - baseLCh.h + 540, 360) - 180
-        
-        ; Interpolate in LCh space
-        L := baseLCh.L + percentage * (tealLCh.L - baseLCh.L)
-        C := baseLCh.C + percentage * (tealLCh.C - baseLCh.C)
-        h := Mod(baseLCh.h + percentage * hueDelta, 360)
+        color_change := color_grow
+    } else {
+        color_change := color_shrink
     }
-    else {
-        ; Safety check for minimum width
-        if (initialWidth <= Colors.MIN_WIDTH) {
-            return Format("{:02X}{:02X}{:02X}", Colors.DEEP_PURPLE.R, Colors.DEEP_PURPLE.G, Colors.DEEP_PURPLE.B)
-        }
-
-        ; Force full purple when we reach or get very close to MIN_WIDTH
-        if (currentWidth <= Colors.MIN_WIDTH + 2) {
-            return Format("{:02X}{:02X}{:02X}", Colors.DEEP_PURPLE.R, Colors.DEEP_PURPLE.G, Colors.DEEP_PURPLE.B)
-        }
-
-        ; Use inverse ratio for better control near the minimum
-        percentage := 1.0 - ((currentWidth - Colors.MIN_WIDTH) / (initialWidth - Colors.MIN_WIDTH))
-        percentage := Max(0, Min(1, percentage))
-        
-        ; Convert baseline and target colors to LCh
-        baseLCh := RGBtoLCh(Colors.BASELINE.R, Colors.BASELINE.G, Colors.BASELINE.B)
-        purpleLCh := RGBtoLCh(Colors.DEEP_PURPLE.R, Colors.DEEP_PURPLE.G, Colors.DEEP_PURPLE.B)
-        
-        ; Calculate shortest path hue delta
-        hueDelta := Mod(purpleLCh.h - baseLCh.h + 540, 360) - 180
-        
-        ; Interpolate in LCh space
-        L := baseLCh.L + percentage * (purpleLCh.L - baseLCh.L)
-        C := baseLCh.C + percentage * (purpleLCh.C - baseLCh.C)
-        h := Mod(baseLCh.h + percentage * hueDelta, 360)
+    
+    ; Safety check for division by zero
+    if (maxWidth <= initialWidth) {
+        return Format("{:02X}{:02X}{:02X}", color_change.R, color_change.G, color_change.B)
     }
+    
+    percentage := (currentWidth - initialWidth) / (maxWidth - initialWidth)
+    percentage := Max(0, Min(1, percentage))
+    
+    ; Convert baseline and target colors to LCh
+    baseLCh := RGBtoLCh(color_base.R, color_base.G, color_base.B)
+    changeLCH := RGBtoLCh(color_change.R, color_change.G, color_change.B)
+    
+    ; Calculate shortest path hue delta
+    hueDelta := Mod(changeLCH.h - baseLCh.h + 540, 360) - 180
+    
+    ; Interpolate in LCh space
+    L := baseLCh.L + percentage * (changeLCH.L - baseLCh.L)
+    C := baseLCh.C + percentage * (changeLCH.C - baseLCh.C)
+    h := Mod(baseLCh.h + percentage * hueDelta, 360)
     
     ; Convert interpolated LCh color back to RGB
     rgb := LChtoRGB(L, C, h)

@@ -1,7 +1,27 @@
+
+CheckForKeyRelease() {
+    global scalingModeActive
+
+    static wasReleased := true
+    
+    ; If RButton is not pressed, reset the scaling state
+    if (!GetKeyState("RButton", "P")) {
+        if (scalingModeActive) {
+            scalingModeActive := false
+            wasReleased := true
+            ToolTip  ; Clear any tooltips
+        }
+    } else if (scalingModeActive && wasReleased) {
+        wasReleased := false
+    }
+}
+
 InitSafetyTimer() {
     ; Set a timer to check for key release in case of errors
-    safetyTimer := SetTimer(CheckForKeyRelease, 250)
+    SetTimer(CheckForKeyRelease, 250)
 }
+
+InitSafetyTimer()
 
 ShowWindowMoveSettings(*) {
     global enableWindowSnapping, snapDistance
@@ -99,25 +119,6 @@ GetMonitorAtPos(x, y) {
     }
     return 1
 }
-
-CheckForKeyRelease() {
-    global scalingModeActive
-
-    static wasReleased := true
-    
-    ; If RButton is not pressed, reset the scaling state
-    if (!GetKeyState("RButton", "P")) {
-        if (scalingModeActive) {
-            scalingModeActive := false
-            wasReleased := true
-            ToolTip  ; Clear any tooltips
-        }
-    } else if (scalingModeActive && wasReleased) {
-        wasReleased := false
-    }
-}
-
-InitSafetyTimer()
 
 ; When script starts, enter "click to analyze" mode
 AnalyzeWindow() {

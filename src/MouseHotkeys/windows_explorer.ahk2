@@ -1,0 +1,65 @@
+#Requires AutoHotkey v2.0
+
+; Initialize script and set up variables
+xyplorerPath := "F:\Portable Programs\XYplorer\XYplorer.exe"
+scanActive := true  ; Flag to control scanning
+lastProcessedHwnd := 0  ; Remember the last window we processed
+
+; Set up a timer to check for Explorer windows every 200ms
+SetTimer CheckForExplorer, 200
+
+; Hotkey to toggle the scanner on/off
+#e::ToggleScanner()
+
+CheckForExplorer(*) {
+    global scanActive, lastProcessedHwnd, xyplorerPath
+    
+    if (!scanActive)
+        return
+    
+    if WinActive("ahk_class CabinetWClass") {
+        activeHwnd := WinGetID("A")
+        
+        ; Skip if we've already processed this window
+        if (activeHwnd = lastProcessedHwnd)
+            return
+            
+        lastProcessedHwnd := activeHwnd
+        
+        try {
+            for window in ComObject("Shell.Application").Windows {
+                try {
+                    if (window.HWND = activeHwnd) {
+                        folderPath := window.Document.Folder.Self.Path
+                        
+                        ; Close the Windows Explorer window
+                        WinClose "ahk_id " activeHwnd
+                        
+                        ; Launch XyPlorer in a new window with the current folder path
+                        Run xyplorerPath ' /new "' folderPath '"'
+                        
+                        return
+                    }
+                } catch {
+                    continue  ; Skip windows that error out
+                }
+            }
+        } catch Error as e {
+            ; Silent error handling - don't show message boxes during automatic operation
+            OutputDebug "Error: " e.Message  ; Log to AHK's debug output
+        }
+    }
+}
+
+ToggleScanner(*) {
+    global scanActive
+    scanActive := !scanActive
+    
+    if (scanActive) {
+        MsgBox "Explorer replacement is now ACTIVE"
+        SetTimer CheckForExplorer, 200
+    } else {
+        MsgBox "Explorer replacement is now PAUSED"
+        SetTimer CheckForExplorer, 0  ; Turn off the timer
+    }
+}

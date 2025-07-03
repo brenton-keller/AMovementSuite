@@ -30,3 +30,11 @@ NumpadMult::VD.goToLastActiveDesktop()
 ; Hyper - Up
 +NumpadUp::VD.goToDesktopByName("AArrow")
 !NumpadUp::VD.goToDesktopByName("AHK")
+
+; Toggle pin window
+#MButton::
+{
+    MouseGetPos ,, &mouseWin
+    VD.TogglePinWindow("ahk_id " . mouseWin)
+    return
+}
