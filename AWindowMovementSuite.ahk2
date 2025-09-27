@@ -92,11 +92,12 @@ ShowMonitorInfo() {
 
     ; Add a ReadOnly Edit control to display the text
     ; R = Rows (approximate height), W = Width, ReadOnly makes it non-editable but selectable
-    InfoGui.Add("Edit", "w" (guiWidth - 30) " R" (Floor(guiHeight/18)-3) " ReadOnly -VScroll", infoText)
+    editCtrl := InfoGui.Add("Edit", "w" (guiWidth - 30) " R" (Floor(guiHeight/18)-3) " ReadOnly -VScroll", infoText)
 
     ; Add an OK button to close the GUI
     buttonYPos := guiHeight - 45
-    InfoGui.Add("Button", "xm+" (guiWidth/2 - 50) " w100 Default", "OK").OnEvent("Click", InfoGui_Close)
+    buttonCtrl := InfoGui.Add("Button", "xm+" (guiWidth/2 - 50) " w100 Default", "OK")
+    buttonCtrl.OnEvent("Click", InfoGui_Close)
 
     ; Function to close the GUI
     InfoGui_Close(*) {
@@ -107,15 +108,12 @@ ShowMonitorInfo() {
     InfoGui.OnEvent("Size", InfoGui_Size)
     InfoGui_Size(guiObj, MinMax, Width, Height) {
         ; Resize the Edit control when the GUI is resized
-        ; Assuming the Edit control is the first control (adjust if not)
-        editCtrl := guiObj.GetCtrl(1)
         if IsObject(editCtrl) {
              ; Adjust Edit control width and height relative to GUI size
              ; Leave some margin for borders and the button
             editCtrl.Move(15, 15, Width - 30, Height - 65)
         }
          ; Reposition the OK button
-        buttonCtrl := guiObj.GetCtrl(2) ; Assuming Button is the second control
         if IsObject(buttonCtrl) {
             buttonCtrl.Move(Width/2 - 50, Height - 45)
         }
