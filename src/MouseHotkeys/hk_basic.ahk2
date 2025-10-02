@@ -65,7 +65,7 @@ RAlt & F2::{
                 Send("+{Enter}")
         }
     }
-    else if GetKeyState("Alt", "P") {
+    else if GetKeyState("LAlt", "P") {
         ; Alt was held - do Alt variant
         ActiveProcess := WinGetProcessName("A")
         if (ActiveProcess = "msedge.exe" || 
