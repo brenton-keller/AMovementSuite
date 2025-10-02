@@ -24,7 +24,7 @@ RAlt & F5::{
 
 ;Send {6} - Close tab (RAlt+F6)
 RAlt & F6::{
-    if GetKeyState("LCtrl", "P") {
+    if GetKeyState("LAlt", "P") {
         Send("!{F4}")
     }
     else {
