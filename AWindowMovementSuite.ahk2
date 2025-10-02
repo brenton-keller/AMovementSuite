@@ -23,6 +23,7 @@ CoordMode "Mouse", "Screen"
 #Include src\Features\WindowAlwaysOnTop.ahk2
 #Include src\Features\WindowRollUp.ahk2
 #Include src\Features\WindowDimmer.ahk2
+#Include src\Features\WindowCascade.ahk2
 #Include src\Features\DisableWindowModifications.ahk2
 
 ; Create the tray menu
@@ -34,6 +35,7 @@ A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Always On Top (LCtrl+MButton)", ToggleWindowAlwaysOnTop
 A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move (LAlt+RButton)", ToggleWindowMove
+A_TrayMenu.Add "Window Cascade (RAlt+Up)", ToggleWindowCascade
 A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move Settings", ShowWindowMoveSettings
 A_TrayMenu.Add  ; Separator
@@ -45,6 +47,7 @@ A_TrayMenu.Check "Height Scaling (LShift+RButton)"
 A_TrayMenu.Check "XY Scaling (LCtrl+LShift+RButton)"
 A_TrayMenu.Check "Window Always On Top (LCtrl+MButton)"
 A_TrayMenu.Check "Window Move (LAlt+RButton)"
+A_TrayMenu.Check "Window Cascade (RAlt+Up)"
 
 ; --- START: Monitor Information Display on Startup ---
 ShowMonitorInfo() {

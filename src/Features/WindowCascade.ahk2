@@ -1,0 +1,466 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+; Initialize global variables for cascade state tracking
+global cascadedWindowsInfo := Map()  ; Stores original window positions
+global cascadeActive := false         ; Tracks if windows are currently cascaded
+
+; Hotkey: Right Alt + Up Arrow
+>!Up::WindowCascade()
+
+/** WindowCascade
+ * Intelligently cascades all visible windows or restores their original positions.
+ * Uses smart spacing based on window count and screen size.
+ * Remembers original positions and restores them if windows haven't changed.
+ *
+ * @global {Boolean} windowCascadeEnabled Controls whether cascade functionality is active
+ * @global {Map} cascadedWindowsInfo Stores original window positions and state
+ * @global {Boolean} cascadeActive Tracks if windows are currently in cascade mode
+ *
+ * @returns {void}
+ *
+ * @behavior
+ * - First press: Cascades windows with intelligent spacing
+ * - Second press: Restores original positions (if windows unchanged)
+ * - If windows changed: Performs new cascade instead of restore
+ *
+ * @example
+ * WindowCascade()  ; Cascades all windows or restores them
+ */
+WindowCascade() {
+    global windowCascadeEnabled, cascadedWindowsInfo, cascadeActive
+
+    ; Check if functionality is enabled
+    if (!windowCascadeEnabled) {
+        ShowCascadeNotification("Window Cascade is disabled")
+        return
+    }
+
+    ; Check if we should restore or cascade
+    if (cascadeActive && CanRestoreWindows()) {
+        RestoreWindowPositions()
+    } else {
+        CascadeWindows()
+    }
+}
+
+/** CanRestoreWindows
+ * Checks if any cascaded windows can be restored to their original positions.
+ * Allows restoration even if some windows have been closed.
+ * Only prevents restoration if existing windows have been moved.
+ *
+ * @returns {Boolean} True if at least some windows can be restored to original positions
+ */
+CanRestoreWindows() {
+    global cascadedWindowsInfo
+
+    ; Track windows that exist and haven't moved
+    existingUnmovedCount := 0
+    totalStoredCount := 0
+
+    ; Check each stored window
+    for hwnd, info in cascadedWindowsInfo {
+        totalStoredCount++
+
+        ; Check if window still exists
+        if (!WinExist("ahk_id " hwnd)) {
+            ; Window was closed - this is okay, we'll skip it during restore
+            continue
+        }
+
+        ; Get current window state
+        try {
+            WinGetPos &currentX, &currentY, &currentW, &currentH, "ahk_id " hwnd
+            currentTitle := WinGetTitle("ahk_id " hwnd)
+
+            ; Check if window has been moved from its cascaded position
+            if (currentX != info.cascadeX || currentY != info.cascadeY ||
+                currentW != info.cascadeW || currentH != info.cascadeH) {
+                ; Window was moved - this prevents restoration
+                return false
+            }
+
+            ; Check if window title has significantly changed (allows minor changes)
+            if (currentTitle != info.title && !InStr(currentTitle, SubStr(info.title, 1, 10))) {
+                ; Window changed significantly - this prevents restoration
+                return false
+            }
+
+            ; This window exists and hasn't been moved
+            existingUnmovedCount++
+        } catch {
+            ; Error checking window - treat as closed
+            continue
+        }
+    }
+
+    ; Return true if we have at least one window to restore
+    return (existingUnmovedCount > 0 && totalStoredCount > 0)
+}
+
+/** RestoreWindowPositions
+ * Restores all existing windows to their original positions before cascading.
+ * Gracefully handles windows that have been closed.
+ * Clears cascade state after restoration.
+ */
+RestoreWindowPositions() {
+    global cascadedWindowsInfo, cascadeActive
+
+    restoredCount := 0
+    closedCount := 0
+    totalCount := 0
+
+    ; Restore each window
+    for hwnd, info in cascadedWindowsInfo {
+        totalCount++
+
+        try {
+            if (WinExist("ahk_id " hwnd)) {
+                ; Restore to original position and size
+                WinMove info.originalX, info.originalY, info.originalW, info.originalH, "ahk_id " hwnd
+                restoredCount++
+            } else {
+                ; Window was closed - count it but don't fail
+                closedCount++
+            }
+        } catch {
+            ; Error restoring window - treat as closed
+            closedCount++
+        }
+    }
+
+    ; Clear cascade state
+    cascadedWindowsInfo.Clear()
+    cascadeActive := false
+
+    ; Build notification message
+    message := "Restored " restoredCount " window" (restoredCount != 1 ? "s" : "")
+    if (closedCount > 0) {
+        message .= " (" closedCount " window" (closedCount != 1 ? "s" : "") " closed)"
+    }
+
+    ShowCascadeNotification(message)
+}
+
+/** CascadeWindows
+ * Cascades all valid windows with intelligent spacing.
+ * Spacing adapts based on window count and available screen space.
+ */
+CascadeWindows() {
+    global cascadedWindowsInfo, cascadeActive
+
+    ; Clear any existing cascade info
+    cascadedWindowsInfo.Clear()
+
+    ; Get primary monitor work area
+    primaryMonitor := MonitorGetPrimary()
+    MonitorGetWorkArea(primaryMonitor, &workLeft, &workTop, &workRight, &workBottom)
+
+    workWidth := workRight - workLeft
+    workHeight := workBottom - workTop
+
+    ; Get all windows in z-order (topmost first)
+    allWindows := WinGetList(,, "Program Manager")
+
+    ; Filter to valid windows
+    validWindows := []
+
+    Loop allWindows.Length {
+        hwnd := allWindows[A_Index]
+
+        ; Skip if window no longer exists
+        if (!WinExist("ahk_id " hwnd))
+            continue
+
+        ; Use existing validation function
+        if (IsValidWindowForMove(hwnd)) {
+            ; Skip minimized windows
+            if (WinGetMinMax("ahk_id " hwnd) == -1)
+                continue
+
+            ; Add to beginning to reverse z-order (furthest back first)
+            validWindows.InsertAt(1, hwnd)
+        }
+    }
+
+    ; Check if we have windows to cascade
+    if (validWindows.Length == 0) {
+        ShowCascadeNotification("No valid windows to cascade")
+        return
+    }
+
+    ; Group windows by application
+    applicationGroups := GroupWindowsByApplication(validWindows)
+
+    ; Calculate optimal column layout
+    columnCount := CalculateColumnCount(validWindows.Length)
+
+    ; Assign application groups to columns intelligently
+    columnAssignments := AssignGroupsToColumns(applicationGroups, columnCount)
+
+    ; Calculate column width
+    columnWidth := Floor(workWidth / columnCount)
+
+    ; Process each column
+    Loop columnCount {
+        columnIndex := A_Index - 1
+        windowsInColumn := columnAssignments[A_Index]
+
+        ; Skip empty columns
+        if (windowsInColumn.Length == 0) {
+            continue
+        }
+
+        ; Calculate cascade spacing for this column
+        baseSpacingX := 35
+        baseSpacingY := 35
+
+        ; Adjust spacing based on windows in this column
+        if (windowsInColumn.Length > 10) {
+            baseSpacingX := 25
+            baseSpacingY := 25
+        } else if (windowsInColumn.Length > 15) {
+            baseSpacingX := 20
+            baseSpacingY := 20
+        }
+
+        ; Calculate minimum visible area
+        minVisibleHeight := 300
+        maxVerticalSpace := workHeight - minVisibleHeight
+
+        ; Adjust vertical spacing to fit windows in column
+        if (baseSpacingY * (windowsInColumn.Length - 1) > maxVerticalSpace) {
+            baseSpacingY := Floor(maxVerticalSpace / Max(windowsInColumn.Length - 1, 1))
+            baseSpacingY := Max(baseSpacingY, 15)  ; Minimum 15px spacing
+        }
+
+        ; Calculate base position for this column
+        columnStartX := workLeft + (columnIndex * columnWidth)
+
+        ; Add variety by staggering column starts
+        columnOffsetY := columnIndex * 15  ; Stagger columns vertically
+
+        ; Process each window in this column
+        Loop windowsInColumn.Length {
+            hwnd := windowsInColumn[A_Index]
+            windowIndexInColumn := A_Index - 1
+
+            try {
+                ; Store original position
+                WinGetPos &origX, &origY, &origW, &origH, "ahk_id " hwnd
+                winTitle := WinGetTitle("ahk_id " hwnd)
+
+                ; Calculate position within the column
+                newX := columnStartX + (windowIndexInColumn * baseSpacingX)
+                newY := workTop + columnOffsetY + (windowIndexInColumn * baseSpacingY)
+
+                ; For visual variety, alternate slight horizontal offset
+                if (Mod(windowIndexInColumn, 2) == 1) {
+                    newX += 10  ; Slight offset for odd windows
+                }
+
+                ; Calculate window size
+                ; Try to maintain original size but constrain to column
+                idealWidth := Min(origW, columnWidth - 30)  ; Leave some margin
+                idealHeight := Min(origH, workHeight - (newY - workTop) - 50)
+
+                ; Ensure window doesn't extend beyond its column (with some overlap allowed)
+                maxWindowWidth := columnWidth + 80  ; Allow 80px overlap into next column
+                newW := Min(idealWidth, maxWindowWidth)
+                newH := idealHeight
+
+                ; Ensure window stays within screen bounds
+                if (newX + newW > workRight) {
+                    newW := workRight - newX
+                }
+                if (newY + newH > workBottom) {
+                    newH := workBottom - newY
+                }
+
+                ; Move window
+                WinMove newX, newY, newW, newH, "ahk_id " hwnd
+
+                ; Store both original and cascade positions
+                cascadedWindowsInfo[hwnd] := {
+                    originalX: origX,
+                    originalY: origY,
+                    originalW: origW,
+                    originalH: origH,
+                    cascadeX: newX,
+                    cascadeY: newY,
+                    cascadeW: newW,
+                    cascadeH: newH,
+                    title: winTitle
+                }
+            }
+        }
+    }
+
+    ; Set cascade as active
+    cascadeActive := true
+
+    ShowCascadeNotification("Cascaded " validWindows.Length " windows (Press again to restore)")
+}
+
+/** GroupWindowsByApplication
+ * Groups windows by their application process name for intelligent organization.
+ *
+ * @param {Array} windowHandles Array of window handles to group
+ *
+ * @returns {Map} Map of process name to array of window handles
+ */
+GroupWindowsByApplication(windowHandles) {
+    groups := Map()
+
+    ; Group windows by process name
+    Loop windowHandles.Length {
+        hwnd := windowHandles[A_Index]
+
+        try {
+            ; Get process name for this window
+            processName := WinGetProcessName("ahk_id " hwnd)
+
+            ; Create group if it doesn't exist
+            if (!groups.Has(processName)) {
+                groups[processName] := []
+            }
+
+            ; Add window to its process group
+            groups[processName].Push(hwnd)
+        } catch {
+            ; If we can't get process name, group as "Unknown"
+            if (!groups.Has("Unknown")) {
+                groups["Unknown"] := []
+            }
+            groups["Unknown"].Push(hwnd)
+        }
+    }
+
+    return groups
+}
+
+/** AssignGroupsToColumns
+ * Intelligently assigns application groups to columns for optimal organization.
+ *
+ * @param {Map} groups Map of process name to window handles
+ * @param {Integer} columnCount Number of available columns
+ *
+ * @returns {Array} Array of column assignments, each containing window handles
+ */
+AssignGroupsToColumns(groups, columnCount) {
+    ; Initialize columns
+    columns := []
+    Loop columnCount {
+        columns.Push([])
+    }
+
+    ; Sort groups by window count (largest first)
+    sortedGroups := []
+    for processName, windows in groups {
+        sortedGroups.Push({
+            name: processName,
+            windows: windows,
+            count: windows.Length
+        })
+    }
+
+    ; Sort by count (descending)
+    sortedGroups := SortArray(sortedGroups, (a, b) => b.count - a.count)
+
+    ; Assign groups to columns
+    currentColumn := 0
+
+    Loop sortedGroups.Length {
+        group := sortedGroups[A_Index]
+
+        ; Large groups (3+ windows) get their own column if possible
+        if (group.count >= 3 && currentColumn < columnCount) {
+            ; Add all windows from this group to current column
+            for window in group.windows {
+                columns[currentColumn + 1].Push(window)
+            }
+            currentColumn++
+        }
+        ; Small groups get distributed across remaining columns
+        else {
+            ; Find column with fewest windows
+            minColumn := 1
+            minCount := columns[1].Length
+
+            Loop columnCount {
+                if (columns[A_Index].Length < minCount) {
+                    minColumn := A_Index
+                    minCount := columns[A_Index].Length
+                }
+            }
+
+            ; Add windows to the least populated column
+            for window in group.windows {
+                columns[minColumn].Push(window)
+            }
+        }
+    }
+
+    return columns
+}
+
+/** SortArray
+ * Simple bubble sort for sorting arrays of objects.
+ *
+ * @param {Array} arr Array to sort
+ * @param {Function} compareFn Comparison function (returns number)
+ *
+ * @returns {Array} Sorted array
+ */
+SortArray(arr, compareFn) {
+    ; Simple bubble sort (sufficient for small arrays)
+    Loop arr.Length - 1 {
+        i := A_Index
+        Loop arr.Length - i {
+            j := A_Index
+            if (compareFn(arr[j], arr[j + 1]) > 0) {
+                ; Swap
+                temp := arr[j]
+                arr[j] := arr[j + 1]
+                arr[j + 1] := temp
+            }
+        }
+    }
+    return arr
+}
+
+/** CalculateColumnCount
+ * Determines the optimal number of columns for cascading windows.
+ *
+ * @param {Integer} windowCount Number of windows to cascade
+ *
+ * @returns {Integer} Optimal number of columns
+ */
+CalculateColumnCount(windowCount) {
+    ; Determine column count based on window count
+    if (windowCount <= 4) {
+        return 1  ; Single column for few windows
+    }
+    else if (windowCount <= 8) {
+        return 2  ; Two columns for moderate count
+    }
+    else if (windowCount <= 15) {
+        return 3  ; Three columns for many windows
+    }
+    else if (windowCount <= 24) {
+        return 4  ; Four columns for lots of windows
+    }
+    else {
+        return 5  ; Five columns for excessive windows
+    }
+}
+
+/** ShowCascadeNotification
+ * Shows a temporary tooltip notification for cascade operations.
+ *
+ * @param {String} message The message to display
+ */
+ShowCascadeNotification(message) {
+    ToolTip message
+    SetTimer () => ToolTip(), -2000
+}

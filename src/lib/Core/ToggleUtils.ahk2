@@ -43,3 +43,12 @@ ToggleWindowMove(*) {
     else
         A_TrayMenu.Uncheck "Window Move (LAlt+RButton)"
 }
+
+ToggleWindowCascade(*) {
+    global windowCascadeEnabled
+    windowCascadeEnabled := !windowCascadeEnabled
+    if windowCascadeEnabled
+        A_TrayMenu.Check "Window Cascade (RAlt+Up)"
+    else
+        A_TrayMenu.Uncheck "Window Cascade (RAlt+Up)"
+}
