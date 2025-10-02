@@ -1,53 +1,56 @@
-;Send {7} - Nest code
- NumpadHome::
-+NumpadHome::
-!NumpadHome::{
-  Send("^+{[}")
-}
-^NumpadHome::{
-  Send("^a")
-  Send("^k")
-  Send("^1")
-  Send("{Escape}")
-}
-+^NumpadHome::{
-  Send("^k")
-  Send("^j")
-  Send("^a")
-  Send("^k")
-  Send("^2")
-  Send("{Escape}")
-}
-+^!NumpadHome::{
-  Send("^k")
-  Send("^j")
-  Send("^a")
-  Send("^k")
-  Send("^3")
-  Send("{Escape}")
-}
-
-;Send {10} - Unnest code
- NumpadDiv::
-+NumpadDiv::
-!NumpadDiv::{
-  Send("^+{]}")
-}
-^NumpadDiv::{
-  Send("^k")
-  Send("^j")
+;Send {7} - Nest code (RAlt+F7)
+RAlt & F7::{
+    if GetKeyState("LCtrl", "P") && GetKeyState("LShift", "P") && GetKeyState("LAlt", "P") {
+        ; Ctrl+Shift+Alt held
+        Send("^k")
+        Send("^j")
+        Send("^a")
+        Send("^k")
+        Send("^3")
+        Send("{Escape}")
+    }
+    else if GetKeyState("LCtrl", "P") && GetKeyState("LShift", "P") {
+        ; Ctrl+Shift held
+        Send("^k")
+        Send("^j")
+        Send("^a")
+        Send("^k")
+        Send("^2")
+        Send("{Escape}")
+    }
+    else if GetKeyState("LCtrl", "P") {
+        ; Ctrl held
+        Send("^a")
+        Send("^k")
+        Send("^1")
+        Send("{Escape}")
+    }
+    else {
+        ; No modifiers or Shift/Alt held - Fold
+        Send("^+{[}")
+    }
 }
 
-;Send {11} - Comment/Uncomment
- NumpadEnter::
-+NumpadEnter::
-^NumpadEnter::
-!NumpadEnter::{
-  ActiveProcess := WinGetProcessName("A")
-  switch ActiveProcess {
-    case "cursor.exe", "Code.exe":
-      Send("^/")
-    default:
-      Send("{11}")
-  }
+;Send {10} - Unnest code (RAlt+F10)
+RAlt & F10::{
+    if GetKeyState("LCtrl", "P") {
+        ; Ctrl held - Unfold all
+        Send("^k")
+        Send("^j")
+    }
+    else {
+        ; No modifiers or Shift/Alt held - Unfold
+        Send("^+{]}")
+    }
+}
+
+;Send {11} - Comment/Uncomment (RAlt+F11)
+RAlt & F11::{
+    ActiveProcess := WinGetProcessName("A")
+    switch ActiveProcess {
+        case "cursor.exe", "Code.exe":
+            Send("^/")
+        default:
+            Send("{11}")
+    }
 }

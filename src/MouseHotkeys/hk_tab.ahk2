@@ -1,37 +1,41 @@
-;Send {4} - Previous tab
- NumpadLeft::
-^NumpadLeft::
-!NumpadLeft::{
-    Send("{Blind}{Ctrl Down}{Shift Down}{Tab}{Shift Up}{Ctrl Up}")
-}
-+NumpadLeft::{
-    Send("{Blind}{Ctrl Down}{Shift Down}{Left}{Shift Up}{Ctrl Up}")
-}
-
-;Send {5} - Next tab
- NumpadClear::
-^NumpadClear::
-!NumpadClear::{
-    Send("^{Tab}")
-}
-+NumpadClear::{
-    Send("{Blind}{Ctrl Down}{Shift Down}{Right}{Shift Up}{Ctrl Up}")
+;Send {4} - Previous tab (RAlt+F4)
+RAlt & F4::{
+    if GetKeyState("LShift", "P") {
+        ; Shift was held - Ctrl+Shift+Left
+        Send("{Ctrl Down}{Shift Down}{Left}{Shift Up}{Ctrl Up}")
+    }
+    else {
+        ; No modifiers or Ctrl/Alt held - Previous tab
+        Send("{Ctrl Down}{Shift Down}{Tab}{Shift Up}{Ctrl Up}")
+    }
 }
 
-;Send {6} - Close tab
- NumpadRight::
-+NumpadRight::
-!NumpadRight::{
-    Send("^w")
-}
-^NumpadRight::{
-    Send("^!n")
+;Send {5} - Next tab (RAlt+F5)
+RAlt & F5::{
+    if GetKeyState("LShift", "P") {
+        ; Shift was held - Ctrl+Shift+Right
+        Send("{Ctrl Down}{Shift Down}{Right}{Shift Up}{Ctrl Up}")
+    }
+    else {
+        ; No modifiers or Ctrl/Alt held - Next tab
+        Send("^{Tab}")
+    }
 }
 
-;Send {9} - Reopen closed tab
- NumpadPgUp::
-+NumpadPgUp::
-^NumpadPgUp::
-!NumpadPgUp::{
+;Send {6} - Close tab (RAlt+F6)
+RAlt & F6::{
+    if GetKeyState("LCtrl", "P") {
+        ; Ctrl was held - Ctrl+Alt+N
+        Send("^!n")
+    }
+    else {
+        ; No modifiers or Shift/Alt held - Close tab
+        Send("^w")
+    }
+}
+
+;Send {9} - Reopen closed tab (RAlt+F9)
+RAlt & F9::{
+    ; Same action for all modifier combinations
     Send("^+t")
 }

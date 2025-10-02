@@ -1,5 +1,3 @@
-; NumpadMult::3
-
 ; Global variables for each buffer
 global Buffer_color := ""
 global defaultBuffer := ""
@@ -7,19 +5,60 @@ global shiftBuffer := ""
 global ctrlBuffer := ""
 global altBuffer := ""
 
-; Copy hotkeys
- NumpadSub::
-^NumpadSub::Send("^c")
-+NumpadSub::ExtractColorUnderCursor()
-!NumpadSub::SaveToBuffer("alt")
-; #NumpadSub::SaveToBuffer("win")
+;Send {Wheel Left} - Copy (RAlt+Left) - Push wheel left
+RAlt & Left::{
+    if GetKeyState("LCtrl", "P") {
+        ; Ctrl held - Standard copy
+        Send("^c")
+    }
+    else if GetKeyState("LShift", "P") {
+        ; Shift held - Extract color
+        ExtractColorUnderCursor()
+    }
+    else if GetKeyState("LAlt", "P") {
+        ; Alt held - Save to alt buffer
+        SaveToBuffer("alt")
+    }
+    else {
+        ; No modifiers - Standard copy
+        Send("^c")
+    }
+}
 
-; Paste hotkeys
- NumpadAdd::
-^NumpadAdd::Send("^v")
-+NumpadAdd::PasteColor()
-!NumpadAdd::PasteBuffer("alt")
-; #NumpadAdd::PasteBuffer("win")
+;Send {Wheel Right} - Paste (RAlt+Right) - Push wheel right
+RAlt & Right::{
+    if GetKeyState("LCtrl", "P") {
+        ; Ctrl held - Standard paste
+        Send("^v")
+    }
+    else if GetKeyState("LShift", "P") {
+        ; Shift held - Paste color
+        PasteColor()
+    }
+    else if GetKeyState("LAlt", "P") {
+        ; Alt held - Paste from alt buffer
+        PasteBuffer("alt")
+    }
+    else {
+        ; No modifiers - Standard paste
+        Send("^v")
+    }
+}
+
+;Send {Wheel Click} - Top button 1 (RAlt+Up)
+RAlt & Up::{
+    ; Your custom action here
+}
+
+;Send {Top Button 1} - Top button 2 (RAlt+Down)
+RAlt & Down::{
+    ; Your custom action here
+}
+
+;Send {Top Button 2} - Side button (RAlt+PgDn)
+RAlt & PgDn::{
+    ; Your custom action here
+}
 
 ; Copy to buffer while preserving system clipboard
 SaveToBuffer(bufferType) {
@@ -31,7 +70,7 @@ SaveToBuffer(bufferType) {
     Send "^c"
     
     ; Store copied content in appropriate buffer
-    if ClipWait(0.5) {
+    if ClipWait(0.2) {
         clipContent := A_Clipboard
         
         if (bufferType = "default")
@@ -79,7 +118,7 @@ PasteBuffer(bufferType) {
     
     ; Use buffer content for pasting
     A_Clipboard := bufferContent
-    ClipWait(0.5)
+    ClipWait(0.2)
     
     ; ; Show tooltip with preview of what's being pasted
     ; ToolTip("Pasting from " bufferType " buffer: " SubStr(bufferContent, 1, 20) (StrLen(bufferContent) > 20 ? "..." : ""), A_ScreenWidth/2, A_ScreenHeight/2)
