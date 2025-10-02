@@ -5,8 +5,8 @@
 global cascadedWindowsInfo := Map()  ; Stores original window positions
 global cascadeActive := false         ; Tracks if windows are currently cascaded
 
-; Hotkey: Right Alt + Up Arrow
->!Up::WindowCascade()
+; ; Hotkey: Right Alt + Up Arrow
+; >!Up::WindowCascade()
 
 /** WindowCascade
  * Intelligently cascades all visible windows or restores their original positions.

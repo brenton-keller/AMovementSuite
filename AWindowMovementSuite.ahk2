@@ -23,8 +23,11 @@ CoordMode "Mouse", "Screen"
 #Include src\Features\WindowAlwaysOnTop.ahk2
 #Include src\Features\WindowRollUp.ahk2
 #Include src\Features\WindowDimmer.ahk2
-#Include src\Features\WindowCascade.ahk2
 #Include src\Features\DisableWindowModifications.ahk2
+#Include src\Features\WindowCascade.ahk2
+
+; Load mouse hotkeys
+#Include src\MouseHotkeys\setting_mouse.ahk2
 
 ; Create the tray menu
 A_TrayMenu.Delete  ; Clear default menu

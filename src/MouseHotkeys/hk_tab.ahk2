@@ -25,8 +25,7 @@ RAlt & F5::{
 ;Send {6} - Close tab (RAlt+F6)
 RAlt & F6::{
     if GetKeyState("LCtrl", "P") {
-        ; Ctrl was held - Ctrl+Alt+N
-        Send("^!n")
+        Send("!{F4}")
     }
     else {
         ; No modifiers or Shift/Alt held - Close tab
@@ -36,6 +35,11 @@ RAlt & F6::{
 
 ;Send {9} - Reopen closed tab (RAlt+F9)
 RAlt & F9::{
-    ; Same action for all modifier combinations
-    Send("^+t")
+    if GetKeyState("LCtrl", "P") {
+        Send("^n")
+    }
+    else {
+        ; Same action for all modifier combinations
+        Send("^+t")
+    }
 }

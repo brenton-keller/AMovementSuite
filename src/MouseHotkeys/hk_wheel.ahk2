@@ -47,7 +47,7 @@ RAlt & Right::{
 
 ;Send {Wheel Click} - Top button 1 (RAlt+Up)
 RAlt & Up::{
-    ; Your custom action here
+    WindowCascade()
 }
 
 ;Send {Top Button 1} - Top button 2 (RAlt+Down)
