@@ -1,46 +1,80 @@
+/**
+ * Maps transparency value to virtual mouse position (0-800 range)
+ * Approximates exponential feel but works with absolute positioning
+ */
+TransToVirtualPos(trans) {
+    minTrans := 20
+    maxTrans := 255
+    maxPos := 800
+
+    ; Normalize to 0-1
+    normalized := (trans - minTrans) / (maxTrans - minTrans)
+
+    ; Use inverse of ease-out curve: x = 1 - (1-y)^(1/2.5)
+    ; This approximates the exponential feel
+    invCurved := 1 - ((1 - normalized) ** (1/2.5))
+
+    return invCurved * maxPos
+}
+
+/**
+ * Maps virtual mouse position to transparency value
+ * Uses ease-out curve to approximate exponential (fast→slow)
+ * 2x longer than original /400 (now /800)
+ */
+VirtualPosToTrans(virtualPos) {
+    minTrans := 20
+    maxTrans := 255
+    maxPos := 800
+
+    ; Normalize to 0-1
+    normalized := Max(0, Min(1, virtualPos / maxPos))
+
+    ; Ease-out curve: 1 - (1-x)^2.5
+    ; Steep at start (fast changes at low opacity)
+    ; Shallow at end (fine control at high opacity)
+    ; Approximates the exponential feel but reaches 100%
+    curved := 1 - ((1 - normalized) ** 2.5)
+
+    return Round(minTrans + curved * (maxTrans - minTrans))
+}
+
 ; Left Ctrl + Left Alt + Right Mouse Button to adjust transparency
 ^!RButton::{
     MouseGetPos(&startX, &startY, &mwin)
     currentTrans := WinGetTransparent("ahk_id " mwin)
     if (!currentTrans)  ; If no transparency is set, assume window is fully opaque
         currentTrans := 255
-    
-    initialTrans := currentTrans  ; Store for reference
-    startMouseX := startX  ; Store initial mouse position
-    
+
+    ; Calculate offset to make current mouse position correspond to current transparency
+    ; This ensures consistent behavior whether you let go and re-click or drag continuously
+    virtualStart := TransToVirtualPos(currentTrans)
+    mouseOffset := startX - virtualStart
+
     ; Show initial transparency as tooltip
     ToolTip("Transparency: " Round((currentTrans/255)*100) "%")
-    
+
     While (GetKeyState("RButton", "P") && GetKeyState("LAlt", "P") && GetKeyState("LCtrl", "P"))
     {
         MouseGetPos(&currentX)
-        ; Calculate percentage change based on mouse movement
-        movementPercent := (currentX - startMouseX) / 400  ; Increase for larger movements
-        
-        ; Apply logarithmic curve for more natural feel
-        movement := movementPercent * 255  ; Scale movement to full range
-        if (movement > 0) {
-            ; Moving right (becoming more opaque)
-            newTrans := initialTrans + (255 - initialTrans) * (1 - Exp(-movement/127))
-        } else {
-            ; Moving left (becoming more transparent)
-            newTrans := initialTrans * Exp(movement/127)
-        }
-        
-        ; Constrain transparency between 20 (mostly transparent) and 255 (fully opaque)
-        newTrans := Max(20, Min(255, Round(newTrans)))
-        
+
+        ; Calculate virtual position using the offset
+        virtualPos := currentX - mouseOffset
+
+        ; Map virtual position to transparency using global curve
+        newTrans := VirtualPosToTrans(virtualPos)
+
         ; Only update if value changed and window exists
         if (currentTrans != newTrans && WinExist("ahk_id " mwin)) {
             WinSetTransparent(newTrans, "ahk_id " mwin)
             currentTrans := newTrans
-            
+
             ; Show current transparency as tooltip
             ToolTip("Transparency: " Round((newTrans/255)*100) "%")
         }
         Sleep(10)
     }
-    
+
     ToolTip()  ; Hide tooltip when done
 }
 
