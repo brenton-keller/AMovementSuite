@@ -1,3 +1,63 @@
+; State variables for continuous window updating
+windowUpdateTimer_Width := 0
+targetWindowFrame_Width := {x: 0, y: 0, w: 0, h: 0}  ; Stores desired window position/size
+targetWindowID_Width := 0
+initialResizeWidth_Width := 0  ; Track original width for auto-update threshold
+
+; State variables for smart updating (change detection)
+lastPreviewFrame_Width := {x: 0, y: 0, w: 0, h: 0}   ; Track last preview frame
+lastWindowFrame_Width := {x: 0, y: 0, w: 0, h: 0}    ; Track last window frame
+
+; Motion tracking for intelligent window updates
+lastFrameChangeTime_Width := 0                        ; Timestamp of last movement
+
+; Timer callback function: Updates the actual window position/size during resize
+UpdateActualWindow_Width() {
+    global targetWindowFrame_Width, targetWindowID_Width, lastWindowFrame_Width
+    global lastFrameChangeTime_Width, MOTION_PAUSE_THRESHOLD
+    global initialResizeWidth_Width, MIN_AUTO_UPDATE_WIDTH_RATIO
+
+    if (!targetWindowID_Width || !WinExist("ahk_id " targetWindowID_Width))
+        return
+
+    ; WIDTH CHECK: Don't auto-update if window is too narrow (prevents UI freakout)
+    if (initialResizeWidth_Width > 0) {
+        widthRatio := targetWindowFrame_Width.w / initialResizeWidth_Width
+
+        ; Block auto-update if width is too small
+        if (widthRatio < MIN_AUTO_UPDATE_WIDTH_RATIO)
+            return  ; Too narrow, skip auto-update (final update on release still happens)
+    }
+
+    ; MOTION CHECK: Only update if we've been stationary for >threshold ms
+    timeSinceLastChange := A_TickCount - lastFrameChangeTime_Width
+    if (timeSinceLastChange < MOTION_PAUSE_THRESHOLD)
+        return  ; Still actively moving, skip window update
+
+    ; SMART UPDATE: Only update if frame has actually changed
+    if (FramesEqual_Width(targetWindowFrame_Width, lastWindowFrame_Width))
+        return  ; No change, skip expensive WinMove operation
+
+    ; Store this frame for next comparison
+    lastWindowFrame_Width := {x: targetWindowFrame_Width.x, y: targetWindowFrame_Width.y,
+                              w: targetWindowFrame_Width.w, h: targetWindowFrame_Width.h}
+
+    ; Apply the stored frame to the actual window
+    WinMove targetWindowFrame_Width.x, targetWindowFrame_Width.y,
+            targetWindowFrame_Width.w, targetWindowFrame_Width.h,
+            "ahk_id " targetWindowID_Width
+
+    ; Refresh the window (hide/show trick for visual update)
+    WinHide "ahk_id " targetWindowID_Width
+    WinShow "ahk_id " targetWindowID_Width
+}
+
+; Helper function: Check if two frames are equal (for change detection)
+FramesEqual_Width(frame1, frame2) {
+    return (frame1.x = frame2.x && frame1.y = frame2.y &&
+            frame1.w = frame2.w && frame1.h = frame2.h)
+}
+
 ; Left Ctrl + Right Mouse Button
 ^RButton::{
     global scalingModeActive, widthScalingEnabled
@@ -30,7 +90,11 @@
     initialW := ww
     initialX := wx
     rightEdgePos := wx + ww  ; Store original right edge position
-    
+
+    ; Store initial width for auto-update threshold check
+    global initialResizeWidth_Width
+    initialResizeWidth_Width := initialW
+
     snapEdgeThreshold := 50  ; Pixels from edge to trigger snap
     
     ; Calculate the 1/8 threshold for edge detection
@@ -52,6 +116,18 @@
     previewGui.BackColor := "22B14C"  ; Same nice green as previous version
     WinSetTransparent 75, previewGui.Hwnd
     previewGui.Show("x" wx " y" wy " w" ww " h" wh " NoActivate")
+
+    ; Initialize continuous window update system
+    global targetWindowID_Width, WINDOW_UPDATE_INTERVAL
+    targetWindowID_Width := mwin
+    SetTimer UpdateActualWindow_Width, WINDOW_UPDATE_INTERVAL
+
+    ; Reset smart update state variables
+    global lastPreviewFrame_Width, lastWindowFrame_Width, lastFrameChangeTime_Width, targetWindowFrame_Width
+    lastPreviewFrame_Width := {x: wx, y: wy, w: ww, h: wh}
+    lastWindowFrame_Width := {x: wx, y: wy, w: ww, h: wh}
+    lastFrameChangeTime_Width := A_TickCount
+    targetWindowFrame_Width := {x: wx, y: wy, w: ww, h: wh}
 
     snappedWindows := []
     snappedWindowsEnabled := false
@@ -254,9 +330,38 @@
             mainRightEdge := newX + newW
         }
 
+        ; CHANGE DETECTION: Create frame object for comparison
+        currentFrame := {x: newX, y: wy, w: newW, h: wh}
+        global lastPreviewFrame_Width, lastFrameChangeTime_Width, targetWindowFrame_Width
+
+        ; Check if frame has changed (for motion tracking)
+        frameChanged := !FramesEqual_Width(currentFrame, lastPreviewFrame_Width)
+
+        if (frameChanged) {
+            lastPreviewFrame_Width := currentFrame
+            lastFrameChangeTime_Width := A_TickCount  ; Reset motion timer
+            targetWindowFrame_Width := currentFrame   ; Update target for window
+            previewGui.Show("NoActivate")  ; Show preview when moving
+        } else {
+            ; Check if we've been stationary long enough to hide preview
+            global MOTION_PAUSE_THRESHOLD, MIN_AUTO_UPDATE_WIDTH_RATIO
+            global initialResizeWidth_Width
+            timeSinceLastChange := A_TickCount - lastFrameChangeTime_Width
+
+            if (timeSinceLastChange >= MOTION_PAUSE_THRESHOLD) {
+                widthRatio := newW / initialResizeWidth_Width
+
+                if (widthRatio >= MIN_AUTO_UPDATE_WIDTH_RATIO) {
+                    previewGui.Hide()  ; Hide when large enough and stationary
+                }
+                ; Keep visible if too small (warning indicator)
+            }
+        }
+
+        ; ALWAYS update preview position/color (even when hidden, so it's ready when shown)
         newColor := CalculateColorWidth(newW, initialW, maxWidth, 1)
         previewGui.BackColor := newColor
-        
+
         ; Update main preview
         WinMove newX, wy, newW, wh, previewGui.Hwnd
         WinSetRegion "0-0 w" newW " h" wh, previewGui.Hwnd
@@ -345,29 +450,31 @@
         }
         
     }
-    
+
+    ; Stop continuous window update timer
+    SetTimer UpdateActualWindow_Width, 0
+
     ; Apply final size and destroy previews
     previewGui.Destroy()
-    
+
     ; Set the new dimensions to main and snapped windows
     if (IsSet(newW) && IsSet(newX)) {
-        ; Check if main window is maximized
-        isMaximized := WinGetMinMax("ahk_id " mwin)
-        
-        if (isMaximized = 1) ; 1 means maximized
-        {
-            ; Restore the window first
-            WinRestore "ahk_id " mwin
-            ; Small sleep to ensure the restore completes
-            Sleep 10
+        ; Check if window is already at target position
+        WinGetPos &currentX, &currentY, &currentW, &currentH, "ahk_id " mwin
+
+        ; Only update if not already at target (prevents flash from redundant update)
+        if (currentX != newX || currentY != wy || currentW != newW || currentH != wh) {
+            ; Check if main window is maximized
+            isMaximized := WinGetMinMax("ahk_id " mwin)
+
+            if (isMaximized = 1) {
+                WinRestore "ahk_id " mwin
+                Sleep 10
+            }
+
+            ; Final resize (without the hide/show to reduce flash)
+            WinMove newX, wy, newW, wh, "ahk_id " mwin
         }
-        
-        ; Apply new dimensions to main window
-        WinMove newX, wy, newW, wh, "ahk_id " mwin
-        
-        ; Force a refresh to prevent visual artifacts
-        WinHide "ahk_id " mwin
-        WinShow "ahk_id " mwin
         
         ; Now apply the changes to snapped windows
         if ( GetKeyState("LShift","P") ){

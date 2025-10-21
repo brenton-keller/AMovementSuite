@@ -16,4 +16,10 @@ global safetyTimer := 0
 global debugMode := false
 global versionNumber := "1.0.0"
 
+; Window resize timing configuration
+global WINDOW_UPDATE_INTERVAL := 5
+global MOTION_PAUSE_THRESHOLD := 55
+global MIN_AUTO_UPDATE_WIDTH_RATIO := 0.5   ; Don't auto-update below 35% of original width
+global MIN_AUTO_UPDATE_HEIGHT_RATIO := 0.2   ; Don't auto-update below 20% of original height
+
 ; Add any other global variables here

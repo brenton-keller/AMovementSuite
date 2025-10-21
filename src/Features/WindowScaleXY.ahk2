@@ -11,6 +11,71 @@ resizeActive := false
 rButtonReleased := true
 wasResizing := false
 
+; State variables for continuous window updating
+windowUpdateTimer := 0
+targetWindowFrame := {x: 0, y: 0, w: 0, h: 0}  ; Stores desired window position/size
+targetWindowID := 0
+initialResizeWidth := 0   ; Track original width for auto-update threshold
+initialResizeHeight := 0  ; Track original height for auto-update threshold
+
+; State variables for smart updating (change detection)
+lastPreviewFrame := {x: 0, y: 0, w: 0, h: 0}   ; Track last preview frame
+lastWindowFrame := {x: 0, y: 0, w: 0, h: 0}    ; Track last window frame
+
+; Motion tracking for intelligent window updates
+lastFrameChangeTime := 0                        ; Timestamp of last movement
+
+; Timer callback function: Updates the actual window position/size during resize
+UpdateActualWindow() {
+    global targetWindowFrame, targetWindowID, lastWindowFrame
+    global lastFrameChangeTime, MOTION_PAUSE_THRESHOLD
+    global initialResizeWidth, initialResizeHeight
+    global MIN_AUTO_UPDATE_WIDTH_RATIO, MIN_AUTO_UPDATE_HEIGHT_RATIO
+
+    if (!targetWindowID || !WinExist("ahk_id " targetWindowID))
+        return
+
+    ; DIMENSION CHECK: Don't auto-update if window is too small (prevents UI freakout)
+    ; Check BOTH width and height against original dimensions
+    if (initialResizeWidth > 0 && initialResizeHeight > 0) {
+        widthRatio := targetWindowFrame.w / initialResizeWidth
+        heightRatio := targetWindowFrame.h / initialResizeHeight
+
+        ; Block auto-update if EITHER dimension is too small
+        if (widthRatio < MIN_AUTO_UPDATE_WIDTH_RATIO || heightRatio < MIN_AUTO_UPDATE_HEIGHT_RATIO)
+            return  ; Too small, skip auto-update (final update on release still happens)
+    }
+
+    ; MOTION CHECK: Only update if we've been stationary for >threshold ms
+    ; This prevents window updates during active dragging (only preview updates)
+    timeSinceLastChange := A_TickCount - lastFrameChangeTime
+    if (timeSinceLastChange < MOTION_PAUSE_THRESHOLD)
+        return  ; Still actively moving, skip window update
+
+    ; SMART UPDATE: Only update if frame has actually changed
+    if (FramesEqual(targetWindowFrame, lastWindowFrame))
+        return  ; No change, skip expensive WinMove operation
+
+    ; Store this frame for next comparison
+    lastWindowFrame := {x: targetWindowFrame.x, y: targetWindowFrame.y,
+                        w: targetWindowFrame.w, h: targetWindowFrame.h}
+
+    ; Apply the stored frame to the actual window
+    WinMove targetWindowFrame.x, targetWindowFrame.y,
+            targetWindowFrame.w, targetWindowFrame.h,
+            "ahk_id " targetWindowID
+
+    ; Refresh the window (hide/show trick for visual update)
+    WinHide "ahk_id " targetWindowID
+    WinShow "ahk_id " targetWindowID
+}
+
+; Helper function: Check if two frames are equal (for change detection)
+FramesEqual(frame1, frame2) {
+    return (frame1.x = frame2.x && frame1.y = frame2.y &&
+            frame1.w = frame2.w && frame1.h = frame2.h)
+}
+
 SetTimer CheckKeysAndResize, 16
 
 CheckKeysAndResize() {
@@ -70,6 +135,11 @@ StartResize() {
     initialX := wx
     initialY := wy
 
+    ; Store initial dimensions for auto-update threshold check
+    global initialResizeWidth, initialResizeHeight
+    initialResizeWidth := initialW
+    initialResizeHeight := initialH
+
     ; Calculate the 1/8 threshold for edge detection
     edgeThreshold := initialW / 8
     
@@ -106,10 +176,22 @@ StartResize() {
     WinSetTransparent 75, previewGui.Hwnd
     previewGui.Show("x" wx " y" wy " w" ww " h" wh " NoActivate")
 
+    ; Initialize continuous window update system
+    global targetWindowID, WINDOW_UPDATE_INTERVAL
+    targetWindowID := mwin
+    SetTimer UpdateActualWindow, WINDOW_UPDATE_INTERVAL
+
+    ; Reset smart update state variables
+    global lastPreviewFrame, lastWindowFrame, lastFrameChangeTime, targetWindowFrame
+    lastPreviewFrame := {x: wx, y: wy, w: ww, h: wh}
+    lastWindowFrame := {x: wx, y: wy, w: ww, h: wh}
+    lastFrameChangeTime := A_TickCount
+    targetWindowFrame := {x: wx, y: wy, w: ww, h: wh}
+
     While (GetKeyState("RButton", "P") && GetKeyState("LControl", "P") && GetKeyState("LShift", "P"))
     {
         MouseGetPos &currentX, &currentY
-        
+
         currentMonitor := GetMonitorAtPos(currentX, currentY)
         MonitorGet(currentMonitor, &MonLeft, &MonTop, &MonRight, &MonBottom)
         MonitorGetWorkArea(currentMonitor, &WorkAreaLeft, &WorkAreaTop, &WorkAreaRight, &WorkAreaBottom)
@@ -226,33 +308,71 @@ StartResize() {
         ; Constrain position
         newX := Max(MonLeft - 1, Min(MonRight - newW + 1, newX))
         newY := Max(MonTop - 1, Min(MonBottom - newH + 1, newY))
-        
-        ; Update preview color only if not in debug mode
+
+        ; CHANGE DETECTION: Create frame object for comparison
+        currentFrame := {x: newX, y: newY, w: newW, h: newH}
+        global lastPreviewFrame, lastFrameChangeTime, targetWindowFrame
+
+        ; Check if frame has changed (for motion tracking)
+        frameChanged := !FramesEqual(currentFrame, lastPreviewFrame)
+
+        if (frameChanged) {
+            lastPreviewFrame := currentFrame
+            lastFrameChangeTime := A_TickCount  ; Reset motion timer
+            targetWindowFrame := currentFrame   ; Update target for window
+            previewGui.Show("NoActivate")  ; Show preview when moving
+        } else {
+            ; Check if we've been stationary long enough to hide preview
+            global MOTION_PAUSE_THRESHOLD, MIN_AUTO_UPDATE_WIDTH_RATIO, MIN_AUTO_UPDATE_HEIGHT_RATIO
+            global initialResizeWidth, initialResizeHeight
+            timeSinceLastChange := A_TickCount - lastFrameChangeTime
+
+            if (timeSinceLastChange >= MOTION_PAUSE_THRESHOLD) {
+                ; Only hide if BOTH dimensions are large enough for auto-update
+                ; (Keep preview visible when too small - serves as warning)
+                widthRatio := newW / initialResizeWidth
+                heightRatio := newH / initialResizeHeight
+
+                if (widthRatio >= MIN_AUTO_UPDATE_WIDTH_RATIO && heightRatio >= MIN_AUTO_UPDATE_HEIGHT_RATIO) {
+                    previewGui.Hide()  ; Normal behavior - window auto-updates
+                }
+                ; If either dimension too small, keep preview visible as visual indicator
+            }
+        }
+
+        ; ALWAYS update preview position/color (even when hidden, so it's ready when shown)
         if (!debugModeXY) {
             newColor := CalculateColorXY(newW, newH, initialW, initialH, maxWidth, maxHeight)
             previewGui.BackColor := newColor
         }
 
-        ; Update preview
         WinMove newX, newY, newW, newH, previewGui.Hwnd
         WinSetRegion "0-0 w" newW " h" newH, previewGui.Hwnd
     }
+
+    ; Stop continuous window update timer
+    SetTimer UpdateActualWindow, 0
+
     previewGui.Destroy()
-    
+
+    ; Final window position sync (only if needed to prevent flash)
     if (IsSet(newW) && IsSet(newH))
     {
-        isMaximized := WinGetMinMax("ahk_id " mwin)
-        
-        if (isMaximized = 1)
-        {
-            WinRestore "ahk_id " mwin
-            Sleep 10
+        ; Check if window is already at target position
+        WinGetPos &currentX, &currentY, &currentW, &currentH, "ahk_id " mwin
+
+        ; Only update if not already at target (prevents flash from redundant update)
+        if (currentX != newX || currentY != newY || currentW != newW || currentH != newH) {
+            isMaximized := WinGetMinMax("ahk_id " mwin)
+
+            if (isMaximized = 1) {
+                WinRestore "ahk_id " mwin
+                Sleep 10
+            }
+
+            ; Final resize (without the hide/show to reduce flash)
+            WinMove newX, newY, newW, newH, "ahk_id " mwin
         }
-        
-        WinMove newX, newY, newW, newH, "ahk_id " mwin
-        
-        WinHide "ahk_id " mwin
-        WinShow "ahk_id " mwin
     }
     resizeActive := false
 }
