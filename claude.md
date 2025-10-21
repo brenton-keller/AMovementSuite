@@ -148,6 +148,56 @@ See `docs/architecture.md` for detailed patterns.
 - **Comments**: Document non-obvious logic, function purposes, and complex interactions
 - **File Organization**: One feature per file, related utilities grouped in lib/
 
+## Git Commit Philosophy
+
+**Descriptive commits with clear title and detailed body. No fluff.**
+
+### Commit Message Format
+```
+Title line (capitalized, imperative mood, concise)
+
+Detailed description of what was changed and why:
+- Can use bullet points in the body for clarity
+- Explain the changes, features added, or problems solved
+- Focus on what and why, not how (code shows how)
+- No "authored by", "generated with", or bot signatures
+```
+
+### Good Example
+```
+Add comprehensive documentation system
+
+Created hierarchical documentation philosophy with AI context and technical reference:
+
+Claude.md Files (AI Context + Developer Onboarding):
+- Root claude.md: Project overview, architecture guide, directory structure
+- src/claude.md: Source organization, subsystem overview, patterns
+- src/MouseHotkeys/claude.md: Hotkey system implementation guide
+
+Documentation Features:
+- Layered detail: High-level in claude.md, technical depth in docs/
+- Cross-referenced: All files link to related documentation
+- Update reminders: Prompts to update docs with code changes
+```
+
+### Bad Examples
+```
+✗ WIP: working on calculator stuff
+
+✗ feat: add calculator enhancements (#123)
+
+✗ Update files
+  🤖 Generated with Claude Code
+  Co-Authored-By: Bot <bot@example.com>
+```
+
+### Guidelines
+- **Title**: Capitalized, imperative mood ("Add feature" not "Added feature")
+- **Body**: Detailed explanation, can use bullets/sections for organization
+- **No fluff**: No bot signatures, no "generated with" messages
+- **Focused**: One logical change per commit when possible
+- **Descriptive**: Explain what was added/changed and its purpose
+
 ## Testing & Debugging
 
 - **Manual Testing**: Test with various window types (browsers, explorer, system windows)
