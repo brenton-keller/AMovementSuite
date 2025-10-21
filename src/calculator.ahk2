@@ -3,53 +3,165 @@
 ; Press F12 to calculate and insert the result
 F12::CalculateAndInsert()
 
-CalculateAndInsert() {
+; Press Ctrl+F12 to calculate and copy result to clipboard
+^F12::CalculateAndCopy()
+
+; Press Left Alt+F12 to calculate and replace selection inline
+LAlt & F12::CalculateAndReplaceInline()
+
+; Helper: Get previous result for running total mode
+; Looks for "= <number>" pattern in lines above current position
+GetPreviousResult() {
+    ; Save current clipboard
+    oldClipboard := ClipboardAll()
+
+    ; Move up and check previous lines for a result
+    maxLinesToCheck := 10
+    loop maxLinesToCheck {
+        Send "{Up}"
+        Send "{Home}+{End}"  ; Select entire line
+        A_Clipboard := ""
+        Send "^c"
+        if ClipWait(0.2) {
+            line := Trim(A_Clipboard)
+            ; Check if line matches "= <number>" pattern
+            if (RegExMatch(line, "^=\s*(-?\d+\.?\d*)", &match)) {
+                ; Restore position
+                loop A_Index
+                    Send "{Down}"
+                A_Clipboard := oldClipboard
+                return match[1]
+            }
+        }
+    }
+
+    ; Restore position if not found
+    loop maxLinesToCheck
+        Send "{Down}"
+    A_Clipboard := oldClipboard
+    return ""
+}
+
+; Core calculation function - shared by all hotkey modes
+CalculateExpression() {
     ; Copy selected text to clipboard
     A_Clipboard := ""
     Send "^c"
     if !ClipWait(1)
-        return
-    
+        return ""
+
     ; Parse the expression
     expression := ""
     lines := StrSplit(A_Clipboard, "`n", "`r")
-    
+
     for i, line in lines {
         line := Trim(line)
         if (line = "")
             continue
-        
+
         firstChar := SubStr(line, 1, 1)
         restOfLine := SubStr(line, 2)
-        
+
         ; Format the expression
         if (i = 1) {
-            ; First line - just set as the initial value
-            expression := line
-        } else if (firstChar = "+" || firstChar = "-" || firstChar = "*" || firstChar = "/") {
+            ; First line - check if it starts with an operator (running total mode)
+            if (firstChar = "+" || firstChar = "-" || firstChar = "*" || firstChar = "/" || firstChar = "^") {
+                ; Get previous result for running total
+                prevResult := GetPreviousResult()
+                if (prevResult != "") {
+                    expression := prevResult . " " . firstChar . " " . restOfLine
+                } else {
+                    expression := line
+                }
+            } else {
+                expression := line
+            }
+        } else if (firstChar = "+" || firstChar = "-" || firstChar = "*" || firstChar = "/" || firstChar = "^") {
             expression .= " " . firstChar . " " . restOfLine
         } else {
             expression := line  ; Reset if no operator
         }
     }
-    
+
     ; Calculate the expression using Eval
     try {
         result := Eval(expression)
+        return result
     } catch as err {
         MsgBox "Error calculating: " . err.Message
-        return
+        return ""
     }
-    
-    ; Move down one line and insert the result
-    Send "{Down}{Home}= " . Format("{:.2f}", result)
+}
+
+CalculateAndInsert() {
+    result := CalculateExpression()
+    if (result = "")
+        return
+
+    ; Move down one line to check/insert result
+    Send "{Down}{Home}"
+
+    ; Select the line to check if it's a previous result
+    Send "+{End}"
+    A_Clipboard := ""
+    Send "^c"
+    ClipWait(0.5)
+    currentLine := Trim(A_Clipboard)
+
+    ; Check if line starts with "= " (previous result to replace)
+    if (RegExMatch(currentLine, "^= ")) {
+        ; Replace the existing result
+        Send "= " . FormatResult(result)
+    } else {
+        ; Insert new result line
+        Send "{Home}= " . FormatResult(result)
+    }
+}
+
+CalculateAndCopy() {
+    result := CalculateExpression()
+    if (result = "")
+        return
+
+    ; Copy formatted result to clipboard
+    A_Clipboard := FormatResult(result)
+
+    ; Show tooltip confirmation
+    ToolTip "Copied: " . FormatResult(result)
+    SetTimer () => ToolTip(), -2000  ; Clear tooltip after 2 seconds
+}
+
+CalculateAndReplaceInline() {
+    result := CalculateExpression()
+    if (result = "")
+        return
+
+    ; Replace selection with just the result (no "= " prefix)
+    Send FormatResult(result)
+}
+
+; Pre-process expression: strip commas, convert sqrt to power
+PreProcessExpression(expression) {
+    ; Strip thousand separators (commas)
+    expression := StrReplace(expression, ",", "")
+
+    ; Convert sqrt(X) to (X)^0.5 for easier evaluation
+    ; Match sqrt with balanced parentheses
+    while (RegExMatch(expression, "i)sqrt\(([^)]+)\)", &match)) {
+        expression := StrReplace(expression, match[0], "(" . match[1] . ")^0.5")
+    }
+
+    return expression
 }
 
 ; Evaluation function that respects order of operations
 Eval(expression) {
+    ; Pre-process the expression
+    expression := PreProcessExpression(expression)
+
     ; Convert expression to postfix notation
     postfix := InfixToPostfix(expression)
-    
+
     ; Evaluate the postfix expression
     return EvaluatePostfix(postfix)
 }
@@ -58,12 +170,13 @@ InfixToPostfix(expression) {
     postfix := []
     operatorStack := []
     
-    ; Define operator precedence
+    ; Define operator precedence (higher number = higher precedence)
     precedence := Map(
         "+", 1,
         "-", 1,
         "*", 2,
         "/", 2,
+        "^", 3,  ; Power has highest precedence
         "(", 0,
         ")", 0
     )
@@ -82,9 +195,9 @@ InfixToPostfix(expression) {
             if (operatorStack.Length > 0 && operatorStack[operatorStack.Length] = "(") {
                 operatorStack.Pop()  ; Remove the "("
             }
-        } else if (token = "+" || token = "-" || token = "*" || token = "/") {
-            while (operatorStack.Length > 0 && 
-                   precedence.Has(operatorStack[operatorStack.Length]) && 
+        } else if (token = "+" || token = "-" || token = "*" || token = "/" || token = "^") {
+            while (operatorStack.Length > 0 &&
+                   precedence.Has(operatorStack[operatorStack.Length]) &&
                    precedence[operatorStack[operatorStack.Length]] >= precedence[token]) {
                 postfix.Push(operatorStack.Pop())
             }
@@ -117,6 +230,8 @@ EvaluatePostfix(postfix) {
                 valueStack.Push(a * b)
             else if (token = "/")
                 valueStack.Push(a / b)
+            else if (token = "^")
+                valueStack.Push(a ** b)  ; Power operator in AHK
         }
     }
     
@@ -135,7 +250,7 @@ TokenizeExpression(expression) {
                 tokens.Push(currentNumber)
                 currentNumber := ""
             }
-        } else if (char = "+" || char = "-" || char = "*" || char = "/" || char = "(" || char = ")") {
+        } else if (char = "+" || char = "-" || char = "*" || char = "/" || char = "^" || char = "(" || char = ")") {
             if (currentNumber != "") {
                 tokens.Push(currentNumber)
                 currentNumber := ""
@@ -153,9 +268,23 @@ TokenizeExpression(expression) {
 }
 
 IsNumber(str) {
-    return RegExMatch(str, "^-?\d*\.?\d+$")
+    ; Support standard numbers and scientific notation (e.g., 1e6, 1.5e-3)
+    return RegExMatch(str, "i)^-?\d*\.?\d+(e[+-]?\d+)?$")
 }
 
 IsDigit(char) {
     return RegExMatch(char, "\d")
+}
+
+; Smart formatting: integers as integers, decimals with appropriate precision
+FormatResult(result) {
+    ; Check if effectively an integer (within floating point epsilon)
+    if (Abs(result - Round(result)) < 0.0000001)
+        return Round(result)
+
+    ; Format with precision and strip trailing zeros
+    formatted := Format("{:.10f}", result)
+    ; Strip trailing zeros and decimal point if all zeros
+    formatted := RegExReplace(formatted, "\.?0+$", "")
+    return formatted
 }
