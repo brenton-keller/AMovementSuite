@@ -1,0 +1,8 @@
+; WezTerm Smart Launcher
+; Launches WezTerm terminal emulator
+; RAlt+F11 - Launch WezTerm
+
+RAlt & F11::{
+    ; Basic launch - Phase 1
+    Run '"C:\Program Files\WezTerm\wezterm-gui.exe"'
+}
