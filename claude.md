@@ -61,17 +61,17 @@ See @docs/claude/git-workflow.md for commit philosophy.
 - Project overview → This file
 - Source organization → @src/claude.md
 - Mouse hotkeys system → @src/MouseHotkeys/claude.md
-- Claude Code best practices → @docs/claude/best-practices.md
+- Claude Code best practices → `docs/reference/claude-code-best-practices.md` (reference only)
 
-**For technical reference:**
-- Architecture details → @docs/architecture.md
-- Feature specifications → @docs/features.md
-- Configuration system → @docs/configuration.md
-- Mouse hotkey reference → @docs/mouse-hotkeys.md
-- UI components → @docs/ui-components.md
-- Virtual desktops → @docs/virtual-desktops.md
-- Contributing guidelines → @docs/contributing.md
-- Development setup → @docs/development.md
+**For technical reference:** (load explicitly when needed)
+- Architecture details → `docs/architecture.md`
+- Feature specifications → `docs/features.md`
+- Configuration system → `docs/configuration.md`
+- Mouse hotkey reference → `docs/mouse-hotkeys.md`
+- UI components → `docs/ui-components.md`
+- Virtual desktops → `docs/virtual-desktops.md`
+- Contributing guidelines → `docs/contributing.md`
+- Development setup → `docs/development.md`
 
 **For focused guides:**
 - Architecture overview → @docs/claude/architecture-overview.md

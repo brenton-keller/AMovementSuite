@@ -13,12 +13,14 @@ Ensures documentation stays synchronized with code changes and follows project s
 This project uses a hierarchical documentation system:
 
 **CLAUDE.md** (~100 lines) - High-level navigation and project overview
-**docs/claude/** - Focused guides for AI context and developers
+**docs/claude/** - Focused guides for AI context (auto-loaded with @)
 - `architecture-overview.md` - System structure and navigation
 - `code-conventions.md` - Coding patterns and standards
 - `development-guide.md` - Development workflow
 - `git-workflow.md` - Commit philosophy and git practices
-- `best-practices.md` - Claude Code best practices reference
+
+**docs/reference/** - Large reference documents (load explicitly)
+- `claude-code-best-practices.md` - Claude Code best practices reference (67k chars)
 
 **docs/** - Comprehensive technical reference
 - `architecture.md` - Detailed system architecture
