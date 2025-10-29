@@ -1,8 +1,41 @@
 ; WezTerm Smart Launcher
 ; Launches WezTerm terminal emulator
-; RAlt+F11 - Launch WezTerm
+; RAlt+F12 - Launch WezTerm
+; If clipboard contains a valid file path, launches from that directory
 
-RAlt & F11::{
-    ; Basic launch - Phase 1
-    Run '"C:\Program Files\WezTerm\wezterm-gui.exe"'
+RAlt & F12::{
+    ; Get clipboard content and trim whitespace/quotes
+    clipContent := A_Clipboard
+    clipContent := Trim(clipContent, " `t`r`n`"'")
+
+    ; Check if clipboard contains a valid path
+    launchDir := ""
+
+    if (clipContent != "") {
+        ; Check if it's a directory
+        if DirExist(clipContent) {
+            launchDir := clipContent
+        }
+        ; Check if it's a file, extract its directory
+        else if FileExist(clipContent) {
+            SplitPath clipContent, , &fileDir
+            if DirExist(fileDir)
+                launchDir := fileDir
+        }
+    }
+
+    ; Launch WezTerm with appropriate directory
+    if (launchDir != "") {
+        ; Launch from detected directory in clipboard
+        Run '"C:\Program Files\WezTerm\wezterm-gui.exe" start --cwd "' launchDir '" -- pwsh.exe',,, &pid
+    }
+    else {
+        ; Default behavior - launch from current directory
+        Run '"C:\Program Files\WezTerm\wezterm-gui.exe" start -- pwsh.exe',,, &pid
+    }
+
+    ; Wait for window and activate
+    Sleep 10  ; Brief wait for window creation
+    if WinWait("ahk_pid " pid,, 1)  ; Wait up to 1 second for this specific instance
+        WinActivate("ahk_pid " pid)  ; Activate the newly launched instance
 }
