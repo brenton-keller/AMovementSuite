@@ -8,7 +8,7 @@ global xyScalingEnabled := true
 global windowAlwaysOnTopEnabled := true
 global windowMoveEnabled := true
 global windowCascadeEnabled := true
-global enableWindowSnapping := true
+global enableWindowSnapping := false
 global snapDistance := 10
 global safetyTimer := 0
 
@@ -21,5 +21,20 @@ global WINDOW_UPDATE_INTERVAL := 5
 global MOTION_PAUSE_THRESHOLD := 55
 global MIN_AUTO_UPDATE_WIDTH_RATIO := 0.5   ; Don't auto-update below 35% of original width
 global MIN_AUTO_UPDATE_HEIGHT_RATIO := 0.2   ; Don't auto-update below 20% of original height
+
+; Window grouping settings
+global windowGroupingEnabled := true
+global windowGroup := {
+    window1: 0,
+    window2: 0,
+    offsetX: 0,
+    offsetY: 0,
+    topWindow: 0,
+    window1WasAlwaysOnTop: false,
+    window2WasAlwaysOnTop: false
+}
+global isGroupActive := false
+global isSelectingForGroup := false
+global groupSelectionOverlays := []
 
 ; Add any other global variables here

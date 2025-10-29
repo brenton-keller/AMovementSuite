@@ -52,3 +52,12 @@ ToggleWindowCascade(*) {
     else
         A_TrayMenu.Uncheck "Window Cascade (RAlt+Up)"
 }
+
+ToggleWindowGrouping(*) {
+    global windowGroupingEnabled
+    windowGroupingEnabled := !windowGroupingEnabled
+    if windowGroupingEnabled
+        A_TrayMenu.Check "Window Grouping (LAlt+LWin+LButton)"
+    else
+        A_TrayMenu.Uncheck "Window Grouping (LAlt+LWin+LButton)"
+}

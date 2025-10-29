@@ -10,7 +10,7 @@
 
 ## Key Capabilities
 
-- **Window Management**: Dynamic scaling (width, height, proportional), moving with snapping, always-on-top, rolling, dimming, cascading
+- **Window Management**: Dynamic scaling (width, height, proportional), moving with snapping, grouping, always-on-top, rolling, dimming, cascading
 - **Mouse Hotkeys**: Extensive shortcuts for navigation, program launching, tab management, system control
 - **Virtual Desktop Integration**: Advanced virtual desktop management
 - **Configuration**: Persistent user settings and preferences

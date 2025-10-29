@@ -14,6 +14,7 @@ Technical reference for all window management features in A Movement Suite.
 | Window Roll Up | TBD | `windowRollUpEnabled` | src/Features/WindowRollUp.ahk2 |
 | Window Dimmer | TBD | `windowDimmerEnabled` | src/Features/WindowDimmer.ahk2 |
 | Window Cascade | RAlt + Up | `windowCascadeEnabled` | src/Features/WindowCascade.ahk2 |
+| Window Grouping | LAlt + LWin + LButton | `windowGroupingEnabled` | src/Features/WindowGrouping.ahk2 |
 | Disable Modifications | N/A | N/A | src/Features/DisableWindowModifications.ahk2 |
 
 ---
@@ -305,6 +306,125 @@ Arrange all windows in a cascading pattern for easy access.
 
 ### Source Reference
 `src/Features/WindowCascade.ahk2`
+
+---
+
+## WindowGrouping (src/Features/WindowGrouping.ahk2)
+
+### Description
+Group two windows together so they move as a unit while maintaining their relative positions and z-order.
+
+### Hotkeys
+- `LAlt + LWin + LButton` (Left Alt + Left Win + Left Mouse Button) - Select/ungroup windows
+- `LAlt + RButton` (on grouped window) - Move entire group
+- `LAlt + LWin + RButton` - Reposition individual window within group
+
+### Features
+
+1. **Window Selection**
+   - Click first window to start selection (blue highlight)
+   - Click second window to create group (both highlighted)
+   - Click grouped window to ungroup
+
+2. **Group Movement**
+   - Alt + Right Click on either grouped window
+   - Both windows move together maintaining offset
+   - Independent screen boundary constraints per window
+   - Windows hitting edges stop individually
+
+3. **Individual Repositioning**
+   - Alt + Win + Right Click on grouped window
+   - Move only that window
+   - Group offset automatically recalculated
+   - Group remains active
+
+4. **Z-Order Management**
+   - Top window set to always-on-top on group creation
+   - Original always-on-top states restored on ungroup
+   - Maintains proper stacking during movement
+
+### Global Variables
+- `windowGroupingEnabled` - Feature toggle state
+- `windowGroup` - Object storing group data:
+  - `window1`, `window2` - Window HWNDs
+  - `offsetX`, `offsetY` - Relative offset between windows
+  - `topWindow` - Which window (1 or 2) is on top
+  - `window1WasAlwaysOnTop`, `window2WasAlwaysOnTop` - Original states
+- `isGroupActive` - Whether a group currently exists
+- `isSelectingForGroup` - Selection mode active
+- `groupSelectionOverlays` - Array of highlight GUI overlays
+
+### Key Functions
+
+#### IsInGroup(hwnd)
+```ahk
+; Check if window is part of active group
+; Returns: true if window is grouped, false otherwise
+```
+
+#### CreateGroup(hwnd1, hwnd2)
+```ahk
+; Create group from two windows
+; Captures positions, offsets, z-order
+; Sets always-on-top for proper stacking
+```
+
+#### ClearGroup()
+```ahk
+; Dissolve current group
+; Restores original always-on-top states
+; Resets all group variables
+```
+
+#### MoveGroupedWindows(mwin, startX, startY)
+```ahk
+; Move both grouped windows together
+; Delta-based positioning from initial locations
+; Per-window monitor boundary constraints
+```
+
+### Visual Feedback
+- **Selection Mode**: Semi-transparent blue overlay on selected windows
+- **Movement**: Tooltip showing "Moving grouped windows"
+- **Repositioning**: Tooltip showing "Repositioning window within group"
+
+### Group Behavior
+
+**Edge Handling:**
+- Each window checks screen boundaries independently
+- Windows hitting edges stop, others continue moving
+- Allows flexible positioning across monitors
+
+**Window Closure:**
+- Group persists if one window closes
+- Next group operation automatically cleans up invalid windows
+
+**Maximized Windows:**
+- Automatically restored before movement
+- Both windows in group restored if needed
+
+### Configuration
+- Toggle via tray menu: "Window Grouping (LAlt+LWin+LButton)"
+- Enabled by default (`windowGroupingEnabled := true`)
+
+### Integration with WindowMove
+
+The standard window move handler (`LAlt + RButton`) checks if a window is grouped:
+```ahk
+if (IsInGroup(mwin)) {
+    MoveGroupedWindows(mwin, startX, startY)
+    return
+}
+```
+
+### Limitations
+- Groups limited to exactly 2 windows
+- Groups are session-only (not persisted)
+- No visual indicator when windows are grouped (except during selection)
+
+### Source Reference
+`src/Features/WindowGrouping.ahk2`
+`src/Features/WindowMove.ahk2:286-358` (MoveGroupedWindows function)
 
 ---
 

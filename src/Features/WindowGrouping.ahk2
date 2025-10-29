@@ -1,0 +1,228 @@
+; Window Grouping Feature
+; Allows grouping of 2 windows that move together
+; Uses always-on-top to maintain z-order
+
+; Helper function to check if a window is in the current group
+IsInGroup(hwnd) {
+    global windowGroup, isGroupActive
+    if (!isGroupActive)
+        return false
+    return (hwnd == windowGroup.window1 || hwnd == windowGroup.window2)
+}
+
+; Clear the current group
+ClearGroup() {
+    global windowGroup, isGroupActive
+
+    if (!isGroupActive)
+        return
+
+    ; Restore original always-on-top states
+    if (WinExist("ahk_id " windowGroup.window1)) {
+        WinSetAlwaysOnTop windowGroup.window1WasAlwaysOnTop, "ahk_id " windowGroup.window1
+    }
+    if (WinExist("ahk_id " windowGroup.window2)) {
+        WinSetAlwaysOnTop windowGroup.window2WasAlwaysOnTop, "ahk_id " windowGroup.window2
+    }
+
+    ; Reset group data
+    windowGroup.window1 := 0
+    windowGroup.window2 := 0
+    windowGroup.offsetX := 0
+    windowGroup.offsetY := 0
+    windowGroup.topWindow := 0
+    windowGroup.window1WasAlwaysOnTop := false
+    windowGroup.window2WasAlwaysOnTop := false
+    isGroupActive := false
+
+    ToolTip "Group cleared"
+    SetTimer () => ToolTip(), -1500
+}
+
+; Create a group from two windows
+CreateGroup(hwnd1, hwnd2) {
+    global windowGroup, isGroupActive
+
+    ; Get positions of both windows
+    WinGetPos &x1, &y1, &w1, &h1, "ahk_id " hwnd1
+    WinGetPos &x2, &y2, &w2, &h2, "ahk_id " hwnd2
+
+    ; Calculate offset between windows
+    offsetX := x2 - x1
+    offsetY := y2 - y1
+
+    ; Check current always-on-top states
+    exStyle1 := WinGetExStyle("ahk_id " hwnd1)
+    exStyle2 := WinGetExStyle("ahk_id " hwnd2)
+    window1WasAlwaysOnTop := (exStyle1 & 0x8) ? true : false
+    window2WasAlwaysOnTop := (exStyle2 & 0x8) ? true : false
+
+    ; Determine which window is on top
+    ; Try to activate each and see which comes to front
+    WinActivate "ahk_id " hwnd1
+    Sleep 50
+    activeWin := WinExist("A")
+    topWindow := (activeWin == hwnd1) ? 1 : 2
+
+    ; Set the top window to always-on-top
+    if (topWindow == 1) {
+        WinSetAlwaysOnTop 1, "ahk_id " hwnd1
+    } else {
+        WinSetAlwaysOnTop 1, "ahk_id " hwnd2
+    }
+
+    ; Store group information
+    windowGroup.window1 := hwnd1
+    windowGroup.window2 := hwnd2
+    windowGroup.offsetX := offsetX
+    windowGroup.offsetY := offsetY
+    windowGroup.topWindow := topWindow
+    windowGroup.window1WasAlwaysOnTop := window1WasAlwaysOnTop
+    windowGroup.window2WasAlwaysOnTop := window2WasAlwaysOnTop
+    isGroupActive := true
+
+    ToolTip "Windows grouped"
+    SetTimer () => ToolTip(), -1500
+}
+
+; Create a visual overlay for window selection
+CreateSelectionOverlay(hwnd) {
+    global groupSelectionOverlays
+
+    ; Get window position
+    WinGetPos &winX, &winY, &winWidth, &winHeight, "ahk_id " hwnd
+
+    ; Create semi-transparent blue overlay
+    overlayGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
+    overlayGui.BackColor := "Blue"
+    overlayGui.Opt("+LastFound")
+    WinSetTransparent 100
+    overlayGui.Show("x" winX " y" winY " w" winWidth " h" winHeight " NoActivate")
+
+    ; Store overlay for cleanup
+    groupSelectionOverlays.Push({gui: overlayGui, hwnd: hwnd})
+}
+
+; Clear all selection overlays
+ClearSelectionOverlays() {
+    global groupSelectionOverlays
+
+    for overlay in groupSelectionOverlays {
+        try overlay.gui.Destroy()
+    }
+    groupSelectionOverlays := []
+}
+
+; Alt + Win + Left Mouse Button - Group/Ungroup windows
+<!#LButton::{
+    global windowGroupingEnabled, windowGroup, isGroupActive, isSelectingForGroup
+
+    if (!windowGroupingEnabled)
+        return
+
+    MouseGetPos &mouseX, &mouseY, &clickedWindow
+
+    ; Check if it's a valid window
+    if (!IsValidWindowForMove(clickedWindow))
+        return
+
+    ; If clicking on a grouped window, ungroup it
+    if (IsInGroup(clickedWindow)) {
+        ClearGroup()
+        ClearSelectionOverlays()
+        isSelectingForGroup := false
+        return
+    }
+
+    ; If not currently selecting, start selection with first window
+    if (!isSelectingForGroup) {
+        windowGroup.window1 := clickedWindow
+        CreateSelectionOverlay(clickedWindow)
+        isSelectingForGroup := true
+        ToolTip "Window 1 selected - click another window to group"
+        SetTimer () => ToolTip(), -2000
+        return
+    }
+
+    ; Second window selected - create the group
+    if (isSelectingForGroup && clickedWindow != windowGroup.window1) {
+        CreateSelectionOverlay(clickedWindow)
+        CreateGroup(windowGroup.window1, clickedWindow)
+
+        ; Clear overlays after a short delay
+        SetTimer () => ClearSelectionOverlays(), -1500
+        isSelectingForGroup := false
+        return
+    }
+
+    ; Clicked same window twice - cancel selection
+    if (isSelectingForGroup && clickedWindow == windowGroup.window1) {
+        ClearSelectionOverlays()
+        isSelectingForGroup := false
+        windowGroup.window1 := 0
+        ToolTip "Selection cancelled"
+        SetTimer () => ToolTip(), -1500
+    }
+}
+
+; Alt + Win + Right Mouse Button - Reposition window within group
+<!#RButton::{
+    global windowGroupingEnabled, windowGroup, isGroupActive
+
+    if (!windowGroupingEnabled || !isGroupActive)
+        return
+
+    MouseGetPos &startX, &startY, &mwin
+
+    ; Check if the window is part of the group
+    if (!IsInGroup(mwin))
+        return
+
+    ; Check if window is maximized
+    isMaximized := WinGetMinMax("ahk_id " mwin)
+    if (isMaximized = 1) {
+        WinRestore "ahk_id " mwin
+        Sleep 10
+    }
+
+    WinGetPos &initialWX, &initialWY, &winWidth, &winHeight, "ahk_id " mwin
+
+    ; Get monitor work area
+    primaryMonitor := GetWindowMonitor(initialWX, initialWY, winWidth, winHeight)
+    MonitorGetWorkArea(primaryMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+
+    ; Calculate initial offset between mouse and window position
+    offsetX := startX - initialWX
+    offsetY := startY - initialWY
+
+    ToolTip "Repositioning window within group"
+
+    While (GetKeyState("RButton", "P") && GetKeyState("LAlt", "P") && GetKeyState("LWin", "P"))
+    {
+        MouseGetPos &currentX, &currentY
+
+        ; Calculate new window position
+        newX := Round(currentX - offsetX)
+        newY := Round(currentY - offsetY)
+
+        ; Get current monitor
+        currentMonitor := GetWindowMonitor(newX, newY, winWidth, winHeight)
+        MonitorGetWorkArea(currentMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+
+        ; Constrain to screen boundaries
+        newX := Max(MonitorWorkAreaLeft - 1, Min(MonitorWorkAreaRight - winWidth + 1, newX))
+        newY := Max(MonitorWorkAreaTop - 1, Min(MonitorWorkAreaBottom - winHeight + 1, newY))
+
+        ; Move the window
+        WinMove newX, newY, , , "ahk_id " mwin
+    }
+
+    ; Recalculate offsets after repositioning
+    WinGetPos &x1, &y1, , , "ahk_id " windowGroup.window1
+    WinGetPos &x2, &y2, , , "ahk_id " windowGroup.window2
+    windowGroup.offsetX := x2 - x1
+    windowGroup.offsetY := y2 - y1
+
+    ToolTip "Group offset updated"
+    SetTimer () => ToolTip(), -1500
+}

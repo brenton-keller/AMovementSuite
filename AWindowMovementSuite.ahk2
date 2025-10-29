@@ -25,6 +25,7 @@ CoordMode "Mouse", "Screen"
 #Include src\Features\WindowDimmer.ahk2
 #Include src\Features\DisableWindowModifications.ahk2
 #Include src\Features\WindowCascade.ahk2
+#Include src\Features\WindowGrouping.ahk2
 
 ; Load mouse hotkeys
 #Include src\MouseHotkeys\setting_mouse.ahk2
@@ -39,6 +40,7 @@ A_TrayMenu.Add "Window Always On Top (LCtrl+MButton)", ToggleWindowAlwaysOnTop
 A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move (LAlt+RButton)", ToggleWindowMove
 A_TrayMenu.Add "Window Cascade (RAlt+Up)", ToggleWindowCascade
+A_TrayMenu.Add "Window Grouping (LAlt+LWin+LButton)", ToggleWindowGrouping
 A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move Settings", ShowWindowMoveSettings
 A_TrayMenu.Add  ; Separator
@@ -51,6 +53,7 @@ A_TrayMenu.Check "XY Scaling (LCtrl+LShift+RButton)"
 A_TrayMenu.Check "Window Always On Top (LCtrl+MButton)"
 A_TrayMenu.Check "Window Move (LAlt+RButton)"
 A_TrayMenu.Check "Window Cascade (RAlt+Up)"
+A_TrayMenu.Check "Window Grouping (LAlt+LWin+LButton)"
 
 ; --- START: Monitor Information Display on Startup ---
 ShowMonitorInfo() {

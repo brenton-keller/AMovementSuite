@@ -31,14 +31,20 @@ global positioningGui := ""
     ; Check if functionality is enabled
     if (!windowMoveEnabled)
         return
-        
+
     MouseGetPos &startX, &startY, &mwin
-    
+
     ; Check if it's a valid window for moving
     if (!IsValidWindowForMove(mwin)) {
         return
     }
-    
+
+    ; Check if window is part of a group - if so, use group movement
+    if (IsInGroup(mwin)) {
+        MoveGroupedWindows(mwin, startX, startY)
+        return
+    }
+
     ; Check if window is maximized
     isMaximized := WinGetMinMax("ahk_id " mwin)
     if (isMaximized = 1) {
@@ -275,6 +281,80 @@ ButtonClick(ctrl, *) {
     
     ; Clear tooltip after a short delay
     SetTimer () => ToolTip("", , , 2), -1000
+}
+
+; Move grouped windows together
+MoveGroupedWindows(mwin, startX, startY) {
+    global windowGroup
+
+    ; Determine which is the other window
+    otherWin := (mwin == windowGroup.window1) ? windowGroup.window2 : windowGroup.window1
+
+    ; Check if both windows still exist
+    if (!WinExist("ahk_id " mwin) || !WinExist("ahk_id " otherWin)) {
+        ToolTip "One or both grouped windows no longer exist"
+        SetTimer () => ToolTip(), -1500
+        ClearGroup()
+        return
+    }
+
+    ; Restore maximized windows
+    if (WinGetMinMax("ahk_id " mwin) = 1) {
+        WinRestore "ahk_id " mwin
+        Sleep 10
+    }
+    if (WinGetMinMax("ahk_id " otherWin) = 1) {
+        WinRestore "ahk_id " otherWin
+        Sleep 10
+    }
+
+    ; Get initial positions
+    WinGetPos &mwinX, &mwinY, &mwinW, &mwinH, "ahk_id " mwin
+    WinGetPos &otherX, &otherY, &otherW, &otherH, "ahk_id " otherWin
+
+    ; Calculate mouse offset from main window
+    offsetX := startX - mwinX
+    offsetY := startY - mwinY
+
+    ToolTip "Moving grouped windows"
+
+    While (GetKeyState("RButton", "P") && GetKeyState("LAlt", "P") && !GetKeyState("LWin", "P"))
+    {
+        MouseGetPos &currentX, &currentY
+
+        ; Calculate new position for main window
+        newMwinX := Round(currentX - offsetX)
+        newMwinY := Round(currentY - offsetY)
+
+        ; Calculate delta from initial position
+        deltaX := newMwinX - mwinX
+        deltaY := newMwinY - mwinY
+
+        ; Calculate new position for other window
+        newOtherX := otherX + deltaX
+        newOtherY := otherY + deltaY
+
+        ; Get monitors for both windows
+        mwinMonitor := GetWindowMonitor(newMwinX, newMwinY, mwinW, mwinH)
+        MonitorGetWorkArea(mwinMonitor, &mwinMonLeft, &mwinMonTop, &mwinMonRight, &mwinMonBottom)
+
+        otherMonitor := GetWindowMonitor(newOtherX, newOtherY, otherW, otherH)
+        MonitorGetWorkArea(otherMonitor, &otherMonLeft, &otherMonTop, &otherMonRight, &otherMonBottom)
+
+        ; Constrain each window to its monitor independently
+        newMwinX := Max(mwinMonLeft - 1, Min(mwinMonRight - mwinW + 1, newMwinX))
+        newMwinY := Max(mwinMonTop - 1, Min(mwinMonBottom - mwinH + 1, newMwinY))
+
+        newOtherX := Max(otherMonLeft - 1, Min(otherMonRight - otherW + 1, newOtherX))
+        newOtherY := Max(otherMonTop - 1, Min(otherMonBottom - otherH + 1, newOtherY))
+
+        ; Move both windows
+        WinMove newMwinX, newMwinY, , , "ahk_id " mwin
+        WinMove newOtherX, newOtherY, , , "ahk_id " otherWin
+    }
+
+    ; Clear tooltip
+    ToolTip()
 }
 
 ; LEFT Shift + LEFT Alt + Right Mouse Button (multi-window moving)
