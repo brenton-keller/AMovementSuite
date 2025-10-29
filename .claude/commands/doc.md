@@ -8,9 +8,34 @@ Ensures documentation stays synchronized with code changes and follows project s
 
 ---
 
-## Documentation Philosophy
+## Documentation Structure
 
-When updating or creating documentation, follow these principles:
+This project uses a hierarchical documentation system:
+
+**CLAUDE.md** (~100 lines) - High-level navigation and project overview
+**docs/claude/** - Focused guides for AI context and developers
+- `architecture-overview.md` - System structure and navigation
+- `code-conventions.md` - Coding patterns and standards
+- `development-guide.md` - Development workflow
+- `git-workflow.md` - Commit philosophy and git practices
+- `best-practices.md` - Claude Code best practices reference
+
+**docs/** - Comprehensive technical reference
+- `architecture.md` - Detailed system architecture
+- `features.md` - Complete feature specifications
+- `configuration.md` - Configuration system details
+- `mouse-hotkeys.md` - Hotkey reference table
+- `ui-components.md` - GUI component documentation
+- `virtual-desktops.md` - Virtual desktop integration
+- `contributing.md` - Contribution guidelines
+- `development.md` - Development setup
+
+**src/claude.md** - Source code organization guide
+**src/MouseHotkeys/claude.md** - Mouse hotkey system details
+
+---
+
+## Documentation Philosophy
 
 ### Structure - Every Document Should Have:
 
@@ -29,7 +54,7 @@ When updating or creating documentation, follow these principles:
    - Not exhaustive API listings
 
 4. **Cross-References**
-   - Links to related documentation
+   - Links to related documentation with `@` syntax
    - "See X for details on Y"
    - Build a web of knowledge
 
@@ -39,7 +64,7 @@ When updating or creating documentation, follow these principles:
 
 ### Style Guidelines:
 
-- **Thorough but concise:** Aim for 80% brevity vs exhaustive
+- **Thorough but concise:** Aim for clarity over comprehensiveness
   - Explain enough to understand, not every detail
   - 2-4 main sections, each with focused subsections
 
@@ -53,27 +78,15 @@ When updating or creating documentation, follow these principles:
   - Code shows how it's implemented
   - Exception: Complex algorithms may need explanation
 
-### Audience Hierarchy:
+### Progressive Disclosure with @ Imports:
 
-Different docs serve different purposes:
+Use `@path/to/file.md` in documentation to reference detailed content:
+```markdown
+See @docs/claude/development-guide.md for workflow.
+See @docs/features.md for technical details.
+```
 
-1. **`claude.md` files** (AI Context + Developer Onboarding)
-   - High-level overview and navigation
-   - "Where to find what" guide
-   - Common patterns and workflows
-   - Update reminders for code changes
-   - ~100-200 lines max
-
-2. **`docs/` directory** (Technical Reference)
-   - Detailed technical information
-   - Architecture, patterns, APIs
-   - Complete feature documentation
-   - Can be longer and more comprehensive
-
-3. **`README.md`** (User-Facing)
-   - Installation, usage, features
-   - End-user perspective
-   - Quick start guides
+This keeps high-level docs concise while detailed information remains accessible.
 
 ---
 
@@ -82,86 +95,106 @@ Different docs serve different purposes:
 1. **Detect changes:**
    - Run `git diff` to see what code changed
    - If user specified component, focus on that
-   - Identify which subsystem was modified (Features, Config, UI, etc.)
+   - Identify which subsystem was modified
 
 2. **Determine documentation impact:**
    Based on change type, suggest docs to update:
 
    **If Features/ modified:**
    - [ ] `docs/features.md` - Technical details of the feature
-   - [ ] `claude.md` - If architecture/patterns changed
+   - [ ] `CLAUDE.md` - Only if architecture/patterns changed significantly
+   - [ ] `docs/claude/architecture-overview.md` - If affects system structure
    - [ ] `README.md` - If user-facing behavior changed
 
    **If Config/ modified:**
    - [ ] `docs/configuration.md` - Document new settings
-   - [ ] `claude.md` - If affects common patterns
+   - [ ] `docs/claude/code-conventions.md` - If affects common patterns
 
    **If UI/ modified:**
    - [ ] `docs/ui-components.md` - GUI changes
+   - [ ] `docs/claude/development-guide.md` - If affects UI development workflow
 
    **If MouseHotkeys/ modified:**
-   - [ ] `docs/mouse-hotkeys.md` - Hotkey reference
-   - [ ] `src/MouseHotkeys/claude.md` - If patterns changed
+   - [ ] `docs/mouse-hotkeys.md` - Hotkey reference table
+   - [ ] `src/MouseHotkeys/claude.md` - If patterns or structure changed
 
    **If architecture/structure changed:**
-   - [ ] `docs/architecture.md` - System structure
-   - [ ] `claude.md` - Directory structure, patterns
+   - [ ] `docs/architecture.md` - Detailed system structure
+   - [ ] `docs/claude/architecture-overview.md` - High-level overview
+   - [ ] `CLAUDE.md` - If directory structure changed
+   - [ ] `src/claude.md` - If source organization changed
+
+   **If git workflow or conventions changed:**
+   - [ ] `docs/claude/git-workflow.md` - Commit philosophy
+   - [ ] `docs/claude/code-conventions.md` - Coding standards
+
+   **If adding new slash commands:**
+   - [ ] `CLAUDE.md` - List of slash commands
+   - [ ] `.claude/commands/[name].md` - Create/update command file
 
 3. **Guide update process:**
    - Show current doc content in relevant section
    - Suggest what to add/change based on code modifications
    - Follow documentation philosophy (structure, style, audience)
-   - Ensure cross-references are updated
+   - Ensure cross-references use `@` syntax
+   - Keep CLAUDE.md under 100 lines (use `@` imports if needed)
 
 4. **Verify completeness:**
    - Check all relevant docs were updated
    - Verify cross-references are correct
    - Confirm examples still work
+   - Ensure progressive disclosure is maintained
 
 ---
 
-## Language Adaptation
+## Examples
 
-This command adapts to any project language:
-
-**Python:**
-- Updates docstrings (Google/NumPy/Sphinx style)
-- Updates `docs/` (Sphinx, MkDocs, etc.)
-- Updates README, API reference
-
-**JavaScript:**
-- Updates JSDoc comments
-- Updates README, API docs
-- Framework-specific: Storybook, component docs
-
-**General:**
-- Detects existing doc structure and matches it
-- Learns project conventions from existing docs
-- Adapts to markdown, RST, or other formats
-
----
-
-## Example Workflow
+### Example 1: Feature Added
 
 ```
 You: /doc
-Claude: I see changes to src/Features/WindowScaleXY.ahk2
+Claude: I see changes to src/Features/WindowDimmer.ahk2
 
-Added live resize system with motion detection. This requires updates:
+Added new WindowDimmer feature with opacity control. This requires updates:
 
 ☐ docs/features.md
-  Section: "Window Scaling (WindowScaleXY)"
-  Add: "Live Resize System" subsection
-  Content: Explain continuous updates, motion detection, thresholds
+  Section: "Additional Features"
+  Add: "Window Dimmer (WindowDimmer)" subsection
+  Content: Explain opacity control, hotkeys, configuration
 
-☐ claude.md (optional)
-  Check if "Common Patterns" section needs update
-  New pattern: Timer-based window updates
+☐ docs/claude/architecture-overview.md
+  Section: "Features/ - Window Management Modules"
+  Add: WindowDimmer.ahk2 to feature list with brief description
 
-☐ README.md (likely not needed)
-  Feature behavior unchanged from user perspective
+☐ README.md (if user-facing)
+  Add WindowDimmer to features list if it affects end users
 
-Proceed with docs/features.md update? [Yes/Skip/Show me current content first]
+☐ CLAUDE.md
+  Already references @docs/features.md, no change needed (good!)
+
+Proceed with docs/features.md update? [Yes/Skip/Show current content]
+```
+
+### Example 2: Hotkey Pattern Changed
+
+```
+You: /doc MouseHotkeys
+Claude: I see changes to src/MouseHotkeys/hk_basic.ahk2
+
+Changed modifier detection pattern for consistency. This requires:
+
+☐ src/MouseHotkeys/claude.md
+  Section: "Common Patterns > Modifier Detection Pattern"
+  Update: Code example to show new pattern
+
+☐ docs/claude/code-conventions.md
+  Section: "Common Patterns"
+  Add reference: See @src/MouseHotkeys/claude.md for hotkey patterns
+
+☐ docs/mouse-hotkeys.md
+  Verify examples still match new pattern
+
+Proceed? [Yes/No/Show me what changed]
 ```
 
 ---
@@ -169,7 +202,8 @@ Proceed with docs/features.md update? [Yes/Skip/Show me current content first]
 ## Key Reminders
 
 - **Update docs WITH code, not after** - Keep them synchronized
-- **Follow the philosophy** - Structure, style, audience
+- **Follow the philosophy** - Structure, style, audience hierarchy
+- **Use `@` imports** - Keep high-level docs concise with progressive disclosure
 - **Cross-reference liberally** - Build knowledge web
 - **Examples over explanation** - Show, don't just tell
-- **Concise but thorough** - Quality over quantity
+- **Keep CLAUDE.md ~100 lines** - Use `@` imports for details
