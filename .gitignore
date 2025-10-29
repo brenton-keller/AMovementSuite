@@ -1,22 +1,19 @@
-*.gitignore
-gitignore
-
 # Operating System Files
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# AutoHotkey compiled files
+# AutoHotkey Compiled Files
 *.exe
 *.dll
 *.bin
 
-# Editor/IDE files
+# Editor/IDE Files
 .vscode/
 .idea/
 *.sublime-*
 
-# Backup files
+# Backup Files
 *.bak
 *~
 *.old
@@ -25,13 +22,17 @@ desktop.ini
 # Logs
 *.log
 
-# Personal test files that shouldn't be committed
+# Personal Test Files
 *-personal.*
 *-test.*
 
-# Claude Code local settings
+# Claude Code - Local Settings Only (commands should be version controlled)
 .claude/settings.local.json
+.claude/*.local.*
+.claude/cache/
+.claude/history/
 
+# Project-Specific Ignored Files
 src/WindowScaleProportional.ahk2
 src/VirtualDesktopLib/key_list.md
 AMovementSuite.code-workspace
