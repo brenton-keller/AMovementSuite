@@ -1,233 +1,106 @@
-# A Movement Suite - Documentation Guide
+# A Movement Suite
 
-## Project Overview
-
-**A Movement Suite** (formerly "A Window Movement Suite") is an AutoHotkey v2.0 application that provides advanced window management and mouse hotkey functionality for Windows. It enables users to resize, move, snap, and control windows through intuitive mouse and keyboard combinations, along with extensive mouse-based productivity shortcuts.
-
-### Key Capabilities
-- **Window Management**: Dynamic window scaling (width, height, proportional), moving with snapping, always-on-top, window rolling, dimming, and cascading
-- **Mouse Hotkeys**: Extensive mouse-based shortcuts for navigation, program launching, tab management, and system control
-- **Virtual Desktop Integration**: Advanced virtual desktop management capabilities
-- **Configuration Management**: Persistent user settings and preferences
+**AutoHotkey v2.0 window management suite with mouse-driven controls and extensive productivity shortcuts.**
 
 ## Quick Start
 
-1. **Entry Point**: `AWindowMovementSuite.ahk2` - Main script that loads all modules
-2. **Core Logic**: `src/` directory contains all source code
-3. **Documentation**: See `/docs/` for detailed technical reference
-4. **Settings**: User configurations stored in `settings/`
+- **Tech Stack**: AutoHotkey v2.0
+- **Entry Point**: `AWindowMovementSuite.ahk2`
+- **Run**: Execute the main script, use tray menu to toggle features
 
-## Architecture at a Glance
+## Key Capabilities
 
-```
-AMovementSuite/
-├── AWindowMovementSuite.ahk2    # Main entry point, tray menu setup
-├── src/                          # All source code (see src/claude.md)
-│   ├── Features/                 # Window management features
-│   ├── MouseHotkeys/             # Mouse hotkey handlers (see src/MouseHotkeys/claude.md)
-│   ├── lib/                      # Core utilities, config, helpers
-│   ├── UI/                       # GUI components
-│   └── VirtualDesktopLib/        # Virtual desktop integration
-├── docs/                         # Technical reference documentation
-├── settings/                     # User configuration files
-└── assets/                       # Images, resources
-```
+- **Window Management**: Dynamic scaling (width, height, proportional), moving with snapping, always-on-top, rolling, dimming, cascading
+- **Mouse Hotkeys**: Extensive shortcuts for navigation, program launching, tab management, system control
+- **Virtual Desktop Integration**: Advanced virtual desktop management
+- **Configuration**: Persistent user settings and preferences
 
-## Directory Structure Guide
+## Architecture
 
-### `/src/Features/`
-Window management feature modules. Each feature is self-contained:
-- `WindowMove.ahk2` - Window moving with snapping and grid positioning
-- `WindowScaleWidth.ahk2`, `WindowScaleHeight.ahk2`, `WindowScaleXY.ahk2` - Window resizing
-- `WindowAlwaysOnTop.ahk2` - Toggle always-on-top state
-- `WindowRollUp.ahk2` - Roll up windows to title bar
-- `WindowDimmer.ahk2` - Dim inactive windows
-- `WindowCascade.ahk2` - Cascade window arrangement
-- `DisableWindowModifications.ahk2` - Disable modifications for specific windows
+See @docs/claude/architecture-overview.md for detailed structure.
 
-See `docs/features.md` for technical details.
+Quick map:
+- `src/Features/` - Window management features
+- `src/MouseHotkeys/` - Mouse hotkey handlers (@src/MouseHotkeys/claude.md)
+- `src/lib/` - Core utilities, config, helpers
+- `src/UI/` - GUI components
+- `docs/` - Technical reference documentation
 
-### `/src/lib/`
-Core libraries and utilities:
-- **Config/**: `GlobalConfig.ahk2`, `UserConfig.ahk2` - Configuration management
-- **Core/**: `CoreUtils.ahk2`, `ColorUtils.ahk2`, `MoveUtils.ahk2`, `ToggleUtils.ahk2` - Shared utilities
-- **Helpers/**: `ErrorHandler.ahk2`, `LoggingHelper.ahk2` - Support functions
+## Development
 
-See `docs/configuration.md` for config system details.
+See @docs/claude/development-guide.md for workflow.
 
-### `/src/MouseHotkeys/`
-Mouse-based hotkey handlers for productivity shortcuts:
-- `hk_basic.ahk2` - Basic navigation (backspace, enter, delete, etc.)
-- `hk_code.ahk2` - Code editor shortcuts
-- `hk_programs.ahk2` - Program launching shortcuts
-- `hk_tab.ahk2` - Tab management
-- `hk_wheel.ahk2` - Mouse wheel customizations
-- `setting_mouse.ahk2` - Mouse hotkey loader
-- `windows_explorer.ahk2` - File explorer shortcuts
-- `Startbar.ahk2` - Taskbar interactions
+Quick reference:
+- **Adding features**: See @docs/features.md and `src/Features/`
+- **Adding hotkeys**: See @src/MouseHotkeys/claude.md
+- **Configuration**: See @docs/configuration.md
+- **Code patterns**: See @docs/claude/code-conventions.md
 
-See `src/MouseHotkeys/claude.md` and `docs/mouse-hotkeys.md` for details.
+## Slash Commands
 
-### `/src/UI/`
-User interface components:
-- `CustomDialogs.ahk2` - Custom dialog boxes
-- `SettingsGUI.ahk2` - Settings interfaces
+Essential workflows via Claude Code commands:
 
-See `docs/ui-components.md` for UI system details.
+- `/plan [task]` - Plan features with complexity tracking
+- `/commit [focus]` - Create properly formatted commits
+- `/doc [component]` - Update documentation with guidance
+- `/search [query]` - Find code patterns intelligently
+- `/cleanup` - Remove dead code safely
 
-### `/src/VirtualDesktopLib/`
-Virtual desktop management library with COM interfaces and desktop actions.
-See `docs/virtual-desktops.md` for technical reference.
+## Git Workflow
 
-## Where to Find What
+See @docs/claude/git-workflow.md for commit philosophy.
 
-### For Development Tasks
-- **Adding a new window feature**: See `docs/features.md` and `src/Features/`
-- **Adding mouse hotkeys**: See `src/MouseHotkeys/claude.md` and `docs/mouse-hotkeys.md`
-- **Modifying configuration**: See `docs/configuration.md`
-- **Understanding architecture**: See `docs/architecture.md`
-- **UI/GUI changes**: See `docs/ui-components.md`
-- **Contributing**: See `docs/contributing.md`
-- **Development setup**: See `docs/development.md`
+**Quick rules:**
+- Descriptive commits: clear title + organized body
+- No fluff: no bot signatures or "generated with" messages
+- Use `/commit` command for proper formatting
 
-### For Understanding Code
-1. Start with this file (claude.md) for the big picture
-2. Read `src/claude.md` for source code organization
-3. Dive into specific `docs/*.md` files for technical details
-4. Check subsection `claude.md` files (e.g., `src/MouseHotkeys/claude.md`) for focused context
+## Documentation Map
 
-## Development Workflow
+**For AI/Claude Code context:**
+- Project overview → This file
+- Source organization → @src/claude.md
+- Mouse hotkeys system → @src/MouseHotkeys/claude.md
+- Claude Code best practices → `docs/reference/claude-code-best-practices.md` (reference only)
 
-### Adding New Features
-1. Identify which subsystem (Features, MouseHotkeys, UI, etc.)
-2. Create new file or modify existing module
-3. Follow established patterns (see relevant `docs/*.md`)
-4. Update configuration if needed
-5. **Update documentation** (see below)
-6. Test thoroughly with various window types
+**For technical reference:** (load explicitly when needed)
+- Architecture details → `docs/architecture.md`
+- Feature specifications → `docs/features.md`
+- Configuration system → `docs/configuration.md`
+- Mouse hotkey reference → `docs/mouse-hotkeys.md`
+- UI components → `docs/ui-components.md`
+- Virtual desktops → `docs/virtual-desktops.md`
+- Contributing guidelines → `docs/contributing.md`
+- Development setup → `docs/development.md`
 
-### Common Patterns
-- **Feature Toggle**: Features have `{name}Enabled` global variables controlled via tray menu
-- **Hotkey Pattern**: Mouse hotkeys check modifiers (Ctrl, Shift, Alt) for different behaviors
-- **Window Validation**: Use `IsValidWindowFor*` functions to filter valid windows
-- **Configuration**: Use GlobalConfig for system defaults, UserConfig for user preferences
+**For focused guides:**
+- Architecture overview → @docs/claude/architecture-overview.md
+- Code conventions → @docs/claude/code-conventions.md
+- Development workflow → @docs/claude/development-guide.md
+- Git workflow → @docs/claude/git-workflow.md
 
-See `docs/architecture.md` for detailed patterns.
+## Documentation Philosophy
 
-## Documentation Update Reminders
+- **CLAUDE.md**: High-level navigation (~100 lines)
+- **docs/claude/**: Focused guides for AI context
+- **docs/*.md**: Comprehensive technical reference
+- **src/claude.md**: Source code organization
+- **Subsystem claude.md**: Detailed subsystem guides
 
-**IMPORTANT**: When making changes, update documentation:
-
-### When Adding/Modifying Features
-- [ ] Update `docs/features.md` with technical details
-- [ ] Update this file if it affects overall architecture
-- [ ] Update `README.md` if it changes user-facing functionality
-
-### When Adding/Modifying Mouse Hotkeys
-- [ ] Update `docs/mouse-hotkeys.md` with hotkey details
-- [ ] Update `src/MouseHotkeys/claude.md` if patterns change
-
-### When Changing Configuration
-- [ ] Update `docs/configuration.md` with new config options
-- [ ] Document default values and valid ranges
-
-### When Modifying Architecture
-- [ ] Update `docs/architecture.md` with structural changes
-- [ ] Update relevant subsection `claude.md` files
-- [ ] Update this file if directory structure changes
-
-### When Adding UI Components
-- [ ] Update `docs/ui-components.md` with GUI details
-- [ ] Document user interaction patterns
-
-## Code Conventions
-
-- **AutoHotkey v2.0**: All code uses AHK v2.0 syntax
-- **Naming**: PascalCase for functions, camelCase for variables, UPPER_CASE for constants
-- **Global Variables**: Minimize use, prefix with descriptive names (e.g., `windowMoveEnabled`)
-- **Comments**: Document non-obvious logic, function purposes, and complex interactions
-- **File Organization**: One feature per file, related utilities grouped in lib/
-
-## Git Commit Philosophy
-
-**Descriptive commits with clear title and detailed body. No fluff.**
-
-### Commit Message Format
-```
-Title line (capitalized, imperative mood, concise)
-
-Detailed description of what was changed and why:
-- Can use bullet points in the body for clarity
-- Explain the changes, features added, or problems solved
-- Focus on what and why, not how (code shows how)
-- No "authored by", "generated with", or bot signatures
-```
-
-### Good Example
-```
-Add comprehensive documentation system
-
-Created hierarchical documentation philosophy with AI context and technical reference:
-
-Claude.md Files (AI Context + Developer Onboarding):
-- Root claude.md: Project overview, architecture guide, directory structure
-- src/claude.md: Source organization, subsystem overview, patterns
-- src/MouseHotkeys/claude.md: Hotkey system implementation guide
-
-Documentation Features:
-- Layered detail: High-level in claude.md, technical depth in docs/
-- Cross-referenced: All files link to related documentation
-- Update reminders: Prompts to update docs with code changes
-```
-
-### Bad Examples
-```
-✗ WIP: working on calculator stuff
-
-✗ feat: add calculator enhancements (#123)
-
-✗ Update files
-  🤖 Generated with Claude Code
-  Co-Authored-By: Bot <bot@example.com>
-```
-
-### Guidelines
-- **Title**: Capitalized, imperative mood ("Add feature" not "Added feature")
-- **Body**: Detailed explanation, can use bullets/sections for organization
-- **No fluff**: No bot signatures, no "generated with" messages
-- **Focused**: One logical change per commit when possible
-- **Descriptive**: Explain what was added/changed and its purpose
-
-## Testing & Debugging
-
-- **Manual Testing**: Test with various window types (browsers, explorer, system windows)
-- **Edge Cases**: Test with maximized, minimized, multi-monitor scenarios
-- **Error Handling**: Use ErrorHandler helper for consistent error reporting
-- **Logging**: Use LoggingHelper for debugging (when implemented)
-
-See `docs/development.md` for detailed testing procedures.
-
-## Quick Reference Links
-
-- **Main Entry Point**: `AWindowMovementSuite.ahk2`
-- **Tray Menu Setup**: `AWindowMovementSuite.ahk2:33-53`
-- **Feature Modules**: `src/Features/`
-- **Mouse Hotkeys**: `src/MouseHotkeys/`
-- **Core Config**: `src/lib/Config/GlobalConfig.ahk2`
-- **Documentation Index**: `docs/` directory
+Use `@path/to/file.md` imports for progressive disclosure.
 
 ## Project Goals
 
-1. **Modularity**: Each feature should be independent and toggleable
-2. **Performance**: Minimal overhead, responsive user experience
-3. **Reliability**: Robust error handling, safe window operations
-4. **Usability**: Intuitive hotkeys, visual feedback, sensible defaults
-5. **Maintainability**: Clear code structure, comprehensive documentation
+1. **Modularity**: Independent, toggleable features
+2. **Performance**: Minimal overhead, responsive UX
+3. **Reliability**: Robust error handling, safe operations
+4. **Usability**: Intuitive hotkeys, visual feedback
+5. **Maintainability**: Clear structure, comprehensive docs
 
 ---
 
-**Next Steps for AI/Developers:**
-1. Read `src/claude.md` for source code overview
-2. Check subsection `claude.md` files for focused areas
-3. Consult `docs/*.md` for technical deep dives
-4. Follow documentation update reminders when making changes
+**Next Steps:**
+- Developers → @docs/claude/development-guide.md
+- Architecture → @docs/claude/architecture-overview.md
+- Code conventions → @docs/claude/code-conventions.md
+- Technical deep dives → @docs/*.md
