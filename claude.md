@@ -156,28 +156,27 @@ See `docs/architecture.md` for detailed patterns.
 ```
 Title line (capitalized, imperative mood, concise)
 
-Detailed description of what was changed and why:
-- Can use bullet points in the body for clarity
-- Explain the changes, features added, or problems solved
-- Focus on what and why, not how (code shows how)
-- No "authored by", "generated with", or bot signatures
+Organized explanation of changes in 2-4 logical sections:
+- Thorough but concise - clarity over comprehensiveness
+- Use bullets to highlight key points and improvements
+- Explain WHAT changed and WHY, not HOW (code shows how)
+- NO "authored by", "generated with", or bot signatures
 ```
 
 ### Good Example
 ```
 Add comprehensive documentation system
 
-Created hierarchical documentation philosophy with AI context and technical reference:
+Created hierarchical documentation with AI context and technical reference:
 
-Claude.md Files (AI Context + Developer Onboarding):
-- Root claude.md: Project overview, architecture guide, directory structure
-- src/claude.md: Source organization, subsystem overview, patterns
-- src/MouseHotkeys/claude.md: Hotkey system implementation guide
+Documentation Structure:
+- Claude.md files: Project overview, source organization, subsystem guides
+- /docs/ directory: Architecture, features, config, UI, contributing guides
 
-Documentation Features:
-- Layered detail: High-level in claude.md, technical depth in docs/
-- Cross-referenced: All files link to related documentation
-- Update reminders: Prompts to update docs with code changes
+Key Features:
+- Layered detail: High-level overview in claude.md, technical depth in docs/
+- Cross-referenced with update reminders for code changes
+- Workflow-focused for both AI assistants and human developers
 ```
 
 ### Bad Examples
@@ -193,10 +192,11 @@ Documentation Features:
 
 ### Guidelines
 - **Title**: Capitalized, imperative mood ("Add feature" not "Added feature")
-- **Body**: Detailed explanation, can use bullets/sections for organization
+- **Body**: 2-4 organized sections with bullets - thorough but concise
+- **Length**: Detailed enough to understand changes, not exhaustive documentation
 - **No fluff**: No bot signatures, no "generated with" messages
 - **Focused**: One logical change per commit when possible
-- **Descriptive**: Explain what was added/changed and its purpose
+- **Purpose-driven**: Explain what changed and why, not implementation details
 
 ## Testing & Debugging
 

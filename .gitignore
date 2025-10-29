@@ -29,6 +29,9 @@ desktop.ini
 *-personal.*
 *-test.*
 
+# Claude Code local settings
+.claude/settings.local.json
+
 src/WindowScaleProportional.ahk2
 src/VirtualDesktopLib/key_list.md
 AMovementSuite.code-workspace
