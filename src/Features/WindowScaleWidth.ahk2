@@ -359,12 +359,18 @@ FramesEqual_Width(frame1, frame2) {
         }
 
         ; ALWAYS update preview position/color (even when hidden, so it's ready when shown)
+        ; Lock main preview to prevent flicker
+        DllCall("LockWindowUpdate", "UInt", previewGui.Hwnd)
+
         newColor := CalculateColorWidth(newW, initialW, maxWidth, 1)
         previewGui.BackColor := newColor
 
         ; Update main preview
         WinMove newX, wy, newW, wh, previewGui.Hwnd
         WinSetRegion "0-0 w" newW " h" wh, previewGui.Hwnd
+
+        ; Unlock main preview
+        DllCall("LockWindowUpdate", "UInt", 0)
         
         ; Update previews for snapped windows
         if (snappedWindows.Length > 0) {
@@ -393,26 +399,29 @@ FramesEqual_Width(frame1, frame2) {
                     swh := snapPreview.originalH
                     
                     ; Calculate new positions/sizes based on relationship
+                    ; Lock this snapped window preview to prevent flicker
+                    DllCall("LockWindowUpdate", "UInt", snapPreview.gui.Hwnd)
+
                     if (isNearLeftEdge) {
                         if (border == "right") {
                             ; Window with RIGHT edge touching our LEFT edge
                             ; Resize this window's width as our left edge moves
                             newSnapW := newX - swx
                             newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
-                            
+
                             ; Update preview
                             newColor := CalculateColorWidth(newSnapW, sww, maxWidth, 2)
                             snapPreview.gui.BackColor := newColor
                             WinMove swx, swy, newSnapW, swh, snapPreview.gui.Hwnd
                             WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd
-                        } 
+                        }
                         else if (border == "left") {
                             ; Window with LEFT edge touching our LEFT edge
                             ; Move this window with our left edge
                             WinMove newX, swy, sww, swh, snapPreview.gui.Hwnd
                             WinSetRegion "0-0 w" sww " h" swh, snapPreview.gui.Hwnd
                         }
-                    } 
+                    }
                     else if (isNearRightEdge) {
                         if (border == "left") {
                             ; Window with LEFT edge touching our RIGHT edge
@@ -420,24 +429,27 @@ FramesEqual_Width(frame1, frame2) {
                             newSnapX := mainRightEdge
                             newSnapW := (swx + sww) - mainRightEdge
                             newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
-                            
+
                             ; Update preview
                             newColor := CalculateColorWidth(newSnapW, sww, maxWidth, 2)
                             snapPreview.gui.BackColor := newColor
                             WinMove newSnapX, swy, newSnapW, swh, snapPreview.gui.Hwnd
                             WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd
-                        } 
+                        }
                         else if (border == "right") {
                             ; Window with RIGHT edge touching our RIGHT edge
                             ; Resize this window to match our right edge
                             newSnapW := mainRightEdge - swx
                             newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
-                            
+
                             ; Update preview
                             WinMove swx, swy, newSnapW, swh, snapPreview.gui.Hwnd
                             WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd
                         }
                     }
+
+                    ; Unlock this snapped window preview
+                    DllCall("LockWindowUpdate", "UInt", 0)
                 }
             }
             if ( !GetKeyState("LShift","P") ){
@@ -448,8 +460,11 @@ FramesEqual_Width(frame1, frame2) {
                 }
             }
         }
-        
+
     }
+
+    ; Ensure window update lock is released (safety unlock)
+    DllCall("LockWindowUpdate", "UInt", 0)
 
     ; Stop continuous window update timer
     SetTimer UpdateActualWindow_Width, 0

@@ -43,6 +43,7 @@ A_TrayMenu.Add "Window Cascade (RAlt+Up)", ToggleWindowCascade
 A_TrayMenu.Add "Window Grouping (LAlt+LWin+LButton)", ToggleWindowGrouping
 A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move Settings", ShowWindowMoveSettings
+A_TrayMenu.Add "Program Paths Configuration", ShowProgramPathsConfig
 A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Exit", (*) => ExitApp()
 

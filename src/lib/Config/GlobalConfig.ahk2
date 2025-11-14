@@ -1,5 +1,8 @@
 ; src/lib/Config/GlobalConfig.ahk2
 
+; Load user configuration (program paths, preferences)
+#Include %A_ScriptDir%\src\lib\Config\UserConfig.ahk2
+
 ; Global settings for window management
 global scalingModeActive := false
 global widthScalingEnabled := true

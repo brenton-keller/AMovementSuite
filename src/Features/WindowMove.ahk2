@@ -351,6 +351,28 @@ MoveGroupedWindows(mwin, startX, startY) {
         ; Move both windows
         WinMove newMwinX, newMwinY, , , "ahk_id " mwin
         WinMove newOtherX, newOtherY, , , "ahk_id " otherWin
+
+        ; Check for overlap and update always-on-top accordingly
+        if (WindowsOverlap(windowGroup.window1, windowGroup.window2)) {
+            ; Windows are overlapping - ensure top window has always-on-top
+            if (windowGroup.topWindow == 1) {
+                WinSetAlwaysOnTop 1, "ahk_id " windowGroup.window1
+                ; Remove always-on-top from other window if it wasn't originally set
+                if (!windowGroup.window2WasAlwaysOnTop) {
+                    WinSetAlwaysOnTop 0, "ahk_id " windowGroup.window2
+                }
+            } else {
+                WinSetAlwaysOnTop 1, "ahk_id " windowGroup.window2
+                ; Remove always-on-top from other window if it wasn't originally set
+                if (!windowGroup.window1WasAlwaysOnTop) {
+                    WinSetAlwaysOnTop 0, "ahk_id " windowGroup.window1
+                }
+            }
+        } else {
+            ; Windows not overlapping - restore original always-on-top states
+            WinSetAlwaysOnTop windowGroup.window1WasAlwaysOnTop, "ahk_id " windowGroup.window1
+            WinSetAlwaysOnTop windowGroup.window2WasAlwaysOnTop, "ahk_id " windowGroup.window2
+        }
     }
 
     ; Clear tooltip

@@ -66,6 +66,79 @@ ShowWindowMoveSettings(*) {
     }
 }
 
+ShowProgramPathsConfig(*) {
+    ; Get current status of all configured programs
+    status := ProgramPaths.GetStatus()
+
+    ; Create the settings window
+    pathsGui := Gui("+AlwaysOnTop +Resize", "Program Paths Configuration")
+    pathsGui.SetFont("s10")
+
+    ; Title text
+    pathsGui.Add("Text", "w500", "Detected Program Paths")
+    pathsGui.Add("Text", "w500", "✓ = Found  |  ✗ = Not Found")
+    pathsGui.Add("Text", "w500", "")  ; Spacer
+
+    ; Display each program's status
+    yPos := 80
+    for name, info in status {
+        ; Status indicator
+        indicator := info.exists ? "✓" : "✗"
+        color := info.exists ? "Green" : "Red"
+
+        ; Program name
+        pathsGui.SetFont("Bold")
+        pathsGui.Add("Text", "x20 y" yPos " w100", name ":")
+        pathsGui.SetFont()
+
+        ; Status
+        pathsGui.SetFont("c" color " Bold")
+        pathsGui.Add("Text", "x+10 w30", indicator)
+        pathsGui.SetFont()
+
+        ; Path
+        pathsGui.Add("Edit", "x+10 w400 ReadOnly", info.path)
+
+        yPos += 35
+    }
+
+    ; Spacer
+    pathsGui.Add("Text", "xm y" yPos " w500", "")
+    yPos += 10
+
+    ; Instructions
+    pathsGui.SetFont("s9 Italic")
+    pathsGui.Add("Text", "xm y" yPos " w500",
+        "To customize paths for this machine:")
+    pathsGui.Add("Text", "xm y+" yPos " w500",
+        "1. Copy: src\lib\Config\UserConfig.template.ahk2")
+    pathsGui.Add("Text", "xm y+" yPos " w500",
+        "2. To: src\lib\Config\UserConfig.local.ahk2")
+    pathsGui.Add("Text", "xm y+" yPos " w500",
+        "3. Edit UserConfig.local.ahk2 with your custom paths")
+    pathsGui.Add("Text", "xm y+" yPos " w500",
+        "4. Reload this script")
+    pathsGui.SetFont()
+
+    yPos += 110
+
+    ; Buttons
+    pathsGui.Add("Button", "xm y" yPos " w120 Default", "Open Config Folder").OnEvent("Click", OpenConfigFolder)
+    pathsGui.Add("Button", "x+10 w120", "Reload Script").OnEvent("Click", ReloadScript)
+    pathsGui.Add("Button", "x+10 w120", "Close").OnEvent("Click", (*) => pathsGui.Destroy())
+
+    ; Show the GUI
+    pathsGui.Show("w560 h" (yPos + 50))
+
+    OpenConfigFolder(*) {
+        Run 'explorer.exe "' A_ScriptDir '\src\lib\Config"'
+    }
+
+    ReloadScript(*) {
+        Reload
+    }
+}
+
 GetWindowMonitor(winX, winY, winWidth, winHeight) {
     winCenterX := winX + (winWidth / 2)
     winCenterY := winY + (winHeight / 2)

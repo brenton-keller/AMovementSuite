@@ -5,5 +5,26 @@ WheelDown::Send("^{-}")
 
 #Space::
 {
-    Run '"C:\Program Files\Everything\Everything.exe" -newwindow'
+    ; Validate Everything installation
+    if (!ProgramPaths.ValidateEverything()) {
+        MsgBox("Everything not found at:`n" ProgramPaths.Everything
+            . "`n`nPlease install Everything or configure UserConfig.local.ahk2"
+            . "`nSee: src\lib\Config\UserConfig.template.ahk2",
+            "Everything Not Found", "Icon!")
+        return
+    }
+
+    ; Build command with configured path
+    cmd := '"' ProgramPaths.Everything '"'
+
+    ; Add options based on preferences
+    if (UserPreferences.EverythingNewWindow)
+        cmd .= " -newwindow"
+
+    ; Launch Everything
+    try {
+        Run cmd
+    } catch as err {
+        MsgBox("Failed to launch Everything:`n" err.Message, "Launch Error", "Icon!")
+    }
 }

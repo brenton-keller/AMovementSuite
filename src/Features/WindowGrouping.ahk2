@@ -1,6 +1,30 @@
 ; Window Grouping Feature
 ; Allows grouping of 2 windows that move together
-; Uses always-on-top to maintain z-order
+; Uses always-on-top to maintain z-order (only when windows overlap)
+
+; Check if two windows overlap
+WindowsOverlap(hwnd1, hwnd2) {
+    ; Get positions and sizes of both windows
+    WinGetPos &x1, &y1, &w1, &h1, "ahk_id " hwnd1
+    WinGetPos &x2, &y2, &w2, &h2, "ahk_id " hwnd2
+
+    ; Calculate bounds
+    left1 := x1
+    right1 := x1 + w1
+    top1 := y1
+    bottom1 := y1 + h1
+
+    left2 := x2
+    right2 := x2 + w2
+    top2 := y2
+    bottom2 := y2 + h2
+
+    ; Check for overlap on both axes
+    overlapX := (left1 < right2) && (right1 > left2)
+    overlapY := (top1 < bottom2) && (bottom1 > top2)
+
+    return (overlapX && overlapY)
+}
 
 ; Helper function to check if a window is in the current group
 IsInGroup(hwnd) {
@@ -64,11 +88,16 @@ CreateGroup(hwnd1, hwnd2) {
     activeWin := WinExist("A")
     topWindow := (activeWin == hwnd1) ? 1 : 2
 
-    ; Set the top window to always-on-top
-    if (topWindow == 1) {
-        WinSetAlwaysOnTop 1, "ahk_id " hwnd1
+    ; Only set always-on-top if windows overlap
+    if (WindowsOverlap(hwnd1, hwnd2)) {
+        if (topWindow == 1) {
+            WinSetAlwaysOnTop 1, "ahk_id " hwnd1
+        } else {
+            WinSetAlwaysOnTop 1, "ahk_id " hwnd2
+        }
+        ToolTip "Windows grouped (overlapping - z-order locked)"
     } else {
-        WinSetAlwaysOnTop 1, "ahk_id " hwnd2
+        ToolTip "Windows grouped (no overlap)"
     }
 
     ; Store group information
@@ -81,7 +110,6 @@ CreateGroup(hwnd1, hwnd2) {
     windowGroup.window2WasAlwaysOnTop := window2WasAlwaysOnTop
     isGroupActive := true
 
-    ToolTip "Windows grouped"
     SetTimer () => ToolTip(), -1500
 }
 
@@ -223,6 +251,29 @@ ClearSelectionOverlays() {
     windowGroup.offsetX := x2 - x1
     windowGroup.offsetY := y2 - y1
 
-    ToolTip "Group offset updated"
+    ; Check for overlap and update always-on-top accordingly
+    if (WindowsOverlap(windowGroup.window1, windowGroup.window2)) {
+        ; Windows are overlapping - ensure top window has always-on-top
+        if (windowGroup.topWindow == 1) {
+            WinSetAlwaysOnTop 1, "ahk_id " windowGroup.window1
+            ; Remove always-on-top from other window if it wasn't originally set
+            if (!windowGroup.window2WasAlwaysOnTop) {
+                WinSetAlwaysOnTop 0, "ahk_id " windowGroup.window2
+            }
+        } else {
+            WinSetAlwaysOnTop 1, "ahk_id " windowGroup.window2
+            ; Remove always-on-top from other window if it wasn't originally set
+            if (!windowGroup.window1WasAlwaysOnTop) {
+                WinSetAlwaysOnTop 0, "ahk_id " windowGroup.window1
+            }
+        }
+        ToolTip "Group offset updated (overlapping - z-order locked)"
+    } else {
+        ; Windows not overlapping - restore original always-on-top states
+        WinSetAlwaysOnTop windowGroup.window1WasAlwaysOnTop, "ahk_id " windowGroup.window1
+        WinSetAlwaysOnTop windowGroup.window2WasAlwaysOnTop, "ahk_id " windowGroup.window2
+        ToolTip "Group offset updated (no overlap)"
+    }
+
     SetTimer () => ToolTip(), -1500
 }

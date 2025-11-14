@@ -17,24 +17,24 @@
 
 ## Architecture
 
-See @docs/claude/architecture-overview.md for detailed structure.
+See `docs/claude/architecture-overview.md` for detailed structure.
 
 Quick map:
 - `src/Features/` - Window management features
-- `src/MouseHotkeys/` - Mouse hotkey handlers (@src/MouseHotkeys/claude.md)
+- `src/MouseHotkeys/` - Mouse hotkey handlers (`src/MouseHotkeys/claude.md`)
 - `src/lib/` - Core utilities, config, helpers
 - `src/UI/` - GUI components
 - `docs/` - Technical reference documentation
 
 ## Development
 
-See @docs/claude/development-guide.md for workflow.
+See `docs/claude/development-guide.md` for workflow.
 
 Quick reference:
-- **Adding features**: See @docs/features.md and `src/Features/`
-- **Adding hotkeys**: See @src/MouseHotkeys/claude.md
-- **Configuration**: See @docs/configuration.md
-- **Code patterns**: See @docs/claude/code-conventions.md
+- **Adding features**: See `docs/features.md` and `src/Features/`
+- **Adding hotkeys**: See `src/MouseHotkeys/claude.md`
+- **Configuration**: See `docs/configuration.md`
+- **Code patterns**: See `docs/claude/code-conventions.md`
 
 ## Slash Commands
 
@@ -48,7 +48,7 @@ Essential workflows via Claude Code commands:
 
 ## Git Workflow
 
-See @docs/claude/git-workflow.md for commit philosophy.
+See `docs/claude/git-workflow.md` for commit philosophy.
 
 **Quick rules:**
 - Descriptive commits: clear title + organized body
@@ -59,14 +59,14 @@ See @docs/claude/git-workflow.md for commit philosophy.
 
 **For AI/Claude Code context:**
 - Project overview → This file
-- Source organization → @src/claude.md
-- Mouse hotkeys system → @src/MouseHotkeys/claude.md
-- Claude Code best practices → `docs/reference/claude-code-best-practices.md` (reference only)
+- Source organization → `src/claude.md`
+- Mouse hotkeys system → `src/MouseHotkeys/claude.md`
 
 **For technical reference:** (load explicitly when needed)
 - Architecture details → `docs/architecture.md`
 - Feature specifications → `docs/features.md`
 - Configuration system → `docs/configuration.md`
+- AHK2 memory management → `docs/ahk2-memory-management.md`
 - Mouse hotkey reference → `docs/mouse-hotkeys.md`
 - UI components → `docs/ui-components.md`
 - Virtual desktops → `docs/virtual-desktops.md`
@@ -74,20 +74,26 @@ See @docs/claude/git-workflow.md for commit philosophy.
 - Development setup → `docs/development.md`
 
 **For focused guides:**
-- Architecture overview → @docs/claude/architecture-overview.md
-- Code conventions → @docs/claude/code-conventions.md
-- Development workflow → @docs/claude/development-guide.md
-- Git workflow → @docs/claude/git-workflow.md
+- Architecture overview → `docs/claude/architecture-overview.md`
+- Code conventions → `docs/claude/code-conventions.md`
+- Development workflow → `docs/claude/development-guide.md`
+- Git workflow → `docs/claude/git-workflow.md`
+
+**For comprehensive manuals:** (load when deep understanding needed)
+- AHK2 reference guide → `manuals/ahk2/index.md`
+- Claude Code guide → `manuals/claude/index.md`
+- All manuals directory → `manuals/*/index.md`
 
 ## Documentation Philosophy
 
 - **CLAUDE.md**: High-level navigation (~100 lines)
 - **docs/claude/**: Focused guides for AI context
 - **docs/*.md**: Comprehensive technical reference
+- **manuals/**: Deep-dive reference manuals (AHK2, Claude Code, etc.)
 - **src/claude.md**: Source code organization
 - **Subsystem claude.md**: Detailed subsystem guides
 
-Use `@path/to/file.md` imports for progressive disclosure.
+Use `path/to/file.md` references for progressive disclosure.
 
 ## Project Goals
 
@@ -100,7 +106,8 @@ Use `@path/to/file.md` imports for progressive disclosure.
 ---
 
 **Next Steps:**
-- Developers → @docs/claude/development-guide.md
-- Architecture → @docs/claude/architecture-overview.md
-- Code conventions → @docs/claude/code-conventions.md
-- Technical deep dives → @docs/*.md
+- Developers → `docs/claude/development-guide.md`
+- Architecture → `docs/claude/architecture-overview.md`
+- Code conventions → `docs/claude/code-conventions.md`
+- Technical deep dives → `docs/*.md`
+- Reference manuals → `manuals/*/index.md`

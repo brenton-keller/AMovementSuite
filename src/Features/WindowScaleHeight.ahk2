@@ -264,6 +264,9 @@ FramesEqual_Height(frame1, frame2) {
         }
 
         ; ALWAYS update preview position/color (even when hidden, so it's ready when shown)
+        ; Lock window update to prevent flicker
+        DllCall("LockWindowUpdate", "UInt", previewGui.Hwnd)
+
         ; Update preview color based on new height
         newColor := CalculateColorHeight(newH, initialH, maxHeight)
         previewGui.BackColor := newColor
@@ -271,7 +274,13 @@ FramesEqual_Height(frame1, frame2) {
         ; Update preview
         WinMove wx, newY, ww, newH, previewGui.Hwnd
         WinSetRegion "0-0 w" ww " h" newH, previewGui.Hwnd
+
+        ; Unlock to apply all changes at once (no flicker!)
+        DllCall("LockWindowUpdate", "UInt", 0)
     }
+
+    ; Ensure window update lock is released (safety unlock)
+    DllCall("LockWindowUpdate", "UInt", 0)
 
     ; Stop continuous window update timer
     SetTimer UpdateActualWindow_Height, 0

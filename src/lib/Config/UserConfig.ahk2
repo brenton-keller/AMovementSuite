@@ -1,0 +1,129 @@
+; User Configuration with Auto-Detection
+; This file provides smart defaults and auto-detects common program installations
+; For machine-specific overrides, create UserConfig.local.ahk2 (see UserConfig.template.ahk2)
+
+; Program Paths Configuration
+class ProgramPaths {
+    ; Terminal Emulator: WezTerm
+    static WezTerm := ProgramPaths._DetectWezTerm()
+
+    ; File Search: Everything
+    static Everything := ProgramPaths._DetectEverything()
+
+    ; Default Shell
+    static Shell := "pwsh.exe"  ; PowerShell 7+
+
+    ; === Auto-Detection Methods ===
+
+    static _DetectWezTerm() {
+        ; Try environment variable first
+        if (envPath := EnvGet("WEZTERM_PATH")) != "" {
+            if FileExist(envPath)
+                return envPath
+        }
+
+        ; Check common installation locations
+        locations := [
+            A_ProgramFiles . "\WezTerm\wezterm-gui.exe",
+            A_ProgramFiles . " (x86)\WezTerm\wezterm-gui.exe",
+            "C:\PortableApps\Programs\WezTerm\wezterm-gui.exe",
+            A_AppData . "\..\Local\Microsoft\WindowsApps\wezterm-gui.exe",
+            EnvGet("USERPROFILE") . "\scoop\apps\wezterm\current\wezterm-gui.exe",
+            EnvGet("USERPROFILE") . "\.local\bin\wezterm-gui.exe"
+        ]
+
+        for path in locations {
+            if FileExist(path)
+                return path
+        }
+
+        ; Fallback to default (may not exist)
+        return A_ProgramFiles . "\WezTerm\wezterm-gui.exe"
+    }
+
+    static _DetectEverything() {
+        ; Try environment variable first
+        if (envPath := EnvGet("EVERYTHING_PATH")) != "" {
+            if FileExist(envPath)
+                return envPath
+        }
+
+        ; Check common installation locations
+        locations := [
+            A_ProgramFiles . "\Everything\Everything.exe",
+            A_ProgramFiles . " (x86)\Everything\Everything.exe",
+            "C:\PortableApps\Programs\Everything\everything.exe",
+            A_AppData . "\..\Local\Programs\Everything\Everything.exe",
+            EnvGet("USERPROFILE") . "\scoop\apps\everything\current\Everything.exe"
+        ]
+
+        for path in locations {
+            if FileExist(path)
+                return path
+        }
+
+        ; Fallback to default (may not exist)
+        return A_ProgramFiles . "\Everything\Everything.exe"
+    }
+
+    ; === Validation Methods ===
+
+    static ValidateWezTerm() {
+        return FileExist(ProgramPaths.WezTerm) ? true : false
+    }
+
+    static ValidateEverything() {
+        return FileExist(ProgramPaths.Everything) ? true : false
+    }
+
+    ; === Utility Methods ===
+
+    static GetAllPaths() {
+        return Map(
+            "WezTerm", ProgramPaths.WezTerm,
+            "Everything", ProgramPaths.Everything,
+            "Shell", ProgramPaths.Shell
+        )
+    }
+
+    static GetStatus() {
+        paths := ProgramPaths.GetAllPaths()
+        status := Map()
+
+        for name, path in paths {
+            ; Check if it's a system command or actual file
+            if (name = "Shell") {
+                ; Shell commands are in PATH, don't check file existence
+                status[name] := {path: path, exists: true}
+            } else {
+                status[name] := {path: path, exists: FileExist(path) ? true : false}
+            }
+        }
+
+        return status
+    }
+}
+
+; User Preferences
+class UserPreferences {
+    ; Terminal preferences
+    static PreferredShell := "pwsh.exe"      ; pwsh.exe, cmd.exe, bash.exe, wsl.exe
+    static TerminalWorkingDir := ""           ; Leave empty for smart detection
+
+    ; Everything search preferences
+    static EverythingNewWindow := true       ; Open in new window
+    static EverythingSearchMode := "normal"  ; normal, regex, fuzzy
+
+    ; Notification preferences
+    static ShowLaunchNotifications := false  ; Show tooltip when launching programs
+    static NotificationDuration := 1500      ; Milliseconds
+}
+
+; Machine-specific overrides are loaded below (if UserConfig.local.ahk2 exists)
+; The file is optional - create it from UserConfig.template.ahk2 only if you need custom paths
+; Note: #Include directives cannot be conditional, so this include will error if file doesn't exist.
+;       This is intentional - users only create UserConfig.local.ahk2 when needed.
+;       To create: copy UserConfig.template.ahk2 → UserConfig.local.ahk2 and customize
+
+; Attempt to include local config (will silently fail if doesn't exist - AHK v2 behavior)
+#IncludeAgain *i %A_ScriptDir%\src\lib\Config\UserConfig.local.ahk2

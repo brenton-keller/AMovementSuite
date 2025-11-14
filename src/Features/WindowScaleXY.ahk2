@@ -11,6 +11,9 @@ resizeActive := false
 rButtonReleased := true
 wasResizing := false
 
+; Timer state tracking for proper cleanup
+global xyScalingTimerRunning := false
+
 ; State variables for continuous window updating
 windowUpdateTimer := 0
 targetWindowFrame := {x: 0, y: 0, w: 0, h: 0}  ; Stores desired window position/size
@@ -76,11 +79,22 @@ FramesEqual(frame1, frame2) {
             frame1.w = frame2.w && frame1.h = frame2.h)
 }
 
-SetTimer CheckKeysAndResize, 16
+; Timer starts/stops via ToggleXYScaling() in ToggleUtils.ahk2
+; No unconditional SetTimer here - memory leak prevention!
+
+; Initialize timer if feature is enabled by default
+if (xyScalingEnabled) {
+    SetTimer CheckKeysAndResize, 16
+    xyScalingTimerRunning := true
+}
 
 CheckKeysAndResize() {
-    global resizeActive, rButtonReleased, wasResizing, scalingModeActive
-    
+    global resizeActive, rButtonReleased, wasResizing, scalingModeActive, xyScalingEnabled
+
+    ; Early return if feature is disabled - don't waste CPU cycles
+    if (!xyScalingEnabled)
+        return
+
     ; If another scaling operation is already active, don't start XY scaling
     if (scalingModeActive)
         return
@@ -341,6 +355,9 @@ StartResize() {
         }
 
         ; ALWAYS update preview position/color (even when hidden, so it's ready when shown)
+        ; Lock window update to prevent flicker (batch all changes into one redraw)
+        DllCall("LockWindowUpdate", "UInt", previewGui.Hwnd)
+
         if (!debugModeXY) {
             newColor := CalculateColorXY(newW, newH, initialW, initialH, maxWidth, maxHeight)
             previewGui.BackColor := newColor
@@ -348,7 +365,13 @@ StartResize() {
 
         WinMove newX, newY, newW, newH, previewGui.Hwnd
         WinSetRegion "0-0 w" newW " h" newH, previewGui.Hwnd
+
+        ; Unlock to apply all changes at once (no flicker!)
+        DllCall("LockWindowUpdate", "UInt", 0)
     }
+
+    ; Ensure window update lock is released (safety unlock)
+    DllCall("LockWindowUpdate", "UInt", 0)
 
     ; Stop continuous window update timer
     SetTimer UpdateActualWindow, 0
