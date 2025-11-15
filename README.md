@@ -27,8 +27,11 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
 - **Window Positioning Grid**  
   Press the `Z` key while moving to bring up a grid-based positioning menu. Snap windows to common layouts (e.g., left/right halves, thirds, or quarters) using on-screen buttons.
 
-- **Always-on-Top Toggle**  
+- **Always-on-Top Toggle**
   Use *Left Control + Middle Mouse Button* to quickly toggle the always-on-top state of a window, with visual notifications confirming the change.
+
+- **Virtual Desktop Management**
+  Move windows between virtual desktops using *Win + Alt + Left/Right Arrow*. Quickly organize windows across multiple desktops without switching away from your current workspace. Features circular navigation and visual feedback notifications.
 
 - **Modular Design**  
   The suite is split into several include files:
@@ -55,13 +58,14 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
 
 ## Usage
 
-- **Tray Menu Options:**  
+- **Tray Menu Options:**
   Right-click the tray icon to toggle individual features:
   - *Width Scaling (LCtrl+RButton)*
   - *Height Scaling (LShift+RButton)*
   - *XY Scaling (LCtrl+LShift+RButton)*
   - *Always on Top (LCtrl+MButton)*
   - *Window Move (LAlt+RButton)*
+  - *Virtual Desktop (#!Left/Right)*
   - Open settings for window move (to adjust snap distance).
 
 - **Resizing Windows:**
@@ -76,6 +80,12 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
 - **Always-on-Top:**
   - Hover over a window and press *Left Control + Middle Mouse Button* to toggle its topmost state.
   - The script validates whether the window is eligible (for example, system windows are excluded).
+
+- **Virtual Desktop Navigation:**
+  - Press *Win + Alt + Left Arrow* to move the active window to the previous virtual desktop.
+  - Press *Win + Alt + Right Arrow* to move the active window to the next virtual desktop.
+  - Navigation wraps around (moving left from desktop 1 goes to the last desktop).
+  - Visual notification shows the destination desktop number and window title.
 
 ---
 

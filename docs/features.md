@@ -14,6 +14,7 @@ Technical reference for all window management features in A Movement Suite.
 | Window Roll Up | TBD | `windowRollUpEnabled` | src/Features/WindowRollUp.ahk2 |
 | Window Dimmer | TBD | `windowDimmerEnabled` | src/Features/WindowDimmer.ahk2 |
 | Window Cascade | RAlt + Up | `windowCascadeEnabled` | src/Features/WindowCascade.ahk2 |
+| Virtual Desktop | Win + Alt + Left/Right | `virtualDesktopEnabled` | src/Features/WindowVirtualDesktop.ahk2 |
 | Disable Modifications | N/A | N/A | src/Features/DisableWindowModifications.ahk2 |
 
 ---
@@ -305,6 +306,119 @@ Arrange all windows in a cascading pattern for easy access.
 
 ### Source Reference
 `src/Features/WindowCascade.ahk2`
+
+---
+
+## WindowVirtualDesktop (src/Features/WindowVirtualDesktop.ahk2)
+
+### Description
+Move the active window between virtual desktops using keyboard shortcuts. Provides quick access to organize windows across multiple virtual desktops without switching away from the current desktop.
+
+### Hotkeys
+- `Win + Alt + Left` - Move active window to previous virtual desktop
+- `Win + Alt + Right` - Move active window to next virtual desktop
+
+### Features
+- **Circular Navigation**: Wraps around desktop list (moving left from desktop 1 goes to last desktop)
+- **Visual Feedback**: Shows tooltip notification with destination desktop number and window title
+- **Automatic Window Handling**: Handles maximized windows and window activation automatically
+- **System Window Protection**: Prevents moving system windows (taskbar, desktop, etc.)
+- **Error Handling**: Gracefully handles invalid windows with error notifications
+
+### Behavior
+1. User presses Win+Alt+Left or Win+Alt+Right
+2. System validates active window is eligible for movement
+3. Window is moved to adjacent virtual desktop (relative +1 or -1)
+4. Tooltip displays success message with desktop number
+5. If current window was active, activates another window on the current desktop
+
+### Global Variables
+- `virtualDesktopEnabled` - Feature toggle state
+
+### Key Functions
+
+#### MoveWindowToPreviousDesktop()
+```ahk
+; Moves active window to previous desktop (circular navigation)
+; Shows notification with destination desktop number
+; Handles errors and invalid windows gracefully
+```
+
+#### MoveWindowToNextDesktop()
+```ahk
+; Moves active window to next desktop (circular navigation)
+; Shows notification with destination desktop number
+; Handles errors and invalid windows gracefully
+```
+
+#### IsValidWindowForVirtualDesktop(hwnd)
+```ahk
+; Validates window can be moved between desktops
+; Excludes: system windows, taskbar, desktop, minimized windows
+; Returns: true if window can be moved, false otherwise
+```
+
+### VirtualDesktop Library Integration
+Uses `VD.ahk2` library functions:
+- `VD.MoveWindowToRelativeDesktopNum("A", ±1)` - Core movement function
+- Automatically handles:
+  - COM interface initialization
+  - Windows version detection (Win10/Win11 compatibility)
+  - Desktop wrapping/circular navigation
+  - Maximized window restoration
+
+### Window Validation
+Excluded window classes:
+- `Progman` - Desktop
+- `WorkerW` - Desktop worker window
+- `Shell_TrayWnd` - Taskbar
+- `NotifyIconOverflowWindow` - System tray overflow
+- `SystemTray_Main` - System tray
+- `Windows.UI.Core.CoreWindow` - UWP system UI
+
+Also excludes:
+- Minimized windows
+- Non-existent/invalid windows
+
+### Visual Feedback
+Success notification format:
+```
+✓ Moved to Desktop <number>
+(<window title>)
+```
+
+Error notification format:
+```
+✗ <error message>
+(<window title>)
+```
+
+Notifications auto-dismiss after 2 seconds.
+
+### Configuration
+- No configuration required - uses Windows virtual desktop system settings
+- Desktop count determined automatically by Windows
+- Toggle feature via tray menu: "Virtual Desktop (#!Left/Right)"
+
+### OS Compatibility
+- **Windows 10**: Build 14393+ (Anniversary Update)
+- **Windows 11**: All builds
+- **Windows Server 2022**: Full support
+
+Automatically detects OS version and uses appropriate COM interfaces.
+
+### Known Issues
+- Cannot move UWP apps that are pinned to all desktops
+- Some system dialogs may not be movable
+- Moving a window doesn't switch the user to that desktop (by design)
+
+### Source Reference
+`src/Features/WindowVirtualDesktop.ahk2`
+
+### See Also
+- `docs/virtual-desktop-api.md` - VirtualDesktopLib API reference
+- `src/VirtualDesktopLib/lib/VD.ahk2` - Core library implementation
+- `src/VirtualDesktopLib/lib/WindowManagement.ahk2` - Window movement functions
 
 ---
 

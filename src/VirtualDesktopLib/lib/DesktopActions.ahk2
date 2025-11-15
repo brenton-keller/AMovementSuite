@@ -95,11 +95,11 @@ static gotoRelativeDesktopNum(relative_count) {
 static goToLastActiveDesktop() {
   static lastDesktopNum := 0
   currentDesktopNum := this.getCurrentDesktopNum()
-  
+
   ; Save current desktop before changing
   tempDesktopNum := lastDesktopNum
   lastDesktopNum := currentDesktopNum
-  
+
   ; If a toggle pair is fully defined, use that
   if (this.isTogglePairDefined && this.toggleDesktop2 != 0) {
     ; If on desktop1, go to desktop2
@@ -118,13 +118,136 @@ static goToLastActiveDesktop() {
       return this.toggleDesktop1
     }
   }
-  
+
   ; Fall back to original behavior if no toggle pair is defined
   if (tempDesktopNum > 0) {
     this.goToDesktopNum(tempDesktopNum)
     return tempDesktopNum
   }
   return 0
+}
+
+/**
+ * Move a desktop to a specific position in the desktop order
+ * @param sourceDesktopNum - Current position of desktop (1-based)
+ * @param targetDesktopNum - Target position (1-based)
+ * @returns {Boolean} - true on success, false on error
+ */
+static MoveDesktop(sourceDesktopNum, targetDesktopNum) {
+  Desktops_Obj := this._GetDesktops_Obj()
+  count_Desktops := Desktops_Obj.GetCount()
+
+  ; Validate source index
+  if (sourceDesktopNum < 1 || sourceDesktopNum > count_Desktops) {
+    throw ValueError("Source desktop index out of range: " . sourceDesktopNum . " (valid: 1-" . count_Desktops . ")")
+  }
+
+  ; Validate target index
+  if (targetDesktopNum < 1 || targetDesktopNum > count_Desktops) {
+    throw ValueError("Target desktop index out of range: " . targetDesktopNum . " (valid: 1-" . count_Desktops . ")")
+  }
+
+  ; If already at target position, nothing to do
+  if (sourceDesktopNum = targetDesktopNum)
+    return true
+
+  ; Get the desktop object to move
+  IVirtualDesktop := Desktops_Obj.GetAt(sourceDesktopNum)
+
+  ; Write debug info to log file
+  logFile := A_ScriptDir . "\vd_movedesktop_debug.log"
+  debugInfo := "=== MoveDesktop Debug Log ===`n"
+  debugInfo .= "Timestamp: " . A_Now . "`n"
+  debugInfo .= "Source Desktop: " . sourceDesktopNum . "`n"
+  debugInfo .= "Target Desktop: " . targetDesktopNum . "`n"
+  debugInfo .= "Total Desktops: " . count_Desktops . "`n"
+
+  ; Get desktop names
+  try {
+    sourceName := this.getNameFromDesktopNum(sourceDesktopNum)
+    targetName := this.getNameFromDesktopNum(targetDesktopNum)
+    debugInfo .= "Source Desktop Name: '" . sourceName . "'`n"
+    debugInfo .= "Target Desktop Name: '" . targetName . "'`n"
+  } catch {
+    debugInfo .= "Could not retrieve desktop names`n"
+  }
+
+  debugInfo .= "ptr_MoveDesktop: " . (this.ptr_MoveDesktop ? this.ptr_MoveDesktop : "NULL/UNDEFINED") . "`n"
+  debugInfo .= "IVirtualDesktopManagerInternal.Ptr: " . this.IVirtualDesktopManagerInternal.Ptr . "`n"
+  debugInfo .= "IVirtualDesktop: " . IVirtualDesktop . "`n"
+  debugInfo .= "Target index (0-based): " . (targetDesktopNum - 1) . "`n"
+  debugInfo .= "`nAttempting DllCall...`n"
+
+  FileAppend(debugInfo, logFile)
+
+  ; Call MoveDesktop COM method with error handling
+  try {
+    ; Parameters: this pointer, IVirtualDesktop*, HMONITOR, target index (0-based)
+    ; Return value from DllCall IS the HRESULT
+    result := DllCall(this.ptr_MoveDesktop,
+      "Ptr", this.IVirtualDesktopManagerInternal.Ptr,  ; this pointer
+      "Ptr", IVirtualDesktop,                           ; pDesktop to move
+      "Ptr", 0,                                         ; hMonitor (0 for default)
+      "Int", targetDesktopNum - 1)                      ; nIndex (0-based target position)
+
+    ; Log result
+    resultInfo := "DllCall completed`n"
+    resultInfo .= "HRESULT: " . Format("0x{:08X}", result) . " (decimal: " . result . ")`n"
+    resultInfo .= "Success: " . (result = 0 ? "YES" : "NO") . "`n"
+    resultInfo .= "`n"
+    FileAppend(resultInfo, logFile)
+  } catch Error as err {
+    ; DllCall itself threw an exception
+    errorInfo := "DllCall THREW EXCEPTION!`n"
+    errorInfo .= "Error Message: " . err.Message . "`n"
+    errorInfo .= "Error What: " . err.What . "`n"
+    errorInfo .= "Error Extra: " . err.Extra . "`n"
+    errorInfo .= "`n"
+    FileAppend(errorInfo, logFile)
+    throw err
+  }
+
+  ; Show where log is
+  ToolTip("Debug log written to:`n" . logFile)
+  SetTimer(() => ToolTip(), -3000)
+
+  ; Check for errors (S_OK = 0)
+  if (result != 0) {
+    throw Error("MoveDesktop COM call failed with HRESULT: " . Format("0x{:08X}", result))
+  }
+
+  return true
+}
+
+/**
+ * Create a new desktop immediately after the current desktop and stay on current desktop
+ * @returns {Object} - The newly created desktop object
+ */
+static CreateDesktopAfterCurrent() {
+  ; Get current desktop number before creating new one
+  currentNum := this.getCurrentDesktopNum()
+
+  ; Create new desktop (will be created at the end)
+  IVirtualDesktop_ofNewDesktop := this._dll_CreateDesktop()
+
+  ; Small delay to ensure desktop is fully registered
+  Sleep 50
+
+  ; Get updated desktop count
+  Desktops_Obj := this._GetDesktops_Obj()
+  newDesktopIndex := Desktops_Obj.GetCount()
+
+  ; Move the new desktop to position after current
+  targetPosition := currentNum + 1
+  this.MoveDesktop(newDesktopIndex, targetPosition)
+
+  ; Small delay to ensure move is complete
+  Sleep 50
+
+  ; Stay on original desktop (it's still at the same position)
+  this.goToDesktopNum(currentNum)
+
+  return IVirtualDesktop_ofNewDesktop
 }
 
 ; Define or update toggle pair of desktops
