@@ -1,0 +1,315 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+; Include VirtualDesktop library
+#Include %A_ScriptDir%\src\VirtualDesktopLib\lib\VD.ahk2
+
+; Initialize global toggle variable
+global virtualDesktopEnabled := true
+
+; Hotkey: Win + Alt + Left - Move active window to previous virtual desktop
+#!Left::MoveWindowToPreviousDesktop()
+
+; Hotkey: Win + Alt + Right - Move active window to next virtual desktop
+#!Right::MoveWindowToNextDesktop()
+
+; Hotkey: Win + Ctrl + D - Test MoveDesktop functionality
+^#d::TestMoveDesktop()
+
+/** MoveWindowToPreviousDesktop
+ * Moves the currently active window to the previous virtual desktop.
+ * Provides visual feedback showing the destination desktop number.
+ *
+ * @global {Boolean} virtualDesktopEnabled Controls whether virtual desktop functionality is active
+ *
+ * @returns {void}
+ *
+ * @behavior
+ * - Checks if virtual desktop functionality is enabled
+ * - Validates the active window can be moved
+ * - Moves window to previous desktop (wraps to last desktop if at first)
+ * - Shows notification with destination desktop number
+ *
+ * @example
+ * ; User presses Win+Alt+Left to move active window to previous desktop
+ * MoveWindowToPreviousDesktop()
+ *
+ * @notes
+ * - Uses circular navigation (wraps around desktop list)
+ * - Handles maximized windows automatically
+ * - Shows error notification if window cannot be moved
+ */
+MoveWindowToPreviousDesktop() {
+    global virtualDesktopEnabled
+
+    ; Check if functionality is enabled
+    if (!virtualDesktopEnabled)
+        return
+
+    ; Get active window
+    activeWin := WinGetID("A")
+
+    ; Check if we have a valid window
+    if (!activeWin) {
+        ShowVDNotification("No active window to move", "", false)
+        return
+    }
+
+    ; Check if it's a valid window for virtual desktop operations
+    if (!IsValidWindowForVirtualDesktop(activeWin)) {
+        ShowVDNotification("This window cannot be moved between desktops", "", false)
+        return
+    }
+
+    ; Get window title for feedback
+    winTitle := WinGetTitle("ahk_id " activeWin)
+
+    try {
+        ; Move window to previous desktop (relative -1)
+        desktopNum := VD.MoveWindowToRelativeDesktopNum("A", -1)
+
+        if (desktopNum > 0) {
+            ShowVDNotification("Moved to Desktop " desktopNum, winTitle, true)
+        } else {
+            ShowVDNotification("Failed to move window", winTitle, false)
+        }
+    } catch Error as err {
+        ShowVDNotification("Error: " err.Message, winTitle, false)
+    }
+}
+
+/** MoveWindowToNextDesktop
+ * Moves the currently active window to the next virtual desktop.
+ * Provides visual feedback showing the destination desktop number.
+ *
+ * @global {Boolean} virtualDesktopEnabled Controls whether virtual desktop functionality is active
+ *
+ * @returns {void}
+ *
+ * @behavior
+ * - Checks if virtual desktop functionality is enabled
+ * - Validates the active window can be moved
+ * - Moves window to next desktop (wraps to first desktop if at last)
+ * - Shows notification with destination desktop number
+ *
+ * @example
+ * ; User presses Win+Alt+Right to move active window to next desktop
+ * MoveWindowToNextDesktop()
+ *
+ * @notes
+ * - Uses circular navigation (wraps around desktop list)
+ * - Handles maximized windows automatically
+ * - Shows error notification if window cannot be moved
+ */
+MoveWindowToNextDesktop() {
+    global virtualDesktopEnabled
+
+    ; Check if functionality is enabled
+    if (!virtualDesktopEnabled)
+        return
+
+    ; Get active window
+    activeWin := WinGetID("A")
+
+    ; Check if we have a valid window
+    if (!activeWin) {
+        ShowVDNotification("No active window to move", "", false)
+        return
+    }
+
+    ; Check if it's a valid window for virtual desktop operations
+    if (!IsValidWindowForVirtualDesktop(activeWin)) {
+        ShowVDNotification("This window cannot be moved between desktops", "", false)
+        return
+    }
+
+    ; Get window title for feedback
+    winTitle := WinGetTitle("ahk_id " activeWin)
+
+    try {
+        ; Move window to next desktop (relative +1)
+        desktopNum := VD.MoveWindowToRelativeDesktopNum("A", +1)
+
+        if (desktopNum > 0) {
+            ShowVDNotification("Moved to Desktop " desktopNum, winTitle, true)
+        } else {
+            ShowVDNotification("Failed to move window", winTitle, false)
+        }
+    } catch Error as err {
+        ShowVDNotification("Error: " err.Message, winTitle, false)
+    }
+}
+
+/** ShowVDNotification
+ * Displays a tooltip notification for virtual desktop operations.
+ *
+ * @param {String} message - The main message to display
+ * @param {String} winTitle - Optional window title to append to message
+ * @param {Boolean} isSuccess - Whether this is a success (true) or error (false) notification
+ *
+ * @returns {void}
+ *
+ * @behavior
+ * - Shows tooltip with operation result
+ * - Includes window title if provided
+ * - Auto-dismisses after 2 seconds
+ */
+ShowVDNotification(message, winTitle := "", isSuccess := true) {
+    winInfo := winTitle ? "`n(" winTitle ")" : ""
+    prefix := isSuccess ? "✓ " : "✗ "
+
+    ToolTip prefix message winInfo
+    SetTimer () => ToolTip(), -2000
+}
+
+/** IsValidWindowForVirtualDesktop
+ * Validates whether a window can be moved between virtual desktops.
+ *
+ * @param {Integer} hwnd - Window handle to validate
+ *
+ * @returns {Boolean} True if window can be moved, false otherwise
+ *
+ * @behavior
+ * - Checks window existence
+ * - Excludes system windows (taskbar, desktop, etc.)
+ * - Excludes certain UWP/system UI windows
+ * - Allows most user application windows
+ */
+IsValidWindowForVirtualDesktop(hwnd) {
+    if (!hwnd)
+        return false
+
+    ; Don't allow moving certain system windows
+    windowClass := WinGetClass("ahk_id " hwnd)
+
+    ; List of classes that shouldn't be moved between desktops
+    excludedClasses := ["Progman", "WorkerW", "Shell_TrayWnd",
+                       "NotifyIconOverflowWindow", "SystemTray_Main",
+                       "Windows.UI.Core.CoreWindow"]
+
+    for class in excludedClasses {
+        if (windowClass = class)
+            return false
+    }
+
+    ; Exclude minimized windows
+    if (WinGetMinMax("ahk_id " hwnd) = -1)
+        return false
+
+    return true
+}
+
+/** TestMoveDesktop
+ * Test different vtable indices to find the correct MoveDesktop method.
+ * Logs desktop order before and after each test.
+ */
+TestMoveDesktop() {
+    global virtualDesktopEnabled
+
+    if (!virtualDesktopEnabled) {
+        MsgBox("Virtual Desktop feature is disabled. Enable it first.")
+        return
+    }
+
+    ; Get Windows build info
+    OS_Version := FileGetVersion(A_WinDir "\System32\twinui.pcshell.dll")
+    splitByDot := StrSplit(OS_Version, ".")
+    buildNumber := splitByDot[3] + 0
+    revisionNumber := splitByDot[4] + 0
+
+    logFile := A_ScriptDir . "\vd_index_test.log"
+
+    info := "Windows Build: " . buildNumber . "." . revisionNumber . "`n`n"
+    info .= "This will test vtable indices 5-12 to find MoveDesktop.`n"
+    info .= "Desktop order will be logged before and after each test.`n`n"
+    info .= "Check vd_index_test.log for results.`n`n"
+    info .= "Press OK to start..."
+    MsgBox(info)
+
+    FileAppend("=== VTable Index Test ===`n", logFile)
+    FileAppend("Build: " . buildNumber . "." . revisionNumber . "`n`n", logFile)
+
+    ; Test indices 5 through 12
+    Loop 8 {
+        testIndex := 4 + A_Index  ; Test 5, 6, 7, 8, 9, 10, 11, 12
+
+        FileAppend("`n--- Testing index " . testIndex . " ---`n", logFile)
+
+        try {
+            ; Get desktop objects
+            Desktops_Obj := VD._GetDesktops_Obj()
+            totalCount := Desktops_Obj.GetCount()
+
+            if (totalCount < 2) {
+                FileAppend("SKIP (need 2+ desktops)`n", logFile)
+                continue
+            }
+
+            ; Log desktop order BEFORE
+            FileAppend("BEFORE: ", logFile)
+            Loop totalCount {
+                name := VD.getNameFromDesktopNum(A_Index)
+                FileAppend(A_Index . "=" . name, logFile)
+                if (A_Index < totalCount)
+                    FileAppend(", ", logFile)
+            }
+            FileAppend("`n", logFile)
+
+            ; Create temp pointer for this index
+            testPtr := VD._vtable(VD.IVirtualDesktopManagerInternal.Ptr, testIndex)
+            IVirtualDesktop := Desktops_Obj.GetAt(totalCount)
+
+            ; Try calling with MoveDesktop signature
+            ; Move last desktop (totalCount) to position 2 (0-based index 1)
+            result := DllCall(testPtr,
+                "Ptr", VD.IVirtualDesktopManagerInternal.Ptr,
+                "Ptr", IVirtualDesktop,
+                "Ptr", 0,
+                "Int", 1)
+
+            FileAppend("DllCall: SUCCESS! HRESULT: " . Format("0x{:08X}", result) . "`n", logFile)
+
+            ; Small delay to let Windows update
+            Sleep 100
+
+            ; Log desktop order AFTER
+            Desktops_Obj := VD._GetDesktops_Obj()  ; Refresh
+            FileAppend("AFTER:  ", logFile)
+            Loop totalCount {
+                name := VD.getNameFromDesktopNum(A_Index)
+                FileAppend(A_Index . "=" . name, logFile)
+                if (A_Index < totalCount)
+                    FileAppend(", ", logFile)
+            }
+            FileAppend("`n", logFile)
+
+        } catch Error as err {
+            FileAppend("DllCall: FAILED - " . err.Extra . "`n", logFile)
+        }
+    }
+
+    FileAppend("`n=== Test Complete ===`n", logFile)
+    MsgBox("Test complete! Check vd_index_test.log`n`nLook for desktop order changes to identify the correct index.")
+}
+
+/** ToggleVirtualDesktop
+ * Toggles the virtual desktop window movement functionality on/off.
+ * Updates tray menu to reflect current state.
+ *
+ * @returns {void}
+ *
+ * @behavior
+ * - Toggles global virtualDesktopEnabled variable
+ * - Updates tray menu checkmark
+ * - Called from tray menu click handler
+ */
+ToggleVirtualDesktop(*) {
+    global virtualDesktopEnabled
+    virtualDesktopEnabled := !virtualDesktopEnabled
+
+    ; Update tray menu check state
+    if (virtualDesktopEnabled)
+        A_TrayMenu.Check "Virtual Desktop (#!Left/Right)"
+    else
+        A_TrayMenu.Uncheck "Virtual Desktop (#!Left/Right)"
+}

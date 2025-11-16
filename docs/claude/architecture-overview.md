@@ -27,6 +27,7 @@ Each feature is self-contained and toggleable:
 - `WindowRollUp.ahk2` - Roll up windows to title bar
 - `WindowDimmer.ahk2` - Dim inactive windows
 - `WindowCascade.ahk2` - Cascade window arrangement
+- `WindowVirtualDesktop.ahk2` - Move windows between virtual desktops
 
 See @docs/features.md for technical details.
 
@@ -53,7 +54,9 @@ See @docs/ui-components.md for UI system details.
 ### VirtualDesktopLib/ - Virtual Desktop Integration
 Virtual desktop management library with COM interfaces and desktop actions.
 
-See @docs/virtual-desktops.md for technical reference.
+Used by `WindowVirtualDesktop.ahk2` feature for moving windows between desktops.
+
+See `docs/virtual-desktop-api.md` for complete API reference and `docs/virtual-desktops.md` for technical details.
 
 ## Module Dependencies
 

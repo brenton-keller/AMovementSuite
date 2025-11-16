@@ -12,6 +12,7 @@ desktop.ini
 .vscode/
 .idea/
 *.sublime-*
+*.lite_project.lua
 
 # Backup Files
 *.bak

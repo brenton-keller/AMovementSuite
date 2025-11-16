@@ -36,6 +36,7 @@ Each feature is self-contained and can be toggled via the tray menu. Features fo
 - `WindowRollUp.ahk2` - Roll windows up to title bar only
 - `WindowDimmer.ahk2` - Dim inactive windows for focus
 - `WindowCascade.ahk2` - Cascade window arrangement
+- `WindowVirtualDesktop.ahk2` - Move windows between virtual desktops
 - `DisableWindowModifications.ahk2` - Disable modifications for specific windows
 
 See `/docs/features.md` for technical details.
