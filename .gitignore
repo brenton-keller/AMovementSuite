@@ -27,7 +27,6 @@ ehthumbs.db
 .idea/
 *.sublime-*
 *.lite_project.lua
-*.code-workspace
 
 # Backup Files & Temporary Files
 # -----------------------------------------------------------------------------
@@ -68,7 +67,6 @@ experiments/
 # -----------------------------------------------------------------------------
 src/WindowScaleProportional.ahk2
 src/VirtualDesktopLib/key_list.md
-AMovementSuite.code-workspace
 RunAHKAsAdmin.bat
 
 # Machine-Specific Configuration
