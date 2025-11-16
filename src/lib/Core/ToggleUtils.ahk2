@@ -18,12 +18,29 @@ ToggleHeightScaling(*) {
 }
 
 ToggleXYScaling(*) {
-    global xyScalingEnabled
+    global xyScalingEnabled, xyScalingTimerRunning
+
     xyScalingEnabled := !xyScalingEnabled
-    if xyScalingEnabled
+
+    ; Start or stop the timer based on enabled state
+    if (xyScalingEnabled) {
         A_TrayMenu.Check "XY Scaling (LCtrl+LShift+RButton)"
-    else
+
+        ; Start timer if not already running
+        if (!xyScalingTimerRunning) {
+            SetTimer CheckKeysAndResize, 16  ; 16ms ≈ 60fps polling rate
+            xyScalingTimerRunning := true
+        }
+    }
+    else {
         A_TrayMenu.Uncheck "XY Scaling (LCtrl+LShift+RButton)"
+
+        ; Stop timer to free CPU cycles and prevent memory leaks
+        if (xyScalingTimerRunning) {
+            SetTimer CheckKeysAndResize, 0  ; 0 = Delete timer (not "Off"!)
+            xyScalingTimerRunning := false
+        }
+    }
 }
 
 ToggleWindowAlwaysOnTop(*) {
@@ -51,4 +68,13 @@ ToggleWindowCascade(*) {
         A_TrayMenu.Check "Window Cascade (RAlt+Up)"
     else
         A_TrayMenu.Uncheck "Window Cascade (RAlt+Up)"
+}
+
+ToggleWindowGrouping(*) {
+    global windowGroupingEnabled
+    windowGroupingEnabled := !windowGroupingEnabled
+    if windowGroupingEnabled
+        A_TrayMenu.Check "Window Grouping (LAlt+LWin+LButton)"
+    else
+        A_TrayMenu.Uncheck "Window Grouping (LAlt+LWin+LButton)"
 }

@@ -60,6 +60,17 @@ class GlobalConfig {
 - `MinWindowWidth` - Minimum allowed window width (default: 100)
 - `MinWindowHeight` - Minimum allowed window height (default: 100)
 - `CascadeOffset` - Offset for cascading windows (default: 30)
+- `enableWindowSnapping` - Snapping enabled/disabled (default: false)
+
+#### Window Grouping Settings
+- `windowGroup` - Object storing current group state:
+  - `window1`, `window2` - HWNDs of grouped windows
+  - `offsetX`, `offsetY` - Relative offset between windows
+  - `topWindow` - Which window (1 or 2) has always-on-top
+  - `window1WasAlwaysOnTop`, `window2WasAlwaysOnTop` - Original states
+- `isGroupActive` - Whether a group currently exists (default: false)
+- `isSelectingForGroup` - Selection mode active (default: false)
+- `groupSelectionOverlays` - Array of highlight GUI overlays
 
 #### Color Definitions
 - `Preview` - Preview GUI color
@@ -271,6 +282,7 @@ global alwaysOnTopEnabled := true
 global windowRollUpEnabled := true
 global windowDimmerEnabled := true
 global windowCascadeEnabled := true
+global windowGroupingEnabled := true
 ```
 
 ### Persisting Feature States

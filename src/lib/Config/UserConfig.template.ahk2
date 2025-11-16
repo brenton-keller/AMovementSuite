@@ -1,0 +1,51 @@
+; Machine-Specific Configuration Template
+; ==================================
+; INSTRUCTIONS:
+; 1. Copy this file to: UserConfig.local.ahk2
+; 2. Uncomment and modify the settings you want to override
+; 3. UserConfig.local.ahk2 is gitignored and won't be committed
+;
+; TIP: Run the script first! Auto-detection works for most installations.
+;      Only create UserConfig.local.ahk2 if auto-detection fails.
+
+; === Program Paths ===
+; Uncomment and set custom paths if auto-detection doesn't find your programs
+
+; Terminal Emulator
+; ProgramPaths.WezTerm := "C:\Your\Custom\Path\wezterm-gui.exe"
+
+; File Search
+; ProgramPaths.Everything := "D:\PortableApps\Everything\Everything.exe"
+
+; Shell Preference
+; ProgramPaths.Shell := "cmd.exe"  ; Options: pwsh.exe, cmd.exe, bash.exe, wsl.exe
+
+; === User Preferences ===
+; Customize behavior and defaults
+
+; Terminal Settings
+; UserPreferences.PreferredShell := "pwsh.exe"
+; UserPreferences.TerminalWorkingDir := "C:\Projects"  ; Default launch directory
+
+; Everything Search Settings
+; UserPreferences.EverythingNewWindow := true
+; UserPreferences.EverythingSearchMode := "regex"  ; Options: normal, regex, fuzzy
+
+; Notification Settings
+; UserPreferences.ShowLaunchNotifications := true
+; UserPreferences.NotificationDuration := 2000  ; milliseconds
+
+; === Environment-Specific Settings ===
+; Example: Different configs for work vs home PC
+
+; Work PC Configuration
+; if (A_ComputerName = "WORK-PC") {
+;     ProgramPaths.WezTerm := "C:\Tools\WezTerm\wezterm-gui.exe"
+;     UserPreferences.TerminalWorkingDir := "C:\Work\Projects"
+; }
+
+; Home PC Configuration
+; if (A_ComputerName = "HOME-PC") {
+;     ProgramPaths.WezTerm := "D:\Apps\WezTerm\wezterm-gui.exe"
+;     UserPreferences.TerminalWorkingDir := "D:\Personal\Code"
+; }

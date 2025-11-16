@@ -12,8 +12,8 @@ global titleBarHeights := Map(
 global defaultTitleHeight := 35
 global debugMode := false
 
-; Hotkey: Left Alt + Middle Mouse Button
-!MButton::RollUpWindow()
+; Hotkey: Ctrl + Alt + Middle Mouse Button
+<^!MButton::RollUpWindow()
 
 RollUpWindow() {
     ; Get window under cursor

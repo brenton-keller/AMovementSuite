@@ -4,14 +4,14 @@
 ; Initialize global variables
 global windowsAlwaysOnTop := Map() ; Track which windows are set as always-on-top
 
-; Hotkey: Left Control + Middle Mouse Button
+; Hotkey: Left Control + Middle Mouse Button - Always On Top
 <^MButton::AlwaysOnTop()
 
-; Hotkey: Left Control + Left Shift + Middle Mouse Button - Send to Back
-<^+MButton::SendWindowToBack()
+; Hotkey: Alt + Middle Mouse Button - Send to Back
+!MButton::SendWindowToBack()
 
-; Hotkey: Left Control + Left Alt + Middle Mouse Button - Minimize
-<^<!MButton::MinimizeWindow()
+; Hotkey: Win + Middle Mouse Button - Send to Back + Minimize
+#MButton::SendToBackAndMinimize()
 
 /** AlwaysOnTop
  * Toggles the always-on-top state for the window currently under the mouse cursor.
@@ -132,25 +132,67 @@ SendWindowToBack() {
  */
 MinimizeWindow() {
     MouseGetPos , , &mwin
-    
+
     ; Check if we have a valid window
     if (!mwin) {
         ShowDebugMessage("No window detected under cursor")
         return
     }
-    
+
     ; Check if it's a valid window for manipulation
     if (!IsValidWindowForManipulation(mwin)) {
         ShowDebugMessage("This window cannot be minimized")
         return
     }
-    
+
     winTitle := WinGetTitle("ahk_id " mwin)
-    
+
     ; Minimize the window
     WinMinimize "ahk_id " mwin
-    
+
     ShowToggleNotification("Window minimized", winTitle)
+}
+
+/** SendToBackAndMinimize
+ * Sends the window under the mouse cursor to the back of the Z-order stack, then minimizes it.
+ * Provides visual feedback when the action is performed.
+ */
+SendToBackAndMinimize() {
+    MouseGetPos , , &mwin
+
+    ; Check if we have a valid window
+    if (!mwin) {
+        ShowDebugMessage("No window detected under cursor")
+        return
+    }
+
+    ; Check if it's a valid window for manipulation
+    if (!IsValidWindowForManipulation(mwin)) {
+        ShowDebugMessage("This window cannot be sent to back and minimized")
+        return
+    }
+
+    winTitle := WinGetTitle("ahk_id " mwin)
+
+    ; Check if this is the active window
+    isActiveWindow := (mwin = WinGetID("A"))
+
+    ; Send window to back using Windows API
+    ; HWND_BOTTOM = 1
+    DllCall("SetWindowPos", "Ptr", mwin, "Ptr", 1, "Int", 0, "Int", 0, "Int", 0, "Int", 0, "UInt", 0x213)
+
+    ; If we sent the active window to back, activate the next window
+    if (isActiveWindow) {
+        SendInput "!{Esc}"  ; Use Alt+Esc to activate the next window in Z-order
+    }
+
+    ; Brief delay to allow Z-order change to complete
+    Sleep 100
+
+    ; Minimize the window
+    WinMinimize "ahk_id " mwin
+
+    ShowToggleNotification("Window sent to back and minimized", winTitle)
 }
 
 ; Show a brief notification about the toggle action

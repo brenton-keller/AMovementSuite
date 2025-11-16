@@ -1,40 +1,80 @@
+# =============================================================================
+# A Movement Suite - Git Ignore Configuration
+# =============================================================================
+# This file controls which files are NOT tracked in version control.
+# - Team resources (docs, templates, configs) SHOULD be tracked
+# - Machine-specific files (local configs, personal settings) should NOT
+# =============================================================================
+
 # Operating System Files
+# -----------------------------------------------------------------------------
 .DS_Store
 Thumbs.db
 desktop.ini
+ehthumbs.db
+*.lnk
 
-# AutoHotkey Compiled Files
+# AutoHotkey Compiled Files & Build Artifacts
+# -----------------------------------------------------------------------------
 *.exe
 *.dll
 *.bin
+*.compiled
 
 # Editor/IDE Files
+# -----------------------------------------------------------------------------
 .vscode/
 .idea/
 *.sublime-*
 *.lite_project.lua
+*.code-workspace
 
-# Backup Files
+# Backup Files & Temporary Files
+# -----------------------------------------------------------------------------
 *.bak
 *~
 *.old
 *.orig
+*.swp
+*.swo
+*.tmp
+*.temp
+*~$*
 
-# Logs
+# Logs & Debug Output
+# -----------------------------------------------------------------------------
 *.log
+debug.txt
+error.txt
 
-# Personal Test Files
+# Personal Test Files & Experiments
+# -----------------------------------------------------------------------------
 *-personal.*
 *-test.*
+*-scratch.*
+*-wip.*
+playground/
+experiments/
 
-# Claude Code - Local Settings Only (commands should be version controlled)
+# Claude Code - Local Settings & Cache
+# -----------------------------------------------------------------------------
+# NOTE: Commands and agents SHOULD be tracked for team collaboration
 .claude/settings.local.json
 .claude/*.local.*
 .claude/cache/
 .claude/history/
 
 # Project-Specific Ignored Files
+# -----------------------------------------------------------------------------
 src/WindowScaleProportional.ahk2
 src/VirtualDesktopLib/key_list.md
 AMovementSuite.code-workspace
 RunAHKAsAdmin.bat
+
+# Machine-Specific Configuration
+# -----------------------------------------------------------------------------
+# NOTE: UserConfig.ahk2 (default) IS tracked
+#       UserConfig.local.ahk2 (machine-specific) is NOT tracked
+#       Use UserConfig.template.ahk2 as starting point for local configs
+src/lib/Config/UserConfig.local.ahk2
+src/lib/Config/*.local.ahk2

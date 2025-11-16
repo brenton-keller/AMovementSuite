@@ -24,14 +24,44 @@ RAlt & F12::{
         }
     }
 
+    ; Validate WezTerm installation
+    if (!ProgramPaths.ValidateWezTerm()) {
+        MsgBox("WezTerm not found at:`n" ProgramPaths.WezTerm
+            . "`n`nPlease install WezTerm or configure UserConfig.local.ahk2"
+            . "`nSee: src\lib\Config\UserConfig.template.ahk2",
+            "WezTerm Not Found", "Icon!")
+        return
+    }
+
+    ; Build command with configured paths
+    weztermPath := ProgramPaths.WezTerm
+    shell := ProgramPaths.Shell
+
     ; Launch WezTerm with appropriate directory
     if (launchDir != "") {
         ; Launch from detected directory in clipboard
-        Run '"C:\Program Files\WezTerm\wezterm-gui.exe" start --cwd "' launchDir '" -- pwsh.exe',,, &pid
+        cmd := '"' weztermPath '" start --cwd "' launchDir '" -- ' shell
     }
     else {
         ; Default behavior - launch from current directory
-        Run '"C:\Program Files\WezTerm\wezterm-gui.exe" start -- pwsh.exe',,, &pid
+        cmd := '"' weztermPath '" start -- ' shell
+    }
+
+    ; Show notification if enabled
+    if (UserPreferences.ShowLaunchNotifications) {
+        notifMsg := "Launching WezTerm"
+        if (launchDir != "")
+            notifMsg .= "`nDirectory: " launchDir
+        ToolTip notifMsg
+        SetTimer () => ToolTip(), -UserPreferences.NotificationDuration
+    }
+
+    ; Execute launch command
+    try {
+        Run cmd,,, &pid
+    } catch as err {
+        MsgBox("Failed to launch WezTerm:`n" err.Message, "Launch Error", "Icon!")
+        return
     }
 
     ; Wait for window and activate

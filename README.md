@@ -24,8 +24,16 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
 
   ![Window Movement Demo](./assets/WindowMove.gif)
 
-- **Window Positioning Grid**  
+- **Window Positioning Grid**
   Press the `Z` key while moving to bring up a grid-based positioning menu. Snap windows to common layouts (e.g., left/right halves, thirds, or quarters) using on-screen buttons.
+
+- **Window Grouping**
+  Group two windows together to move them as a unit using *Left Alt + Left Win + Left Mouse Button*. Features include:
+  - Click two windows to create a group (blue highlight appears)
+  - Move grouped windows together with *Left Alt + Right Mouse Button*
+  - Reposition individual windows within a group with *Left Alt + Left Win + Right Mouse Button*
+  - Maintains z-order (stacking) using always-on-top
+  - Click a grouped window again to ungroup
 
 - **Always-on-Top Toggle**
   Use *Left Control + Middle Mouse Button* to quickly toggle the always-on-top state of a window, with visual notifications confirming the change.
@@ -65,7 +73,9 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
   - *XY Scaling (LCtrl+LShift+RButton)*
   - *Always on Top (LCtrl+MButton)*
   - *Window Move (LAlt+RButton)*
+  - *Window Cascade (RAlt+Up)*
   - *Virtual Desktop (#!Left/Right)*
+  - *Window Grouping (LAlt+LWin+LButton)*
   - Open settings for window move (to adjust snap distance).
 
 - **Resizing Windows:**
@@ -73,9 +83,16 @@ A Window Movement Suite is an AutoHotkey v2.0-based collection of scripts that g
   - A preview window appears (if proportional scaling is enabled) to show you the new size and position before the change is applied.
 
 - **Moving Windows:**
-  - Hold *Left Alt* and the right mouse button.  
+  - Hold *Left Alt* and the right mouse button.
   - If you hold the `S` key during movement, snapping (to either screen or window edges) will be enabled.
   - Press the `Z` key during movement to bring up an on-screen grid for quick positioning.
+
+- **Grouping Windows:**
+  - Hold *Left Alt + Left Win* and left-click the first window (blue highlight appears).
+  - Continue holding and left-click the second window to create a group.
+  - Once grouped, use *Left Alt + Right Mouse Button* on either window to move both together.
+  - Use *Left Alt + Left Win + Right Mouse Button* to reposition a single window within the group.
+  - Click a grouped window with *Left Alt + Left Win + Left Mouse Button* to ungroup.
 
 - **Always-on-Top:**
   - Hover over a window and press *Left Control + Middle Mouse Button* to toggle its topmost state.
