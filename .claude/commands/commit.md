@@ -6,6 +6,7 @@ Create a professional git commit following the project's standards.
 - `/commit` - Analyze all changes and create commit
 - `/commit [focus]` - Create commit with specific focus (e.g., "only WindowDimmer changes")
 - `/commit add to last commit` - Amend previous commit (detects phrases like "amend", "add to last", "forgot to include")
+- `/commit merge [branch]` - Merge branch with proper history preservation (detects phrases like "merge", "merge with main", "merge branch")
 
 ## Commit Format
 
@@ -22,7 +23,9 @@ Create a professional git commit following the project's standards.
 ## Process
 
 1. **Detect intent:**
+   - Check if user wants to merge (phrases: "merge", "merge with", "merge branch")
    - Check if user wants to amend (phrases: "amend", "add to last", "forgot to include", "append to previous")
+   - If merging: Jump to Merge Process below
    - If amending: Jump to Amend Process below
    - Otherwise: Continue with normal commit
 
@@ -69,6 +72,86 @@ Create a professional git commit following the project's standards.
    - `git add` specified files
    - `git commit --amend --no-edit` (keeps original message)
    - Show `git log -1 --stat` to confirm
+
+---
+
+## Merge Process (when detected)
+
+**IMPORTANT:** Always use `--no-ff` (no fast-forward) to preserve branch history and show that work was done on a branch.
+
+1. **Determine branch to merge:**
+   - Check current branch with `git branch`
+   - Identify source branch (branch to merge from)
+   - Identify target branch (branch to merge into, usually main)
+
+2. **Verify branches are ready:**
+   - Run `git log <target>..<source> --oneline` to see commits being merged
+   - Run `git log <source>..<target> --oneline` to check if target has new commits
+   - Run `git status` to ensure working tree is clean
+
+3. **Generate merge commit message:**
+   - Title format: `Merge branch '<branch-name>': <brief description>`
+   - Body sections summarizing the branch work:
+     - Main feature/changes added
+     - Technical details and implementation notes
+     - Documentation updates
+     - Any additional changes (like gitignore updates)
+
+4. **Execute merge:**
+   - `git checkout <target-branch>` (if not already there)
+   - `git merge --no-ff <source-branch> -m "<message>"` using HEREDOC format:
+     ```bash
+     git merge --no-ff branch-name -m "$(cat <<'EOF'
+     Merge branch 'branch-name': Brief description
+
+     Section 1:
+     - Key point 1
+     - Key point 2
+
+     Section 2:
+     - Implementation detail 1
+     - Implementation detail 2
+     EOF
+     )"
+     ```
+   - Show `git log --oneline --graph -5` to confirm branch history is visible
+
+5. **Verify merge:**
+   - Confirm graph shows branch structure (should see merge lines)
+   - Check that branch commits are preserved in history
+
+## Good Merge Example
+
+```
+git merge --no-ff vd-hotkey -m "$(cat <<'EOF'
+Merge branch 'vd-hotkey': Virtual desktop window management
+
+Integrated virtual desktop feature with keyboard shortcuts:
+
+Virtual Desktop Feature:
+- Win+Alt+Left/Right hotkeys for moving windows between desktops
+- Circular navigation with automatic wrapping
+- System window protection and validation
+
+VirtualDesktop Library:
+- Enhanced DesktopActions.ahk2 with relative desktop navigation
+- COM interface integration for Win10/Win11 compatibility
+
+Documentation:
+- Complete virtual-desktop-api.md reference
+- Updated features.md with WindowVirtualDesktop details
+EOF
+)"
+```
+
+After merge, graph should show:
+```
+*   1a36729 Merge branch 'vd-hotkey': Virtual desktop window management
+|\
+| * 505d596 Add Lite editor project file to gitignore
+| * 9e28dc2 Add virtual desktop window management feature
+|/
+```
 
 ## Good Commit Example
 
