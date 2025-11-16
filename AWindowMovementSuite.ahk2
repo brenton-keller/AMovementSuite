@@ -27,6 +27,8 @@ CoordMode "Mouse", "Screen"
 #Include src\Features\WindowCascade.ahk2
 #Include src\Features\WindowVirtualDesktop.ahk2
 #Include src\Features\WindowGrouping.ahk2
+#Include src\Features\Calculator.ahk2
+#Include src\Features\TaskbarAutoHide.ahk2
 
 ; Load mouse hotkeys
 #Include src\MouseHotkeys\setting_mouse.ahk2

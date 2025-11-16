@@ -13,8 +13,7 @@ src/
 │   ├── Core/              # Core utilities
 │   └── Helpers/           # Helper functions
 ├── UI/                    # User interface components
-├── VirtualDesktopLib/     # Virtual desktop integration
-└── calculator.ahk2        # Calculator utility
+└── VirtualDesktopLib/     # Virtual desktop integration
 ```
 
 ## Subsystem Overview
@@ -37,6 +36,9 @@ Each feature is self-contained and can be toggled via the tray menu. Features fo
 - `WindowDimmer.ahk2` - Dim inactive windows for focus
 - `WindowCascade.ahk2` - Cascade window arrangement
 - `WindowVirtualDesktop.ahk2` - Move windows between virtual desktops
+- `WindowGrouping.ahk2` - Group windows for synchronized movement
+- `Calculator.ahk2` - Expression calculator with F12 hotkeys
+- `TaskbarAutoHide.ahk2` - Taskbar auto-hide with Win+Space
 - `DisableWindowModifications.ahk2` - Disable modifications for specific windows
 
 See `/docs/features.md` for technical details.

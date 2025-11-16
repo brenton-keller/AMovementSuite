@@ -25,20 +25,19 @@ HideTaskbar()
 ; Set up exit handling
 OnExit ExitFunc
 
-; Win+Space to show taskbar
-#Space::{
+; Left Windows key alone to show taskbar
+LWin::{
     WinSetRegion(, "ahk_id " taskbar)
-    
+
     If (WinExist("A") != taskbar)
         active := WinExist("A")
-    
+
     ; Add error handling for Shell_TrayWnd
     if WinExist("ahk_class Shell_TrayWnd")
         WinActivate("ahk_class Shell_TrayWnd")
-    
+
     SetTimer HideTaskbar, 100
 }
-; #Space::#Space
 
 HideTaskbar(){
     global taskbar

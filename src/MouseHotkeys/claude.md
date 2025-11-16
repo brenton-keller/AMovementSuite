@@ -22,8 +22,8 @@ MouseHotkeys/
 ├── hk_programs.ahk2           # Program launching shortcuts
 ├── hk_tab.ahk2                # Tab management
 ├── hk_wheel.ahk2              # Mouse wheel customizations
-├── windows_explorer.ahk2      # File explorer shortcuts
-└── Startbar.ahk2              # Taskbar interactions
+├── hk_wezterm.ahk2            # WezTerm terminal specific shortcuts
+└── windows_explorer.ahk2      # File explorer shortcuts
 ```
 
 ### File Responsibilities
@@ -64,10 +64,10 @@ MouseHotkeys/
 - File navigation enhancements
 - Folder operations
 
-**Startbar.ahk2**
-- Taskbar interactions
-- System tray access
-- Window switching
+**hk_wezterm.ahk2**
+- WezTerm terminal specific shortcuts
+- Terminal tab management
+- WezTerm launcher with smart directory detection
 
 ## Common Patterns
 
@@ -131,7 +131,7 @@ Common process names used for context detection:
 - Tab operations → `hk_tab.ahk2`
 - Mouse wheel → `hk_wheel.ahk2`
 - Explorer operations → `windows_explorer.ahk2`
-- Taskbar/system → `Startbar.ahk2`
+- WezTerm specific → `hk_wezterm.ahk2`
 
 ### 2. Define the Hotkey
 
