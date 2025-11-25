@@ -1,0 +1,48 @@
+; Volume Control Test Script
+; AHK v2.0
+;
+; Hotkeys:
+; 1 = Mute/Unmute
+; 2 = Lower Volume
+; 3 = Increase Volume
+
+#Requires AutoHotkey v2.0
+
+; 1 - Toggle Mute
+1::
+{
+    SoundSetMute(-1)  ; -1 toggles mute state
+    isMuted := SoundGetMute()
+
+    if (isMuted) {
+        ToolTip("Volume: MUTED")
+    } else {
+        currentVol := Round(SoundGetVolume())
+        ToolTip("Volume: " currentVol "%")
+    }
+
+    SetTimer(() => ToolTip(), -1000)  ; Hide tooltip after 1 second
+}
+
+; 2 - Lower Volume
+2::
+{
+    currentVol := SoundGetVolume()
+    SoundSetVolume(currentVol - 1)  ; Decrease by 1%
+    newVol := Round(SoundGetVolume())
+    ToolTip("Volume: " newVol "%")
+    SetTimer(() => ToolTip(), -1000)
+}
+
+; 3 - Increase Volume
+3::
+{
+    currentVol := SoundGetVolume()
+    SoundSetVolume(currentVol + 1)  ; Increase by 1%
+    newVol := Round(SoundGetVolume())
+    ToolTip("Volume: " newVol "%")
+    SetTimer(() => ToolTip(), -1000)
+}
+
+; ESC to exit
+Esc::ExitApp
