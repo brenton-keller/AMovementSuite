@@ -31,26 +31,53 @@ RAlt & F7::{
     }
 }
 
-;Send {10} - Unnest code (RAlt+F10)
+;Send {10} - Unnest code / Mute Toggle (RAlt+F10)
 RAlt & F10::{
-    if GetKeyState("LCtrl", "P") {
+    if GetKeyState("LAlt", "P") {
+        ; Alt held - Toggle Mute
+        SoundSetMute(-1)  ; -1 toggles mute state
+        isMuted := SoundGetMute()
+
+        if (isMuted) {
+            ToolTip("Volume: MUTED", A_ScreenWidth/2, A_ScreenHeight/2)
+        } else {
+            currentVol := Round(SoundGetVolume())
+            ToolTip("Volume: " currentVol "%", A_ScreenWidth/2, A_ScreenHeight/2)
+        }
+
+        SetTimer(() => ToolTip(), -1000)  ; Hide tooltip after 1 second
+    }
+    else if GetKeyState("LCtrl", "P") {
         ; Ctrl held - Unfold all
         Send("^k")
         Send("^j")
     }
     else {
-        ; No modifiers or Shift/Alt held - Unfold
+        ; No modifiers or Shift held - Unfold
         Send("^+{]}")
     }
 }
 
-;Send {11} - Comment/Uncomment (RAlt+F11)
+;Send {11} - Comment/Uncomment / Volume Down (RAlt+F11)
 RAlt & F11::{
-    ActiveProcess := WinGetProcessName("A")
-    switch ActiveProcess {
-        case "cursor.exe", "Code.exe":
-            Send("^/")
-        default:
-            Send("{11}")
+    if GetKeyState("LAlt", "P") {
+        ; Alt held - Lower Volume
+        currentVol := SoundGetVolume()
+        newVol := Max(0, currentVol - 1)  ; Decrease by 1%, ensure not below 0
+        SoundSetVolume(newVol)
+
+        displayVol := Round(newVol)
+        ToolTip("Volume: " displayVol "%", A_ScreenWidth/2, A_ScreenHeight/2)
+        SetTimer(() => ToolTip(), -1000)
+    }
+    else {
+        ; No LAlt modifier - Original behavior
+        ActiveProcess := WinGetProcessName("A")
+        switch ActiveProcess {
+            case "cursor.exe", "Code.exe":
+                Send("^/")
+            default:
+                Send("{11}")
+        }
     }
 }
