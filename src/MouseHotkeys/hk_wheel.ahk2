@@ -134,18 +134,23 @@ PasteBuffer(bufferType) {
 
 ExtractColorUnderCursor() {
     global Buffer_color
-    ; Get the mouse position
+
+    ; Set coordinate mode to Screen for consistent behavior with DPI scaling
+    CoordMode("Pixel", "Screen")
+    CoordMode("Mouse", "Screen")
+
+    ; Get the mouse position in screen coordinates
     MouseGetPos &mouseX, &mouseY
-    
+
     ; Extract the color at the cursor position
-    color := PixelGetColor(mouseX, mouseY, "Alt")
-    
+    color := PixelGetColor(mouseX, mouseY)
+
     ; Format the color (removing the leading "0x")
     color := SubStr(color, 3)
-    
+
     ; Store in Buffer_color
     Buffer_color := color
-    
+
     ; Show tooltip to confirm extraction
     ToolTip("Color #" . color . " extracted!", mouseX, mouseY)
     SetTimer () => ToolTip(), -1000
