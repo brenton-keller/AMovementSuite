@@ -13,7 +13,7 @@ Technical reference for all window management features in A Movement Suite.
 | Always On Top | LCtrl + MButton | `alwaysOnTopEnabled` | src/Features/WindowAlwaysOnTop.ahk2 |
 | Window Roll Up | TBD | `windowRollUpEnabled` | src/Features/WindowRollUp.ahk2 |
 | Window Dimmer | TBD | `windowDimmerEnabled` | src/Features/WindowDimmer.ahk2 |
-| Window Cascade | RAlt + Up | `windowCascadeEnabled` | src/Features/WindowCascade.ahk2 |
+| Window Cascade | ~~RAlt + Up~~ (disabled) | `windowCascadeEnabled` | src/Features/WindowCascade.ahk2 |
 | Virtual Desktop | Win + Alt + Left/Right | `virtualDesktopEnabled` | src/Features/WindowVirtualDesktop.ahk2 |
 | Window Grouping | LAlt + LWin + LButton | `windowGroupingEnabled` | src/Features/WindowGrouping.ahk2 |
 | Disable Modifications | N/A | N/A | src/Features/DisableWindowModifications.ahk2 |
@@ -287,7 +287,10 @@ Dim inactive windows to improve focus on active window.
 Arrange all windows in a cascading pattern for easy access.
 
 ### Hotkey
-`RAlt + Up` (Right Alt + Up Arrow)
+`RAlt + Up` (Right Alt + Up Arrow) - **Currently disabled** (not working properly)
+
+### Status
+**Disabled**: The hotkey is currently commented out in `hk_wheel.ahk2` due to functionality issues.
 
 ### Features
 - Cascades all visible windows

@@ -18,11 +18,12 @@ The mouse hotkey system provides:
 MouseHotkeys/
 ├── setting_mouse.ahk2        # Main loader - includes all hotkey files
 ├── hk_basic.ahk2              # Basic navigation (backspace, enter, delete, etc.)
-├── hk_code.ahk2               # Code editor specific shortcuts
+├── hk_code.ahk2               # Code editor shortcuts + volume control
 ├── hk_programs.ahk2           # Program launching shortcuts
 ├── hk_tab.ahk2                # Tab management
 ├── hk_wheel.ahk2              # Mouse wheel customizations
 ├── hk_wezterm.ahk2            # WezTerm terminal specific shortcuts
+├── hk_transparency.ahk2       # Window transparency toggle (Alt+`)
 └── windows_explorer.ahk2      # File explorer shortcuts
 ```
 
@@ -40,9 +41,9 @@ MouseHotkeys/
 - Modifier support: Ctrl, Shift, Alt variants
 
 **hk_code.ahk2**
-- Code editor specific shortcuts
+- Code editor specific shortcuts (unfold, comment toggle)
 - IDE and text editor optimizations
-- Programming workflow enhancements
+- System volume control (`LAlt` modifier on F10/F11)
 
 **hk_programs.ahk2**
 - Quick program launching shortcuts
@@ -68,6 +69,11 @@ MouseHotkeys/
 - WezTerm terminal specific shortcuts
 - Terminal tab management
 - WezTerm launcher with smart directory detection
+
+**hk_transparency.ahk2**
+- Window transparency toggle (`Alt + \``)
+- Makes all windows semi-transparent while held
+- Uses shared `GetValidWindows()` from MoveUtils
 
 ## Common Patterns
 
@@ -132,6 +138,7 @@ Common process names used for context detection:
 - Mouse wheel → `hk_wheel.ahk2`
 - Explorer operations → `windows_explorer.ahk2`
 - WezTerm specific → `hk_wezterm.ahk2`
+- Window effects → `hk_transparency.ahk2`
 
 ### 2. Define the Hotkey
 

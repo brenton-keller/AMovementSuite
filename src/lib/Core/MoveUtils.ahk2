@@ -1,3 +1,57 @@
+/** GetValidWindows
+ * Returns an array of valid window handles that can be manipulated.
+ * Handles errors gracefully - skips windows that throw access denied.
+ *
+ * @param {Integer} excludeHwnd Optional window handle to exclude from results
+ * @returns {Array} Array of valid window handles (hwnds)
+ */
+GetValidWindows(excludeHwnd := 0) {
+    ; Save current state and disable hidden window detection
+    prevDetectHidden := A_DetectHiddenWindows
+    DetectHiddenWindows false
+
+    validWindows := []
+    windowList := WinGetList()
+
+    ; Get our own script's PID to exclude our windows
+    scriptPID := ProcessExist()
+
+    for hwnd in windowList {
+        try {
+            ; Skip excluded window
+            if (excludeHwnd && hwnd == excludeHwnd)
+                continue
+
+            ; Skip our own script's windows
+            if (WinGetPID("ahk_id " hwnd) == scriptPID)
+                continue
+
+            ; Skip if window isn't valid for our purposes
+            if (!IsValidWindowForMove(hwnd))
+                continue
+
+            ; Skip windows that don't exist anymore
+            if (!WinExist("ahk_id " hwnd))
+                continue
+
+            ; Get position and skip windows with invalid positions
+            WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
+            if (x == "" || y == "" || w == "" || h == "")
+                continue
+
+            validWindows.Push(hwnd)
+        } catch {
+            ; Skip windows that throw errors (elevated, system, etc.)
+            continue
+        }
+    }
+
+    ; Restore previous state
+    DetectHiddenWindows prevDetectHidden
+
+    return validWindows
+}
+
 /** MonitorFromPoint
  * Determines which monitor contains a specified point (x,y) coordinate.
  * 
@@ -809,73 +863,111 @@ ListWindowPositions()
 
 ; Main function to list window positions
 ListWindowPositions() {
-    ; Create GUI
-    posViewer := Gui(, "Window Position Viewer")
+    ; Create GUI (+ToolWindow to exclude from window lists)
+    posViewer := Gui("+ToolWindow", "Window Position Viewer")
     posViewer.SetFont("s10", "Segoe UI")
     posViewer.Add("Text", "w800", "Active Windows and Their Positions:")
-    
+
     ; Create ListView
     lv := posViewer.Add("ListView", "w800 h600 Grid", ["Window Title", "Process", "Left", "Top", "Right", "Bottom", "Width", "Height", "Class"])
-    
+
     ; Add Refresh button
     btnRefresh := posViewer.Add("Button", "w120 h30", "Refresh")
     btnRefresh.OnEvent("Click", RefreshList)
-    
+
+    ; Add New Window button
+    btnNew := posViewer.Add("Button", "w120 h30 x+10", "New Window")
+    btnNew.OnEvent("Click", (*) => ListWindowPositions())
+
+    ; Add Copy All button
+    btnCopy := posViewer.Add("Button", "w120 h30 x+10", "Copy All")
+    btnCopy.OnEvent("Click", CopyAll)
+
     ; Populate the list
     PopulateWindowList(lv)
-    
+
     ; Show the GUI
     posViewer.Show()
-    
+
     ; Function to refresh the window list
     RefreshList(*) {
         lv.Delete()
         PopulateWindowList(lv)
     }
+
+    ; Function to copy all ListView content to clipboard
+    CopyAll(*) {
+        text := "Window Title`tProcess`tLeft`tTop`tRight`tBottom`tWidth`tHeight`tClass`n"
+        rowCount := lv.GetCount()
+        Loop rowCount {
+            row := A_Index
+            rowText := ""
+            Loop 9 {
+                rowText .= lv.GetText(row, A_Index) . "`t"
+            }
+            text .= RTrim(rowText, "`t") . "`n"
+        }
+        A_Clipboard := text
+        ToolTip("Copied " rowCount " rows to clipboard")
+        SetTimer(() => ToolTip(), -1500)
+    }
 }
 
 ; Function to populate the ListView with window data
 PopulateWindowList(lv) {
+    ; Save current state and disable hidden window detection
+    prevDetectHidden := A_DetectHiddenWindows
+    DetectHiddenWindows false
+
     ; Get all windows
     windowList := WinGetList()
-    
+
+    ; Get our own script's PID to exclude our windows
+    scriptPID := ProcessExist()
+
     ; Loop through each window
     for hwnd in windowList {
-        ; Skip if window isn't valid for our purposes
-        if (!IsValidWindowForMove(hwnd))
-            continue
-            
-        ; Skip windows that don't exist anymore
-        if (!WinExist("ahk_id " hwnd))
-            continue
-            
-        ; Use try/catch to handle any errors
         try {
+            ; Skip our own script's windows
+            if (WinGetPID("ahk_id " hwnd) == scriptPID)
+                continue
+
+            ; Skip if window isn't valid for our purposes
+            if (!IsValidWindowForMove(hwnd))
+                continue
+
+            ; Skip windows that don't exist anymore
+            if (!WinExist("ahk_id " hwnd))
+                continue
+
             ; Get window information
             title := WinGetTitle("ahk_id " hwnd)
             process := WinGetProcessName("ahk_id " hwnd)
             class := WinGetClass("ahk_id " hwnd)
-            
+
             ; Get position
             WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
-            
+
             ; Skip windows with invalid positions
             if (x == "" || y == "" || w == "" || h == "")
                 continue
-                
+
             ; Calculate right and bottom borders
             right := x + w
             bottom := y + h
-            
+
             ; Add to ListView (empty title replaced with "[No Title]")
             title := title ? title : "[No Title]"
             lv.Add(, title, process, x, y, right, bottom, w, h, class)
-        } catch Error as e {
+        } catch {
             ; Skip this window if there's an error
             continue
         }
     }
-    
+
+    ; Restore previous state
+    DetectHiddenWindows prevDetectHidden
+
     ; Auto-size columns
     Loop lv.GetCount("Column")
         lv.ModifyCol(A_Index, "AutoHdr")
@@ -884,64 +976,61 @@ PopulateWindowList(lv) {
 IsValidWindowForMove(hwnd) { ; Check if the window is valid for moving
     if (!hwnd)
         return false
-        
+
     ; Don't allow moving certain system windows
     windowClass := WinGetClass("ahk_id " hwnd)
-    
+
     ; List of classes that shouldn't be moved
     excludedClasses := ["Progman", "WorkerW", "Shell_TrayWnd", "Windows.UI.Core.CoreWindow"]
-    
+
     for class in excludedClasses {
         if (windowClass == class)
             return false
     }
-    
+
     If (windowClass = "org.wezfurlong.wezterm")
         return true
-        
+
     ; Get process info
     exeName := WinGetProcessName("ahk_id " hwnd)
-    
+
     ; Explicitly check for Task Manager and other known elevated programs
     if (exeName = "Taskmgr.exe" || windowClass = "TaskManagerWindow" || exeName = "Razer Synapse Service Process.exe")
         return false
-        
+
     If (exeName = "XYPlorer.exe" && windowClass == "ThunderRT6Main")
         return false
-        
-        
+
     ; List of specific executable names that are typically elevated
     elevatedExes := ["mmc.exe", "gpedit.msc", "regedit.exe", "secpol.msc", "services.msc"]
     for exe in elevatedExes {
         if (exeName = exe)
             return false
     }
-    
+
     ; Check if the window has a shield icon (UAC shield) in its title bar
-    ; This is a simple heuristic that many admin windows have
     title := WinGetTitle("ahk_id " hwnd)
     if (title ~= "i)(Administrator|Elevated|as Admin)")
         return false
-    
+
     ; Check if the window is a system dialog
     if (WinGetStyle("ahk_id " hwnd) & 0x08000000) { ; WS_POPUP
         if (title ~= "i)^(Error|Warning|Info|Confirm|Prompt)")
             return false
     }
-    
+
     ; Check if window can be moved (not minimized)
     minMax := WinGetMinMax("ahk_id " hwnd)
     if (minMax == -1) ; Window is minimized
         return false
-    
+
     ; Try to detect elevated windows by checking if we can modify a window property
-    ; This is a good heuristic for detecting admin windows
     try {
         ; Try to get a system menu - this will often fail for elevated windows when script isn't elevated
         hSysMenu := DllCall("GetSystemMenu", "Ptr", hwnd, "Int", false)
         if (!hSysMenu)
             return false
-        
+
         ; Try to modify window style (but immediately restore it)
         currentStyle := WinGetStyle("ahk_id " hwnd)
         result := DllCall("SetWindowLong" (A_PtrSize=8?"Ptr":""), "Ptr", hwnd, "Int", -16, "Ptr", currentStyle)
@@ -951,6 +1040,6 @@ IsValidWindowForMove(hwnd) { ; Check if the window is valid for moving
         ; If any access is denied, assume it's an elevated window
         return false
     }
-        
+
     return true
 }

@@ -20,6 +20,8 @@ The mouse hotkey system provides context-aware keyboard shortcuts using RAlt + F
 | Mouse Wheel | Scroll customization | src/MouseHotkeys/hk_wheel.ahk2 |
 | Windows Explorer | File manager shortcuts | src/MouseHotkeys/windows_explorer.ahk2 |
 | Startbar | Taskbar interactions | src/MouseHotkeys/Startbar.ahk2 |
+| Transparency | Window transparency toggle | src/MouseHotkeys/hk_transparency.ahk2 |
+| WezTerm | Terminal shortcuts | src/MouseHotkeys/hk_wezterm.ahk2 |
 
 ---
 
@@ -71,20 +73,41 @@ The `hk_basic.ahk2` file likely contains additional navigation shortcuts for:
 ## hk_code.ahk2 - Code Editor Shortcuts
 
 ### Purpose
-Optimized shortcuts for programming and text editing workflows.
+Optimized shortcuts for programming and text editing workflows, plus system-wide volume control.
 
 ### Common IDE/Editor Targets
 - `Code.exe` (Visual Studio Code)
+- `cursor.exe` (Cursor)
 - `devenv.exe` (Visual Studio)
 - `sublime_text.exe` (Sublime Text)
 - `notepad++.exe` (Notepad++)
 
-### Typical Shortcuts
-- Code navigation (Go to Definition, Find References)
-- Refactoring operations
-- Comment toggling
-- Code formatting
-- Multi-cursor operations
+### Hotkey Reference
+
+#### RAlt + F7: Go to Definition
+| Modifiers | Behavior |
+|-----------|----------|
+| None | Go to definition (`F12`) |
+| LCtrl | Go to definition (`F12`) |
+
+#### RAlt + F10: Unfold / Mute Toggle
+| Modifiers | Behavior |
+|-----------|----------|
+| None | Unfold code section (`Ctrl+Shift+]`) |
+| LCtrl | Unfold all (`Ctrl+K, Ctrl+J`) |
+| LAlt | **Toggle system mute** with visual tooltip |
+
+#### RAlt + F11: Comment Toggle / Volume Down
+| Modifiers | Behavior |
+|-----------|----------|
+| None | Toggle comment in VS Code/Cursor (`Ctrl+/`) |
+| LAlt | **Decrease system volume by 1%** with visual tooltip |
+
+### Volume Control Feature
+The LAlt modifier transforms F10/F11 into system-wide volume controls:
+- Shows centered tooltip with current volume percentage
+- Mute toggle shows "Volume: MUTED" when muted
+- Tooltips auto-dismiss after 1 second
 
 **Source:** `src/MouseHotkeys/hk_code.ahk2`
 
@@ -211,6 +234,53 @@ Quick access to taskbar and system tray functionality.
 - Virtual desktop navigation
 
 **Source:** `src/MouseHotkeys/Startbar.ahk2`
+
+---
+
+## hk_transparency.ahk2 - Window Transparency
+
+### Purpose
+Temporarily make all visible windows semi-transparent to see through them.
+
+### Hotkey
+`Alt + \`` (backtick) - Hold to activate transparency
+
+### Behavior
+1. **Press and hold** `Alt + \`` to activate
+2. All valid windows become 70% transparent (opacity 178/255)
+3. Orange indicator appears in top-left corner
+4. Tooltip shows count of affected windows
+5. **Release keys** to restore all windows to full opacity
+
+### Features
+- Uses shared `GetValidWindows()` function for consistent window filtering
+- Excludes system windows, taskbar, desktop, own script windows
+- Visual indicator GUI while active
+- Graceful error handling for protected windows
+
+### Global Variables
+- `transparencyEnabled` - State tracking variable
+
+### Use Cases
+- Quickly peek at windows behind the current view
+- Find hidden content without rearranging windows
+- Visual debugging of window positions
+
+**Source:** `src/MouseHotkeys/hk_transparency.ahk2`
+
+---
+
+## hk_wezterm.ahk2 - WezTerm Terminal
+
+### Purpose
+WezTerm-specific shortcuts and smart terminal launching.
+
+### Features
+- Terminal tab management
+- Smart directory detection for new terminals
+- WezTerm-specific key mappings
+
+**Source:** `src/MouseHotkeys/hk_wezterm.ahk2`
 
 ---
 

@@ -12,5 +12,7 @@
 		"editor.fontWeight": 400,
 		"editor.letterSpacing": 0.2,
 		"editor.lineHeight": 1.3,
+		"files.defaultLanguage": "markdown",
+		"workbench.editor.enablePreview": false
 	}
 }

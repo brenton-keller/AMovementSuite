@@ -18,6 +18,7 @@ SetNumLockState("Off")
 #Include hk_wheel.ahk2
 #Include hk_programs.ahk2
 #Include hk_wezterm.ahk2
+#Include hk_transparency.ahk2
 
 ; Hyper - Up
 NumpadUp::1

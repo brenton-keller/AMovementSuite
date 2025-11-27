@@ -71,6 +71,11 @@ Core utility modules shared across features:
 
 These modules provide reusable functionality to avoid code duplication across features.
 
+**Key MoveUtils Functions:**
+- `GetValidWindows(excludeHwnd)` - Returns array of valid window handles, filtering out system windows, own script windows, and invalid/elevated windows. Used by transparency toggle and other multi-window operations.
+- `ListWindowPositions()` - GUI tool showing all window positions with Refresh, New Window, and Copy All buttons.
+- `IsValidWindowForMove(hwnd)` - Validates window can be manipulated (not system, not elevated, etc.)
+
 #### lib/Helpers/
 Support functions:
 - `ErrorHandler.ahk2` - Centralized error handling

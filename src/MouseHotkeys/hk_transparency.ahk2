@@ -1,0 +1,44 @@
+global transparencyEnabled := false
+
+; Toggle Transparency (Alt+`)
+!`:: {
+    global transparencyEnabled
+
+    ; Get valid windows using shared function
+    windowsToModify := GetValidWindows()
+
+    ; Apply 70% transparency to all collected windows
+    for hwnd in windowsToModify {
+        try {
+            WinSetTransparent(178, "ahk_id " hwnd)
+        }
+    }
+
+    ; Visual indicator while held
+    indicatorGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    indicatorGui.BackColor := "FF6600"
+    WinSetTransparent 150, indicatorGui.Hwnd
+    indicatorGui.Show("x10 y10 w200 h50 NoActivate")
+
+    ToolTip("Transparent: " windowsToModify.Length " windows")
+
+    ; Wait for both keys to be released
+    while (GetKeyState("Alt", "P") && GetKeyState("``", "P")) {
+        Sleep 10
+    }
+
+    ; Destroy indicator
+    indicatorGui.Destroy()
+
+    ; Restore all windows to fully opaque
+    for hwnd in windowsToModify {
+        try {
+            WinSetTransparent(255, "ahk_id " hwnd)
+        }
+    }
+
+    ToolTip()
+
+    ; Toggle state
+    transparencyEnabled := !transparencyEnabled
+}
