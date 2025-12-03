@@ -1,5 +1,116 @@
 global transparencyEnabled := false
 
+/** RectsOverlap
+ * Check if two rectangles overlap
+ * @param {Object} r1 - First rect {x, y, w, h}
+ * @param {Object} r2 - Second rect {x, y, w, h}
+ * @returns {Boolean} true if rectangles overlap
+ */
+RectsOverlap(r1, r2) {
+    ; Calculate right and bottom edges
+    r1Right := r1.x + r1.w
+    r1Bottom := r1.y + r1.h
+    r2Right := r2.x + r2.w
+    r2Bottom := r2.y + r2.h
+
+    ; No overlap if one is completely to the side or above/below the other
+    if (r1Right <= r2.x || r1.x >= r2Right || r1Bottom <= r2.y || r1.y >= r2Bottom)
+        return false
+
+    return true
+}
+
+/** CalculateWindowDepths
+ * Calculate depth for each window based on overlap graph
+ * Depth = longest path down through overlapping windows
+ * @param {Array} windows - Array of window handles (top to bottom z-order)
+ * @returns {Map} hwnd -> depth
+ */
+CalculateWindowDepths(windows) {
+    n := windows.Length
+    if (n == 0)
+        return Map()
+
+    ; Get all window rectangles
+    rects := Map()
+    for hwnd in windows {
+        try {
+            WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
+            rects[hwnd] := {x: x, y: y, w: w, h: h}
+        } catch {
+            rects[hwnd] := {x: 0, y: 0, w: 0, h: 0}
+        }
+    }
+
+    ; Build overlap list: for each window, which windows below it does it overlap?
+    ; windows array is top-to-bottom, so windows[i] is above windows[j] when i < j
+    overlapsBelow := Map()
+    for i, hwnd in windows {
+        overlapsBelow[hwnd] := []
+        ; Check all windows below this one (higher index = lower in z-order)
+        j := i + 1
+        while (j <= n) {
+            lowerHwnd := windows[j]
+            if (RectsOverlap(rects[hwnd], rects[lowerHwnd])) {
+                overlapsBelow[hwnd].Push(lowerHwnd)
+            }
+            j++
+        }
+    }
+
+    ; Calculate depths bottom-up
+    ; depth[w] = 0 if no overlaps below, else 1 + max(depth of overlapped windows)
+    depths := Map()
+
+    ; Process from bottom to top (reverse order)
+    i := n
+    while (i >= 1) {
+        hwnd := windows[i]
+        overlapped := overlapsBelow[hwnd]
+
+        if (overlapped.Length == 0) {
+            depths[hwnd] := 0
+        } else {
+            maxDepthBelow := 0
+            for lowerHwnd in overlapped {
+                if (depths.Has(lowerHwnd) && depths[lowerHwnd] > maxDepthBelow) {
+                    maxDepthBelow := depths[lowerHwnd]
+                }
+            }
+            depths[hwnd] := 1 + maxDepthBelow
+        }
+        i--
+    }
+
+    return depths
+}
+
+/** ApplyDepthTransparency
+ * Apply transparency to windows based on their overlap depth
+ * @param {Array} windows - Array of window handles
+ * @param {Number} decayFactor - Opacity multiplier per depth level (default 0.85)
+ * @param {Number} minOpacity - Minimum opacity floor (default 60)
+ * @returns {Map} hwnd -> applied opacity (for restoration)
+ */
+ApplyDepthTransparency(windows, decayFactor := 0.85, minOpacity := 60) {
+    depths := CalculateWindowDepths(windows)
+    appliedOpacity := Map()
+
+    for hwnd in windows {
+        depth := depths.Has(hwnd) ? depths[hwnd] : 0
+        ; opacity = 255 * decayFactor^depth
+        opacity := Round(255 * (decayFactor ** depth))
+        opacity := Max(opacity, minOpacity)
+        appliedOpacity[hwnd] := opacity
+
+        try {
+            WinSetTransparent(opacity, "ahk_id " hwnd)
+        }
+    }
+
+    return appliedOpacity
+}
+
 ; Toggle Transparency (Alt+`)
 !`:: {
     global transparencyEnabled
@@ -7,12 +118,8 @@ global transparencyEnabled := false
     ; Get valid windows using shared function
     windowsToModify := GetValidWindows()
 
-    ; Apply 70% transparency to all collected windows
-    for hwnd in windowsToModify {
-        try {
-            WinSetTransparent(178, "ahk_id " hwnd)
-        }
-    }
+    ; Apply depth-based transparency
+    appliedOpacity := ApplyDepthTransparency(windowsToModify)
 
     ; Visual indicator while held
     indicatorGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")

@@ -39,6 +39,11 @@ VirtualPosToTrans(virtualPos) {
     return Round(minTrans + curved * (maxTrans - minTrans))
 }
 
+; Photoshop passthrough - let native Ctrl+Alt+RMB work
+#HotIf WinActive("ahk_exe Photoshop.exe")
+~^!RButton::return
+#HotIf
+
 ; Left Ctrl + Left Alt + Right Mouse Button to adjust transparency
 ^!RButton::{
     MouseGetPos(&startX, &startY, &mwin)
@@ -86,8 +91,12 @@ VirtualPosToTrans(virtualPos) {
 }
 
 ResetAllTransparentWindows() {
-    windowList := WinGetList()
-    For hwnd in windowList {
-        WinSetTransparent("Off", "ahk_id " hwnd)
+    validWindows := GetValidWindows()
+    For hwnd in validWindows {
+        try {
+            WinSetTransparent("Off", "ahk_id " hwnd)
+        }
     }
+    ToolTip("Reset " validWindows.Length " windows")
+    SetTimer(() => ToolTip(), -1000)
 }
