@@ -1,0 +1,142 @@
+; Screenshot active window to user's Screenshots folder
+; Uses GDI+ to capture and save as PNG
+
+PrintScreen:: {
+    ; Get the active window
+    hwnd := WinExist("A")
+    if (!hwnd) {
+        ToolTip("No active window")
+        SetTimer () => ToolTip(), -1500
+        return
+    }
+
+    ; Get window position and size
+    try {
+        WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
+    } catch {
+        ToolTip("Could not get window position")
+        SetTimer () => ToolTip(), -1500
+        return
+    }
+
+    ; Build screenshot folder path
+    screenshotDir := EnvGet("USERPROFILE") "\Screenshots"
+
+    ; Create directory if it doesn't exist
+    if (!DirExist(screenshotDir))
+        DirCreate(screenshotDir)
+
+    ; Generate filename: date_program_time
+    datePart := FormatTime(, "yyyy-MM-dd")
+    timePart := FormatTime(, "HHmmss")
+    processName := WinGetProcessName("ahk_id " hwnd)
+    processName := RegExReplace(processName, "\.exe$", "")  ; Remove .exe extension
+    filename := screenshotDir "\" datePart "_" processName "_" timePart ".png"
+
+    ; Initialize GDI+
+    pToken := Gdip_Startup()
+    if (!pToken) {
+        ToolTip("Failed to initialize GDI+")
+        SetTimer () => ToolTip(), -1500
+        return
+    }
+
+    ; Capture the window
+    pBitmap := Gdip_BitmapFromHWND(hwnd)
+    if (!pBitmap) {
+        Gdip_Shutdown(pToken)
+        ToolTip("Failed to capture window")
+        SetTimer () => ToolTip(), -1500
+        return
+    }
+
+    ; Save as PNG
+    result := Gdip_SaveBitmapToFile(pBitmap, filename)
+
+    ; Cleanup
+    Gdip_DisposeImage(pBitmap)
+    Gdip_Shutdown(pToken)
+
+    if (result == 0) {
+        ; Copy file path to clipboard
+        A_Clipboard := filename
+        ToolTip("Screenshot saved & copied:`n" filename)
+    } else {
+        ToolTip("Failed to save screenshot (error " result ")")
+    }
+    SetTimer () => ToolTip(), -2000
+}
+
+; ========== GDI+ Functions ==========
+
+Gdip_Startup() {
+    pToken := 0
+    si := Buffer(24, 0)  ; GdiplusStartupInput
+    NumPut("UInt", 1, si, 0)  ; GdiplusVersion
+
+    DllCall("LoadLibrary", "Str", "gdiplus")
+    DllCall("gdiplus\GdiplusStartup", "Ptr*", &pToken, "Ptr", si, "Ptr", 0)
+    return pToken
+}
+
+Gdip_Shutdown(pToken) {
+    DllCall("gdiplus\GdiplusShutdown", "Ptr", pToken)
+}
+
+Gdip_BitmapFromHWND(hwnd) {
+    ; Get client area dimensions
+    rect := Buffer(16, 0)
+    DllCall("GetClientRect", "Ptr", hwnd, "Ptr", rect)
+    width := NumGet(rect, 8, "Int")
+    height := NumGet(rect, 12, "Int")
+
+    if (width <= 0 || height <= 0) {
+        ; Fallback to window rect if client rect fails
+        WinGetPos(&x, &y, &width, &height, "ahk_id " hwnd)
+    }
+
+    ; Create compatible DC and bitmap
+    hdcSrc := DllCall("GetDC", "Ptr", hwnd, "Ptr")
+    hdcDest := DllCall("CreateCompatibleDC", "Ptr", hdcSrc, "Ptr")
+    hBitmap := DllCall("CreateCompatibleBitmap", "Ptr", hdcSrc, "Int", width, "Int", height, "Ptr")
+    hOld := DllCall("SelectObject", "Ptr", hdcDest, "Ptr", hBitmap, "Ptr")
+
+    ; Use PrintWindow for better capture (works with layered windows)
+    ; PW_RENDERFULLCONTENT = 2 for better DWM window capture
+    DllCall("PrintWindow", "Ptr", hwnd, "Ptr", hdcDest, "UInt", 2)
+
+    ; Create GDI+ bitmap from HBITMAP
+    pBitmap := 0
+    DllCall("gdiplus\GdipCreateBitmapFromHBITMAP", "Ptr", hBitmap, "Ptr", 0, "Ptr*", &pBitmap)
+
+    ; Cleanup GDI objects
+    DllCall("SelectObject", "Ptr", hdcDest, "Ptr", hOld)
+    DllCall("DeleteObject", "Ptr", hBitmap)
+    DllCall("DeleteDC", "Ptr", hdcDest)
+    DllCall("ReleaseDC", "Ptr", hwnd, "Ptr", hdcSrc)
+
+    return pBitmap
+}
+
+Gdip_DisposeImage(pBitmap) {
+    DllCall("gdiplus\GdipDisposeImage", "Ptr", pBitmap)
+}
+
+Gdip_SaveBitmapToFile(pBitmap, filename) {
+    ; Get encoder CLSID for PNG
+    ; PNG CLSID: {557CF406-1A04-11D3-9A73-0000F81EF32E}
+    clsid := Buffer(16, 0)
+    NumPut("UInt", 0x557CF406, clsid, 0)
+    NumPut("UShort", 0x1A04, clsid, 4)
+    NumPut("UShort", 0x11D3, clsid, 6)
+    NumPut("UChar", 0x9A, clsid, 8)
+    NumPut("UChar", 0x73, clsid, 9)
+    NumPut("UChar", 0x00, clsid, 10)
+    NumPut("UChar", 0x00, clsid, 11)
+    NumPut("UChar", 0xF8, clsid, 12)
+    NumPut("UChar", 0x1E, clsid, 13)
+    NumPut("UChar", 0xF3, clsid, 14)
+    NumPut("UChar", 0x2E, clsid, 15)
+
+    return DllCall("gdiplus\GdipSaveImageToFile", "Ptr", pBitmap, "WStr", filename, "Ptr", clsid, "Ptr", 0)
+}
