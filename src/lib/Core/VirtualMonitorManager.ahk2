@@ -1,0 +1,374 @@
+; VirtualMonitorManager.ahk2
+; Provides virtual monitor abstraction layer for PBP (Picture-by-Picture) mode
+; When PBP is disabled: Functions pass through to physical monitor APIs
+; When PBP is enabled: Single physical monitor is treated as multiple virtual monitors
+
+; Cache for physical monitor bounds (reduces API calls)
+global _pbpPhysicalMonitorCache := {valid: false, left: 0, top: 0, right: 0, bottom: 0}
+
+/** _GetPhysicalMonitorBounds
+ * Internal function to get cached physical monitor bounds.
+ * Caches the result to avoid repeated API calls.
+ *
+ * @param {VarRef} Left Output: Left edge
+ * @param {VarRef} Top Output: Top edge
+ * @param {VarRef} Right Output: Right edge
+ * @param {VarRef} Bottom Output: Bottom edge
+ */
+_GetPhysicalMonitorBounds(&Left, &Top, &Right, &Bottom) {
+    global _pbpPhysicalMonitorCache, pbpMonitorIndex
+
+    ; Use cached values if valid
+    if (_pbpPhysicalMonitorCache.valid) {
+        Left := _pbpPhysicalMonitorCache.left
+        Top := _pbpPhysicalMonitorCache.top
+        Right := _pbpPhysicalMonitorCache.right
+        Bottom := _pbpPhysicalMonitorCache.bottom
+        return
+    }
+
+    ; Fetch from API and cache
+    MonitorGet(pbpMonitorIndex, &Left, &Top, &Right, &Bottom)
+    _pbpPhysicalMonitorCache.left := Left
+    _pbpPhysicalMonitorCache.top := Top
+    _pbpPhysicalMonitorCache.right := Right
+    _pbpPhysicalMonitorCache.bottom := Bottom
+    _pbpPhysicalMonitorCache.valid := true
+}
+
+/** InvalidateMonitorCache
+ * Invalidates the cached monitor bounds.
+ * Call this if monitor configuration changes.
+ */
+InvalidateMonitorCache() {
+    global _pbpPhysicalMonitorCache
+    _pbpPhysicalMonitorCache.valid := false
+}
+
+/** VirtualMonitorGetCount
+ * Returns the number of virtual monitors.
+ * When PBP is disabled: Returns physical monitor count
+ * When PBP is enabled: Returns 2 (split monitor)
+ *
+ * @returns {Integer} Number of virtual monitors
+ */
+VirtualMonitorGetCount() {
+    global pbpEnabled, pbpMonitorIndex
+
+    if (!pbpEnabled) {
+        return MonitorGetCount()
+    }
+
+    ; When PBP is enabled on a single monitor setup, return 2 virtual monitors
+    physicalCount := MonitorGetCount()
+    if (physicalCount == 1 && pbpMonitorIndex == 1) {
+        return 2
+    }
+
+    ; Future: Support PBP on multi-monitor setups
+    ; For now, if user has multiple monitors, just return physical count
+    return physicalCount
+}
+
+/** VirtualMonitorGet
+ * Gets the bounding rectangle of a virtual monitor.
+ *
+ * @param {Integer} index Virtual monitor index (1-based)
+ * @param {VarRef} Left Output: Left edge coordinate
+ * @param {VarRef} Top Output: Top edge coordinate
+ * @param {VarRef} Right Output: Right edge coordinate
+ * @param {VarRef} Bottom Output: Bottom edge coordinate
+ */
+VirtualMonitorGet(index, &Left, &Top, &Right, &Bottom) {
+    global pbpEnabled, pbpSplitX, pbpMonitorIndex
+
+    ; If PBP is disabled, pass through to physical API
+    if (!pbpEnabled) {
+        MonitorGet(index, &Left, &Top, &Right, &Bottom)
+        return
+    }
+
+    ; Get physical monitor bounds (cached for performance)
+    _GetPhysicalMonitorBounds(&PhysLeft, &PhysTop, &PhysRight, &PhysBottom)
+
+    ; Check if we're in single-monitor PBP mode
+    physicalCount := MonitorGetCount()
+    if (physicalCount == 1 && pbpMonitorIndex == 1) {
+        ; Split the monitor into two virtual monitors using current pbpSplitX
+        if (index == 1) {
+            ; Left virtual monitor: 0 to splitX
+            Left := PhysLeft
+            Top := PhysTop
+            Right := PhysLeft + pbpSplitX  ; Uses current global value
+            Bottom := PhysBottom
+        } else if (index == 2) {
+            ; Right virtual monitor: splitX to end
+            Left := PhysLeft + pbpSplitX  ; Uses current global value
+            Top := PhysTop
+            Right := PhysRight
+            Bottom := PhysBottom
+        } else {
+            ; Invalid index - return physical monitor bounds as fallback
+            Left := PhysLeft
+            Top := PhysTop
+            Right := PhysRight
+            Bottom := PhysBottom
+        }
+        return
+    }
+
+    ; Future: Multi-monitor support
+    ; For now, fall back to physical monitors
+    MonitorGet(index, &Left, &Top, &Right, &Bottom)
+}
+
+/** VirtualMonitorGetWorkArea
+ * Gets the work area of a virtual monitor (area not occupied by taskbar).
+ *
+ * For initial implementation: Use full monitor bounds (ignore taskbar)
+ * Future: Can calculate work area per virtual monitor
+ *
+ * @param {Integer} index Virtual monitor index (1-based)
+ * @param {VarRef} Left Output: Left edge coordinate
+ * @param {VarRef} Top Output: Top edge coordinate
+ * @param {VarRef} Right Output: Right edge coordinate
+ * @param {VarRef} Bottom Output: Bottom edge coordinate
+ */
+VirtualMonitorGetWorkArea(index, &Left, &Top, &Right, &Bottom) {
+    global pbpEnabled, pbpSplitX, pbpMonitorIndex
+
+    ; If PBP is disabled, pass through to physical API
+    if (!pbpEnabled) {
+        MonitorGetWorkArea(index, &Left, &Top, &Right, &Bottom)
+        return
+    }
+
+    ; Simplified approach: Use full monitor bounds for work area
+    ; This ignores taskbar complications
+    VirtualMonitorGet(index, &Left, &Top, &Right, &Bottom)
+
+    ; Future enhancement: Calculate work area based on taskbar position
+    ; If taskbar is on bottom: Both monitors lose bottom space equally
+    ; If taskbar is on left: Only left monitor loses space
+    ; If taskbar is on right: Only right monitor loses space
+}
+
+/** GetVirtualMonitorFromPoint
+ * Determines which virtual monitor contains a specified point.
+ *
+ * @param {Integer} x X-coordinate
+ * @param {Integer} y Y-coordinate
+ *
+ * @returns {Integer} Virtual monitor index (1-based)
+ */
+GetVirtualMonitorFromPoint(x, y) {
+    global pbpEnabled, pbpSplitX, pbpMonitorIndex
+
+    ; If PBP is disabled, use physical monitor detection
+    if (!pbpEnabled) {
+        MonitorCount := MonitorGetCount()
+        Loop MonitorCount {
+            MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
+            if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
+                return A_Index
+        }
+        return MonitorGetPrimary()  ; Default to primary if not found
+    }
+
+    ; Check if we're in single-monitor PBP mode
+    physicalCount := MonitorGetCount()
+    if (physicalCount == 1 && pbpMonitorIndex == 1) {
+        ; Get physical monitor bounds (cached for performance)
+        _GetPhysicalMonitorBounds(&PhysLeft, &PhysTop, &PhysRight, &PhysBottom)
+
+        ; Check if point is within physical monitor
+        if (x >= PhysLeft && x <= PhysRight && y >= PhysTop && y <= PhysBottom) {
+            ; Determine which virtual monitor
+            splitPoint := PhysLeft + pbpSplitX
+            if (x < splitPoint) {
+                return 1  ; Left virtual monitor
+            } else {
+                return 2  ; Right virtual monitor
+            }
+        }
+
+        ; Point is outside monitor - default to monitor 1
+        return 1
+    }
+
+    ; Future: Multi-monitor support
+    ; For now, fall back to physical monitor detection
+    MonitorCount := MonitorGetCount()
+    Loop MonitorCount {
+        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
+        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
+            return A_Index
+    }
+    return MonitorGetPrimary()
+}
+
+/** GetVirtualMonitorForWindow
+ * Determines which virtual monitor contains a window (by window center point).
+ *
+ * @param {Integer} winX Window X position
+ * @param {Integer} winY Window Y position
+ * @param {Integer} winWidth Window width
+ * @param {Integer} winHeight Window height
+ *
+ * @returns {Integer} Virtual monitor index (1-based)
+ */
+GetVirtualMonitorForWindow(winX, winY, winWidth, winHeight) {
+    ; Calculate window center point
+    winCenterX := winX + (winWidth / 2)
+    winCenterY := winY + (winHeight / 2)
+
+    ; Use point-based detection
+    return GetVirtualMonitorFromPoint(winCenterX, winCenterY)
+}
+
+/** GetVirtualMonitorPrimary
+ * Returns the primary virtual monitor index.
+ *
+ * @returns {Integer} Primary virtual monitor index (always 1 for now)
+ */
+GetVirtualMonitorPrimary() {
+    global pbpEnabled
+
+    ; When PBP is enabled, left monitor (1) is considered primary
+    ; When PBP is disabled, use system primary
+    if (!pbpEnabled) {
+        return MonitorGetPrimary()
+    }
+
+    return 1  ; Left virtual monitor is primary
+}
+
+/** TogglePBPMode
+ * Toggles PBP mode on/off and shows notification.
+ * Also saves the state to settings file for persistence.
+ *
+ * @returns {Boolean} New PBP enabled state
+ */
+TogglePBPMode() {
+    global pbpEnabled, pbpSplitX, pbpSplitPercent
+
+    pbpEnabled := !pbpEnabled
+
+    ; Invalidate monitor cache when toggling PBP
+    InvalidateMonitorCache()
+
+    ; Save to settings file
+    SavePBPSettings()
+
+    ; Show notification with current split configuration
+    if (pbpEnabled) {
+        ; Calculate current split dimensions
+        MonitorGet(1, &PhysLeft, &PhysTop, &PhysRight, &PhysBottom)
+        physWidth := PhysRight - PhysLeft
+        leftWidth := pbpSplitX
+        rightWidth := physWidth - pbpSplitX
+
+        ToolTip("PBP Virtual Monitor: ENABLED`n" pbpSplitPercent "% split (" leftWidth "px + " rightWidth "px)")
+    } else {
+        ToolTip("PBP Virtual Monitor: DISABLED")
+    }
+
+    ; Clear tooltip after 2 seconds
+    SetTimer(() => ToolTip(), -2000)
+
+    return pbpEnabled
+}
+
+/** LoadPBPSettings
+ * Loads PBP settings from INI file.
+ * Called on script startup.
+ * Ensures pixel and percentage values are synchronized.
+ */
+LoadPBPSettings() {
+    global pbpEnabled, pbpSplitX, pbpSplitPercent
+
+    settingsFile := A_ScriptDir . "\settings\pbp_settings.ini"
+
+    ; Check if file exists
+    if (!FileExist(settingsFile)) {
+        ; No settings file - use defaults and return
+        return
+    }
+
+    ; Load settings (defaults to current values if keys don't exist)
+    loadedEnabled := IniRead(settingsFile, "PBP", "Enabled", pbpEnabled)
+    loadedSplitX := IniRead(settingsFile, "PBP", "SplitX", pbpSplitX)
+    loadedSplitPercent := IniRead(settingsFile, "PBP", "SplitPercent", pbpSplitPercent)
+
+    ; Convert to proper types (IniRead returns strings)
+    pbpEnabled := (loadedEnabled = "1" || loadedEnabled = "true" || loadedEnabled = true) ? true : false
+    pbpSplitX := Integer(loadedSplitX)
+    pbpSplitPercent := Float(loadedSplitPercent)
+
+    ; Get physical monitor width to calculate synchronized values
+    MonitorGet(1, &PhysLeft, &PhysTop, &PhysRight, &PhysBottom)
+    physWidth := PhysRight - PhysLeft
+
+    ; Constrain values to valid ranges (10% - 90%)
+    minPixels := Round(physWidth * 0.10)
+    maxPixels := Round(physWidth * 0.90)
+    pbpSplitX := Max(minPixels, Min(maxPixels, pbpSplitX))
+
+    ; Recalculate percentage from pixel value (pixel is source of truth)
+    pbpSplitPercent := Round((pbpSplitX / physWidth) * 100, 1)
+
+    ; Invalidate cache to use new settings
+    InvalidateMonitorCache()
+}
+
+/** SavePBPSettings
+ * Saves PBP settings to INI file.
+ * Called when settings are changed.
+ */
+SavePBPSettings() {
+    global pbpEnabled, pbpSplitX, pbpSplitPercent
+
+    settingsFile := A_ScriptDir . "\settings\pbp_settings.ini"
+
+    ; Ensure settings directory exists
+    settingsDir := A_ScriptDir . "\settings"
+    if (!DirExist(settingsDir)) {
+        DirCreate(settingsDir)
+    }
+
+    ; Save settings (convert boolean to 1/0 for clarity)
+    IniWrite(pbpEnabled ? 1 : 0, settingsFile, "PBP", "Enabled")
+    IniWrite(pbpSplitX, settingsFile, "PBP", "SplitX")
+    IniWrite(pbpSplitPercent, settingsFile, "PBP", "SplitPercent")
+
+    ; Force cache invalidation after save
+    InvalidateMonitorCache()
+}
+
+/** GetPBPInfo
+ * Returns information about current PBP configuration.
+ *
+ * @returns {Object} Map with PBP configuration details
+ */
+GetPBPInfo() {
+    global pbpEnabled, pbpSplitX, pbpSplitPercent
+
+    info := Map()
+    info["enabled"] := pbpEnabled
+    info["splitX"] := pbpSplitX
+    info["splitPercent"] := pbpSplitPercent
+
+    if (pbpEnabled) {
+        ; Calculate virtual monitor dimensions
+        MonitorGet(1, &PhysLeft, &PhysTop, &PhysRight, &PhysBottom)
+        physWidth := PhysRight - PhysLeft
+        physHeight := PhysBottom - PhysTop
+
+        info["monitor1Width"] := pbpSplitX
+        info["monitor1Height"] := physHeight
+        info["monitor2Width"] := physWidth - pbpSplitX
+        info["monitor2Height"] := physHeight
+    }
+
+    return info
+}

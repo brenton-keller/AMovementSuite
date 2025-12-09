@@ -84,8 +84,8 @@ FramesEqual_Width(frame1, frame2) {
     WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
 
     monitorIndex := GetWindowMonitor(wx, wy, ww, wh)
-    MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
-    MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+    VirtualMonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+    VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
 
     initialW := ww
     initialX := wx
@@ -248,84 +248,114 @@ FramesEqual_Width(frame1, frame2) {
             break
 
         MouseGetPos &currentX, &currentY
-        
-        ; Check for monitor changes during drag
-        newMonitorIndex := MonitorFromPoint(currentX, currentY)
-        if (newMonitorIndex != monitorIndex) {
-            monitorIndex := newMonitorIndex
-            MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
-            MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
-            
-            maxWidth := workRight - workLeft
-            if (maxWidth <= initialW) {
-                maxWidth := initialW + 1
-            }
-        }
 
         deltaX := currentX - startX
-        
+
         ; Calculate new dimensions based on the edge detection mode
         if (isNearLeftEdge) {
             ; LEFT EDGE ONLY MODE: Right edge stays fixed
             newX := initialX + deltaX
-            
+
             ; Constrain left edge from moving beyond right edge
             newX := Min(newX, rightEdgePos - Colors.MIN_WIDTH)
-            
-            ; Constrain left edge from moving beyond screen left
-            newX := Max(newX, workLeft)
-            
+
             ; Calculate width based on fixed right edge
             newW := rightEdgePos - newX
-            
+
+            ; Check monitor based on NEW window position (not mouse position)
+            newMonitorIndex := GetWindowMonitor(newX, wy, newW, wh)
+            if (newMonitorIndex != monitorIndex) {
+                monitorIndex := newMonitorIndex
+                VirtualMonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+                VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+
+                maxWidth := workRight - workLeft
+                if (maxWidth <= initialW) {
+                    maxWidth := initialW + 1
+                }
+            }
+
+            ; Constrain left edge from moving beyond screen left
+            newX := Max(newX, workLeft)
+
+            ; Recalculate width after constraint
+            newW := rightEdgePos - newX
+
             ; Calculate main right edge position for snapped windows
             mainRightEdge := newX + newW
-        } 
+        }
         else if (isNearRightEdge) {
             ; RIGHT EDGE ONLY MODE: Left edge stays fixed
             newX := initialX  ; Keep left position fixed
-            
+
             ; Calculate width based on mouse position
             newW := initialW + deltaX
-            
-            ; Constrain width so right edge doesn't exceed screen right
-            newW := Min(newW, workRight - initialX)
-            
+
             ; Ensure minimum width
             newW := Max(newW, Colors.MIN_WIDTH)
-            
+
+            ; Check monitor based on NEW window position (not mouse position)
+            newMonitorIndex := GetWindowMonitor(newX, wy, newW, wh)
+            if (newMonitorIndex != monitorIndex) {
+                monitorIndex := newMonitorIndex
+                VirtualMonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+                VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+
+                maxWidth := workRight - workLeft
+                if (maxWidth <= initialW) {
+                    maxWidth := initialW + 1
+                }
+            }
+
+            ; Constrain width so right edge doesn't exceed screen right
+            newW := Min(newW, workRight - initialX)
+
             ; Calculate main right edge position for snapped windows
             mainRightEdge := newX + newW
         }
         else {
             ; PROPORTIONAL MODE: Both edges can move
+            ; Dynamic sensitivity based on target width
+            if (deltaX < 0) {
+                ; For reduction (moving mouse left)
+                scaleFactor := 1 + (deltaX * 0.003)
+            } else {
+                ; For expansion (moving mouse right)
+                scaleFactor := 1 + (deltaX * 0.003)
+            }
+            minScaleFactor := Colors.MIN_WIDTH / initialW
+            scaleFactor := Max(minScaleFactor, scaleFactor)
+
+            newW := Round(initialW * scaleFactor)
+            newW := Max(Colors.MIN_WIDTH, newW)
+
+            ; Apply proportional positioning
+            newX := Round(initialX - (newW - initialW) * (1 - relativeX))
+
+            ; Check monitor based on NEW window position (not mouse position)
+            newMonitorIndex := GetWindowMonitor(newX, wy, newW, wh)
+            if (newMonitorIndex != monitorIndex) {
+                monitorIndex := newMonitorIndex
+                VirtualMonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+                VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+
+                maxWidth := workRight - workLeft
+                if (maxWidth <= initialW) {
+                    maxWidth := initialW + 1
+                }
+            }
+
             ; Check if mouse is near screen edge for snapping
             if (currentX >= workRight - snapEdgeThreshold) {
                 ; Snap to max width
                 newW := maxWidth
                 newX := workLeft
-            }
-            else {
-                ; Dynamic sensitivity based on target width
-                if (deltaX < 0) {
-                    ; For reduction (moving mouse left)
-                    scaleFactor := 1 + (deltaX * 0.003)
-                } else {
-                    ; For expansion (moving mouse right)
-                    scaleFactor := 1 + (deltaX * 0.003)
-                }
-                ; scaleFactor := Max(0.25, scaleFactor)
-                minScaleFactor := Colors.MIN_WIDTH / initialW
-                scaleFactor := Max(minScaleFactor, scaleFactor)
-                
-                newW := Round(initialW * scaleFactor)
-                newW := Max(Colors.MIN_WIDTH, Min(newW, maxWidth))
-                
-                ; Apply proportional positioning
-                newX := Round(initialX - (newW - initialW) * (1 - relativeX))
+            } else {
+                ; Constrain to monitor bounds
+                newW := Min(newW, maxWidth)
                 newX := Max(workLeft, Min(workRight - newW, newX))
             }
-            
+
             ; Calculate main right edge position for snapped windows
             mainRightEdge := newX + newW
         }

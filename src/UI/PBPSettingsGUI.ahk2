@@ -1,0 +1,170 @@
+; PBP Settings GUI
+; Configuration interface for Picture-by-Picture virtual monitor split position
+
+/** ShowPBPSettings
+ * Displays the PBP configuration GUI for adjusting split position.
+ * Allows configuration via percentage or pixel value.
+ * Changes are saved and applied immediately.
+ */
+ShowPBPSettings(*) {
+    global pbpEnabled, pbpSplitX, pbpSplitPercent
+
+    ; Get physical monitor dimensions
+    MonitorGet(1, &PhysLeft, &PhysTop, &PhysRight, &PhysBottom)
+    physWidth := PhysRight - PhysLeft
+    physHeight := PhysBottom - PhysTop
+
+    ; Create settings GUI
+    settingsGui := Gui("+AlwaysOnTop", "PBP Virtual Monitor Settings")
+    settingsGui.SetFont("s10")
+
+    ; Store physical dimensions in GUI object for access in callbacks
+    settingsGui.physWidth := physWidth
+    settingsGui.physHeight := physHeight
+
+    ; === Header ===
+    settingsGui.Add("Text", "xm ym w500", "PBP Virtual Monitor Split Configuration")
+    settingsGui.Add("Text", "xm y+5 w500", "Adjust split position - changes apply automatically")
+    settingsGui.Add("Text", "xm y+5 w500", "Toggle PBP: ScrollLock  |  Tray Menu: Right-click icon")
+
+    ; === Separator ===
+    settingsGui.Add("Text", "xm y+15 w500 0x10")  ; Horizontal line
+
+    ; === Visual Preview (MOVED TO TOP) ===
+    ; Calculate dimensions for preview
+    previewScale := 0.08  ; Scale down to fit GUI
+    previewWidth := Round(physWidth * previewScale)
+    previewHeight := Round(physHeight * previewScale)
+
+    ; Current split position in preview
+    currentSplitPreview := Round(pbpSplitX * previewScale)
+
+    ; Create visual preview using Progress controls
+    xStart := 20
+    yStart := 120  ; Moved up - now appears before controls
+
+    ; Left monitor preview (green)
+    leftPreview := settingsGui.Add("Progress", "x" xStart " y" yStart " w" currentSplitPreview " h" previewHeight " Background22B14C")
+
+    ; Right monitor preview (blue)
+    rightWidth := previewWidth - currentSplitPreview
+    rightPreview := settingsGui.Add("Progress", "x" (xStart + currentSplitPreview) " y" yStart " w" rightWidth " h" previewHeight " Background4A90E2")
+
+    ; Split line
+    splitLine := settingsGui.Add("Progress", "x" (xStart + currentSplitPreview - 1) " y" yStart " w2 h" previewHeight " BackgroundFF0000")
+
+    ; Labels
+    leftLabel := settingsGui.Add("Text", "x" xStart " y" (yStart + previewHeight + 5) " w" currentSplitPreview " Center vLeftLabel", pbpSplitX "px")
+    rightLabel := settingsGui.Add("Text", "x" (xStart + currentSplitPreview) " y" (yStart + previewHeight + 5) " w" rightWidth " Center vRightLabel", (physWidth - pbpSplitX) "px")
+
+    ; === Split Configuration (MOVED BELOW PREVIEW) ===
+    settingsGui.Add("Text", "xm y+80 w500 0x10")  ; Horizontal line
+
+    ; Percentage slider
+    settingsGui.Add("Text", "xm y+15", "Split Percentage:")
+    sliderPercent := settingsGui.Add("Slider", "xm y+5 vSplitPercent Range10-90 TickInterval5 Tooltip w400", pbpSplitPercent)
+    txtPercent := settingsGui.Add("Text", "x+10 w100 vPercentDisplay", pbpSplitPercent "%")
+
+    ; Pixel value input
+    settingsGui.Add("Text", "xm y+15", "Split Position (pixels):")
+    edtPixels := settingsGui.Add("Edit", "xm y+5 vSplitPixels w150", pbpSplitX)
+    settingsGui.Add("Text", "x+10", "px from left edge")
+
+    ; Store preview controls in GUI object
+    settingsGui.leftPreview := leftPreview
+    settingsGui.rightPreview := rightPreview
+    settingsGui.splitLine := splitLine
+    settingsGui.leftLabel := leftLabel
+    settingsGui.rightLabel := rightLabel
+    settingsGui.previewScale := previewScale
+    settingsGui.previewXStart := xStart
+    settingsGui.previewYStart := yStart
+    settingsGui.previewWidth := previewWidth
+    settingsGui.previewHeight := previewHeight
+
+
+    ; === Helper Functions (defined BEFORE event handlers) ===
+
+    UpdateFromPercent(guiObj, ctrl, *) {
+        global pbpEnabled, pbpSplitX, pbpSplitPercent
+
+        percent := ctrl.Value
+        pixels := Round((percent / 100) * guiObj.physWidth)
+
+        ; Update pixel field
+        guiObj["SplitPixels"].Value := pixels
+
+        ; Update percentage display
+        guiObj["PercentDisplay"].Value := percent "%"
+
+        ; Update preview
+        UpdatePreview(guiObj, pixels)
+
+        ; Apply changes in real-time
+        pbpSplitX := Integer(pixels)
+        pbpSplitPercent := Float(percent)
+        InvalidateMonitorCache()
+        SavePBPSettings()
+    }
+
+    UpdateFromPixels(guiObj, ctrl, *) {
+        global pbpEnabled, pbpSplitX, pbpSplitPercent
+
+        pixels := ctrl.Value
+
+        ; Validate input
+        if (!IsNumber(pixels))
+            return
+
+        pixels := Integer(pixels)
+
+        ; Constrain to valid range (10% - 90%)
+        minPixels := Round(guiObj.physWidth * 0.10)
+        maxPixels := Round(guiObj.physWidth * 0.90)
+        pixels := Max(minPixels, Min(maxPixels, pixels))
+
+        ; Update slider and percentage
+        percent := Round((pixels / guiObj.physWidth) * 100, 1)
+        guiObj["SplitPercent"].Value := percent
+        guiObj["PercentDisplay"].Value := percent "%"
+
+        ; Update preview
+        UpdatePreview(guiObj, pixels)
+
+        ; Apply changes in real-time
+        pbpSplitX := Integer(pixels)
+        pbpSplitPercent := Float(percent)
+        InvalidateMonitorCache()
+        SavePBPSettings()
+    }
+
+    UpdatePreview(guiObj, pixels) {
+        ; Calculate preview dimensions
+        splitPreview := Round(pixels * guiObj.previewScale)
+        rightWidth := guiObj.previewWidth - splitPreview
+
+        ; Update preview controls
+        guiObj.leftPreview.Move(guiObj.previewXStart, guiObj.previewYStart, splitPreview, guiObj.previewHeight)
+        guiObj.rightPreview.Move(guiObj.previewXStart + splitPreview, guiObj.previewYStart, rightWidth, guiObj.previewHeight)
+        guiObj.splitLine.Move(guiObj.previewXStart + splitPreview - 1, guiObj.previewYStart)
+
+        ; Update labels
+        guiObj.leftLabel.Move(guiObj.previewXStart, guiObj.previewYStart + guiObj.previewHeight + 5, splitPreview)
+        guiObj.leftLabel.Value := pixels "px"
+
+        guiObj.rightLabel.Move(guiObj.previewXStart + splitPreview, guiObj.previewYStart + guiObj.previewHeight + 5, rightWidth)
+        guiObj.rightLabel.Value := (guiObj.physWidth - pixels) "px"
+    }
+
+
+    ; === Event Handler Setup (AFTER functions are defined) ===
+
+    ; Update when slider changes
+    sliderPercent.OnEvent("Change", UpdateFromPercent.Bind(settingsGui))
+
+    ; Update when pixel value changes
+    edtPixels.OnEvent("Change", UpdateFromPixels.Bind(settingsGui))
+
+    ; Show GUI with AutoSize to fit all controls automatically
+    settingsGui.Show("w560 AutoSize")
+}

@@ -152,9 +152,9 @@ CascadeWindows() {
     ; Clear any existing cascade info
     cascadedWindowsInfo.Clear()
 
-    ; Get primary monitor work area
-    primaryMonitor := MonitorGetPrimary()
-    MonitorGetWorkArea(primaryMonitor, &workLeft, &workTop, &workRight, &workBottom)
+    ; Get primary monitor work area (uses virtual monitors for PBP)
+    primaryMonitor := GetVirtualMonitorPrimary()
+    VirtualMonitorGetWorkArea(primaryMonitor, &workLeft, &workTop, &workRight, &workBottom)
 
     workWidth := workRight - workLeft
     workHeight := workBottom - workTop

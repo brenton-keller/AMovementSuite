@@ -15,6 +15,7 @@ CoordMode "Mouse", "Screen"
 #Include %A_ScriptDir%\src\lib\Core\ColorUtils.ahk2
 #Include %A_ScriptDir%\src\lib\Core\MoveUtils.ahk2
 #Include %A_ScriptDir%\src\lib\Core\ToggleUtils.ahk2
+#Include %A_ScriptDir%\src\lib\Core\VirtualMonitorManager.ahk2
 
 #Include src\Features\WindowMove.ahk2
 #Include src\Features\WindowScaleWidth.ahk2
@@ -33,6 +34,12 @@ CoordMode "Mouse", "Screen"
 ; Load mouse hotkeys
 #Include src\MouseHotkeys\setting_mouse.ahk2
 
+; Load UI components
+#Include src\UI\PBPSettingsGUI.ahk2
+
+; Load PBP settings from file
+LoadPBPSettings()
+
 ; Create the tray menu
 A_TrayMenu.Delete  ; Clear default menu
 A_TrayMenu.Add "Width Scaling (LCtrl+RButton)", ToggleWidthScaling
@@ -49,6 +56,9 @@ A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move Settings", ShowWindowMoveSettings
 A_TrayMenu.Add "Program Paths Configuration", ShowProgramPathsConfig
 A_TrayMenu.Add  ; Separator
+A_TrayMenu.Add "PBP Virtual Monitor", TogglePBPFromTray
+A_TrayMenu.Add "PBP Settings...", ShowPBPSettings
+A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Exit", (*) => ExitApp()
 
 ; Initialize menu checks
@@ -63,35 +73,65 @@ A_TrayMenu.Check "Window Grouping (LAlt+LWin+LButton)"
 
 ; --- START: Monitor Information Display on Startup ---
 ShowMonitorInfo() {
+    global pbpEnabled, pbpSplitX, pbpSplitPercent
+
+    ; Physical Monitor Info
     monitorCount := MonitorGetCount()
-    infoText := "Detected " monitorCount " Monitor(s):`r`n`r`n" ; Use `r`n for Edit controls
+    infoText := "=== PHYSICAL MONITORS ===`r`n"
+    infoText .= "Detected " monitorCount " Physical Monitor(s):`r`n`r`n"
     primaryMon := MonitorGetPrimary()
 
     Loop monitorCount {
-        thisMon := A_Index ; Current monitor number in the loop
+        thisMon := A_Index
 
-        ; Get full monitor coordinates and dimensions
         MonitorGet(thisMon, &Left, &Top, &Right, &Bottom)
         Width := Right - Left
         Height := Bottom - Top
+        physWidth := Width  ; Store for virtual monitor calculations
 
-        ; Get work area (excluding taskbar, usually) coordinates and dimensions
         MonitorGetWorkArea(thisMon, &WorkLeft, &WorkTop, &WorkRight, &WorkBottom)
         WorkWidth := WorkRight - WorkLeft
         WorkHeight := WorkBottom - WorkTop
 
-        ; Check if this is the primary monitor
         isPrimary := (thisMon == primaryMon) ? "Yes" : "No"
 
-        ; Build the text block for this monitor (use `r`n for newlines in Edit controls)
-        infoText .= "--- Monitor " thisMon " ---`r`n"
-        infoText .= "  Primary Monitor: " isPrimary "`r`n"
-        infoText .= "  Position (Top-Left Corner): X=" Left ", Y=" Top "`r`n"
-        infoText .= "  Full Resolution: " Width "x" Height "`r`n"
-        infoText .= "  Bounding Box (Raw Coords): Left=" Left ", Top=" Top ", Right=" Right ", Bottom=" Bottom "`r`n"
-        infoText .= "  Work Area Position (Top-Left): X=" WorkLeft ", Y=" WorkTop "`r`n"
-        infoText .= "  Work Area Size: " WorkWidth "x" WorkHeight "`r`n"
-        infoText .= "  Work Area Box (Raw Coords): Left=" WorkLeft ", Top=" WorkTop ", Right=" WorkRight ", Bottom=" WorkBottom "`r`n`r`n"
+        infoText .= "--- Physical Monitor " thisMon " ---`r`n"
+        infoText .= "  Primary: " isPrimary " | Resolution: " Width "x" Height "`r`n"
+        infoText .= "  Position: X=" Left ", Y=" Top "`r`n"
+        infoText .= "  Work Area: " WorkWidth "x" WorkHeight "`r`n`r`n"
+    }
+
+    ; Virtual Monitor Info (if PBP is enabled)
+    if (pbpEnabled) {
+        virtualCount := VirtualMonitorGetCount()
+        leftWidth := pbpSplitX
+        rightWidth := physWidth - pbpSplitX
+        infoText .= "`r`n=== VIRTUAL MONITORS (PBP ENABLED) ===`r`n"
+        infoText .= "Split Configuration: " pbpSplitPercent "% (" leftWidth "px / " rightWidth "px)`r`n"
+        infoText .= "Virtual Monitors: " virtualCount "`r`n`r`n"
+
+        Loop virtualCount {
+            thisMon := A_Index
+
+            VirtualMonitorGet(thisMon, &Left, &Top, &Right, &Bottom)
+            Width := Right - Left
+            Height := Bottom - Top
+
+            VirtualMonitorGetWorkArea(thisMon, &WorkLeft, &WorkTop, &WorkRight, &WorkBottom)
+            WorkWidth := WorkRight - WorkLeft
+            WorkHeight := WorkBottom - WorkTop
+
+            isPrimary := (thisMon == GetVirtualMonitorPrimary()) ? "Yes" : "No"
+
+            infoText .= "--- Virtual Monitor " thisMon " ---`r`n"
+            infoText .= "  Primary: " isPrimary " | Resolution: " Width "x" Height "`r`n"
+            infoText .= "  Position: X=" Left ", Y=" Top "`r`n"
+            infoText .= "  Bounds: Left=" Left ", Right=" Right "`r`n`r`n"
+        }
+    } else {
+        infoText .= "`r`n=== PBP MODE ===`r`n"
+        infoText .= "Status: DISABLED`r`n"
+        infoText .= "Toggle with: ScrollLock or Tray Menu`r`n`r`n"
     }
 
     ; --- Create a Custom GUI instead of MsgBox ---
@@ -141,3 +181,22 @@ ShowMonitorInfo() {
 
 ShowMonitorInfo() ; Call the function immediately on script start
 ; --- END: Monitor Information Display on Startup ---
+
+; --- START: PBP Virtual Monitor Toggle ---
+TogglePBPFromTray(*) {
+    global pbpEnabled
+    TogglePBPMode()  ; Call the function from VirtualMonitorManager
+
+    ; Update tray menu check
+    if (pbpEnabled) {
+        A_TrayMenu.Check "PBP Virtual Monitor"
+    } else {
+        A_TrayMenu.Uncheck "PBP Virtual Monitor"
+    }
+}
+
+; ScrollLock hotkey to toggle PBP mode
+ScrollLock::{
+    TogglePBPFromTray()
+}
+; --- END: PBP Virtual Monitor Toggle ---

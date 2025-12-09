@@ -15,6 +15,12 @@ global enableWindowSnapping := false
 global snapDistance := 10
 global safetyTimer := 0
 
+; PBP Virtual Monitor Settings
+global pbpEnabled := false
+global pbpSplitX := 3840  ; 75% split (3840x2160 + 1280x2160)
+global pbpSplitPercent := 75.0  ; Alternative: percentage-based split
+global pbpMonitorIndex := 1  ; Which physical monitor to split (future: multi-monitor support)
+
 ; Other global settings
 global debugMode := false
 global versionNumber := "1.0.0"

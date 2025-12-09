@@ -54,21 +54,17 @@ GetValidWindows(excludeHwnd := 0) {
 
 /** MonitorFromPoint
  * Determines which monitor contains a specified point (x,y) coordinate.
- * 
+ * Now supports virtual monitors for PBP mode.
+ *
  * @param x The x-coordinate to check
  * @param y The y-coordinate to check
- * 
+ *
  * @returns {Integer} The monitor index that contains the point,
  *          or the primary monitor index if the point is not on any monitor
  */
 MonitorFromPoint(x, y) {
-    MonitorCount := MonitorGetCount()
-    Loop MonitorCount {
-        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
-        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
-            return A_Index
-    }
-    return MonitorGetPrimary()  ; Default to primary monitor if not found
+    ; Use virtual monitor API for PBP support
+    return GetVirtualMonitorFromPoint(x, y)
 }
 
 /**
@@ -776,8 +772,8 @@ HighlightSnappedWindows(snappedWindows, mainBorder) {
         countGui.SetFont("s14 cWhite", "Arial")
         countGui.Add("Text", "x10 y10", "Found " . snappedWindows.Length . " window(s) snapped to " . mainBorder . " edge")
         
-        ; Position at bottom of screen
-        MonitorGetWorkArea(, &mX, &mY, &mW, &mH)
+        ; Position at bottom of screen (uses virtual monitors for PBP)
+        VirtualMonitorGetWorkArea(GetVirtualMonitorPrimary(), &mX, &mY, &mW, &mH)
         countGui.Show("x" mX+10 " y" mH-60 " w400 h50 NoActivate")
         
         highlightGuis.Push(countGui)
@@ -837,8 +833,8 @@ ShowWindowPositioningGUI(mwin, cursorX, cursorY) {
     guiWidth := 215  ; Width for buttons plus margins
     guiHeight := 115  ; Height for three rows of buttons plus margins
     
-    ; Get the monitor where the cursor currently is
-    MonitorGetWorkArea(MonitorFromPoint(cursorX, cursorY), &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
+    ; Get the monitor where the cursor currently is (uses virtual monitors for PBP)
+    VirtualMonitorGetWorkArea(MonitorFromPoint(cursorX, cursorY), &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
     
     ; Calculate position under cursor, but keep it on screen
     guiX := cursorX - 10  ; Offset slightly so it's not directly under the cursor

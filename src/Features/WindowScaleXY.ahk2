@@ -141,8 +141,8 @@ StartResize() {
     WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
 
     currentMonitor := GetWindowMonitor(wx, wy, ww, wh)
-    MonitorGet(currentMonitor, &MonLeft, &MonTop, &MonRight, &MonBottom)
-    MonitorGetWorkArea(currentMonitor, &WorkAreaLeft, &WorkAreaTop, &WorkAreaRight, &WorkAreaBottom)
+    VirtualMonitorGet(currentMonitor, &MonLeft, &MonTop, &MonRight, &MonBottom)
+    VirtualMonitorGetWorkArea(currentMonitor, &WorkAreaLeft, &WorkAreaTop, &WorkAreaRight, &WorkAreaBottom)
 
     initialW := ww
     initialH := wh
@@ -202,98 +202,158 @@ StartResize() {
     lastFrameChangeTime := A_TickCount
     targetWindowFrame := {x: wx, y: wy, w: ww, h: wh}
 
+    ; Cache monitor bounds to avoid recalculating every frame (performance optimization)
+    cachedMonitor := currentMonitor
+    cachedMonLeft := MonLeft
+    cachedMonTop := MonTop
+    cachedMonRight := MonRight
+    cachedMonBottom := MonBottom
+    cachedWorkLeft := WorkAreaLeft
+    cachedWorkTop := WorkAreaTop
+    cachedWorkRight := WorkAreaRight
+    cachedWorkBottom := WorkAreaBottom
+    cachedMaxWidth := maxWidth
+    cachedMaxHeight := maxHeight
+
     While (GetKeyState("RButton", "P") && GetKeyState("LControl", "P") && GetKeyState("LShift", "P"))
     {
         MouseGetPos &currentX, &currentY
 
-        currentMonitor := GetMonitorAtPos(currentX, currentY)
-        MonitorGet(currentMonitor, &MonLeft, &MonTop, &MonRight, &MonBottom)
-        MonitorGetWorkArea(currentMonitor, &WorkAreaLeft, &WorkAreaTop, &WorkAreaRight, &WorkAreaBottom)
-        
-        maxWidth := MonRight - MonLeft
-        maxHeight := MonBottom - MonTop
+        ; Calculate new dimensions first (before monitor check)
+        ; We'll use these to determine which monitor the window is on
 
         if (isNearTopLeft) {
             ; Directly resize window with bottom-right fixed
             moveX := currentX - startX
             moveY := currentY - startY
-            
+
             ; Calculate new dimensions directly from movement
             newW := initialW - moveX
             newH := initialH - moveY
-            
+
             ; Enforce minimum dimensions
             newW := Max(100, newW)
             newH := Max(100, newH)
-            
-            ; Constrain maximum dimensions
-            newW := Min(maxWidth + 2, newW + 2)
-            newH := Min(maxHeight + 2, newH + 2)
-            
+
             ; Calculate new position (keeping bottom-right fixed)
+            newX := initialX + initialW - newW
+            newY := initialY + initialH - newH
+
+            ; Check monitor based on NEW window position
+            newMonitor := GetWindowMonitor(newX, newY, newW, newH)
+            if (newMonitor != cachedMonitor) {
+                VirtualMonitorGet(newMonitor, &cachedMonLeft, &cachedMonTop, &cachedMonRight, &cachedMonBottom)
+                VirtualMonitorGetWorkArea(newMonitor, &cachedWorkLeft, &cachedWorkTop, &cachedWorkRight, &cachedWorkBottom)
+                cachedMaxWidth := cachedMonRight - cachedMonLeft
+                cachedMaxHeight := cachedMonBottom - cachedMonTop
+                cachedMonitor := newMonitor
+            }
+
+            ; Constrain maximum dimensions to current monitor
+            newW := Min(cachedMaxWidth + 2, newW + 2)
+            newH := Min(cachedMaxHeight + 2, newH + 2)
+
+            ; Recalculate position after constraint
             newX := initialX + initialW - newW
             newY := initialY + initialH - newH
         } else if (isNearTopRight) {
             ; Directly resize window with bottom-left fixed
             moveX := currentX - startX
             moveY := currentY - startY
-            
+
             ; Calculate new dimensions directly from movement
             newW := initialW + moveX
             newH := initialH - moveY
-            
+
             ; Enforce minimum dimensions
             newW := Max(100, newW)
             newH := Max(100, newH)
-            
-            ; Constrain maximum dimensions
-            newW := Min(maxWidth + 2, newW + 2)
-            newH := Min(maxHeight + 2, newH + 2)
-            
+
             ; Calculate new position (keeping bottom-left fixed)
             newX := initialX
+            newY := initialY + initialH - newH
+
+            ; Check monitor based on NEW window position
+            newMonitor := GetWindowMonitor(newX, newY, newW, newH)
+            if (newMonitor != cachedMonitor) {
+                VirtualMonitorGet(newMonitor, &cachedMonLeft, &cachedMonTop, &cachedMonRight, &cachedMonBottom)
+                VirtualMonitorGetWorkArea(newMonitor, &cachedWorkLeft, &cachedWorkTop, &cachedWorkRight, &cachedWorkBottom)
+                cachedMaxWidth := cachedMonRight - cachedMonLeft
+                cachedMaxHeight := cachedMonBottom - cachedMonTop
+                cachedMonitor := newMonitor
+            }
+
+            ; Constrain maximum dimensions to current monitor
+            newW := Min(cachedMaxWidth + 2, newW + 2)
+            newH := Min(cachedMaxHeight + 2, newH + 2)
+
+            ; Recalculate position after constraint
             newY := initialY + initialH - newH
         } else if (isNearBottomLeft) {
             ; Directly resize window with top-right fixed
             moveX := currentX - startX
             moveY := currentY - startY
-            
+
             ; Calculate new dimensions directly from movement
             newW := initialW - moveX
             newH := initialH + moveY
-            
+
             ; Enforce minimum dimensions
             newW := Max(100, newW)
             newH := Max(100, newH)
-            
-            ; Constrain maximum dimensions
-            newW := Min(maxWidth + 2, newW + 2)
-            newH := Min(maxHeight + 2, newH + 2)
-            
+
             ; Calculate new position (keeping top-right fixed)
             newX := initialX + initialW - newW
             newY := initialY
+
+            ; Check monitor based on NEW window position
+            newMonitor := GetWindowMonitor(newX, newY, newW, newH)
+            if (newMonitor != cachedMonitor) {
+                VirtualMonitorGet(newMonitor, &cachedMonLeft, &cachedMonTop, &cachedMonRight, &cachedMonBottom)
+                VirtualMonitorGetWorkArea(newMonitor, &cachedWorkLeft, &cachedWorkTop, &cachedWorkRight, &cachedWorkBottom)
+                cachedMaxWidth := cachedMonRight - cachedMonLeft
+                cachedMaxHeight := cachedMonBottom - cachedMonTop
+                cachedMonitor := newMonitor
+            }
+
+            ; Constrain maximum dimensions to current monitor
+            newW := Min(cachedMaxWidth + 2, newW + 2)
+            newH := Min(cachedMaxHeight + 2, newH + 2)
+
+            ; Recalculate position after constraint
+            newX := initialX + initialW - newW
         } else if (isNearBottomRight) {
             ; Directly resize window with top-left fixed
             moveX := currentX - startX
             moveY := currentY - startY
-            
+
             ; Calculate new dimensions directly from movement
             newW := initialW + moveX
             newH := initialH + moveY
-            
+
             ; Enforce minimum dimensions
             newW := Max(100, newW)
             newH := Max(100, newH)
-            
-            ; Constrain maximum dimensions
-            newW := Min(maxWidth + 2, newW + 2)
-            newH := Min(maxHeight + 2, newH + 2)
-            
+
             ; Calculate new position (keeping top-left fixed)
             newX := initialX
             newY := initialY
+
+            ; Check monitor based on NEW window position
+            newMonitor := GetWindowMonitor(newX, newY, newW, newH)
+            if (newMonitor != cachedMonitor) {
+                VirtualMonitorGet(newMonitor, &cachedMonLeft, &cachedMonTop, &cachedMonRight, &cachedMonBottom)
+                VirtualMonitorGetWorkArea(newMonitor, &cachedWorkLeft, &cachedWorkTop, &cachedWorkRight, &cachedWorkBottom)
+                cachedMaxWidth := cachedMonRight - cachedMonLeft
+                cachedMaxHeight := cachedMonBottom - cachedMonTop
+                cachedMonitor := newMonitor
+            }
+
+            ; Constrain maximum dimensions to current monitor
+            newW := Min(cachedMaxWidth + 2, newW + 2)
+            newH := Min(cachedMaxHeight + 2, newH + 2)
         } else {
+            ; Proportional mode (not near any edge)
             ; Calculate X and Y movements separately
             moveX := currentX - startX
             moveY := currentY - startY
@@ -310,18 +370,28 @@ StartResize() {
             newW := Round(initialW * scaleFactorX)
             newH := Round(initialH * scaleFactorY)
 
-            ; Constrain dimensions
-            newW := Min(maxWidth + 2, newW + 2)
-            newH := Min(maxHeight + 2, newH + 2)
-
             ; Calculate new position
             newX := Round(startX - (newW * relativeX))
             newY := Round(startY - (newH * relativeY))
+
+            ; Check monitor based on NEW window position
+            newMonitor := GetWindowMonitor(newX, newY, newW, newH)
+            if (newMonitor != cachedMonitor) {
+                VirtualMonitorGet(newMonitor, &cachedMonLeft, &cachedMonTop, &cachedMonRight, &cachedMonBottom)
+                VirtualMonitorGetWorkArea(newMonitor, &cachedWorkLeft, &cachedWorkTop, &cachedWorkRight, &cachedWorkBottom)
+                cachedMaxWidth := cachedMonRight - cachedMonLeft
+                cachedMaxHeight := cachedMonBottom - cachedMonTop
+                cachedMonitor := newMonitor
+            }
+
+            ; Constrain dimensions to current monitor
+            newW := Min(cachedMaxWidth + 2, newW + 2)
+            newH := Min(cachedMaxHeight + 2, newH + 2)
         }
-        
-        ; Constrain position
-        newX := Max(MonLeft - 1, Min(MonRight - newW + 1, newX))
-        newY := Max(MonTop - 1, Min(MonBottom - newH + 1, newY))
+
+        ; Constrain position to current monitor (use cached values)
+        newX := Max(cachedMonLeft - 1, Min(cachedMonRight - newW + 1, newX))
+        newY := Max(cachedMonTop - 1, Min(cachedMonBottom - newH + 1, newY))
 
         ; CHANGE DETECTION: Create frame object for comparison
         currentFrame := {x: newX, y: newY, w: newW, h: newH}
