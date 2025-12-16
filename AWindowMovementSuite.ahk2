@@ -216,11 +216,11 @@ ScrollLock::{
         return
     }
 
-    ; Get active window position to place overlay near it
-    WinGetPos(&activeX, &activeY, &activeW, &activeH, "ahk_id " activeWin)
+    ; Get active window VISUAL position to place overlay (aligns with gold border)
+    GetWindowVisualPos("ahk_id " activeWin, &activeX, &activeY, &activeW, &activeH)
 
-    ; Create info overlay GUI
-    infoGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    ; Create info overlay GUI (disable DPI scaling and layered window to prevent DWM borders)
+    infoGui := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x80000 +E0x20 -DPIScale")
     infoGui.BackColor := "1a1a1a"
     infoGui.SetFont("s10 cWhite", "Consolas")
 
@@ -228,9 +228,11 @@ ScrollLock::{
     infoText := infoGui.Add("Edit", "x10 y10 w430 h350 ReadOnly -VScroll Background1a1a1a cWhite", "Loading...")
 
     ; Position overlay at top-right of the active window (offset slightly)
+    ; Account for gold border thickness (4px) plus gap
+    borderThickness := 4
     overlayWidth := 450
     overlayHeight := 370
-    overlayX := activeX + activeW + 10  ; 10px to the right of window
+    overlayX := activeX + activeW + borderThickness + 10  ; Right of window + border + 10px gap
     overlayY := activeY  ; Aligned with window top
 
     ; Get monitor bounds using VIRTUAL monitor API (following ShowWindowPositioningGUI pattern)
@@ -238,7 +240,7 @@ ScrollLock::{
 
     ; If overlay would go off-screen right, position to the left of window instead
     if (overlayX + overlayWidth > mRight) {
-        overlayX := activeX - overlayWidth - 10  ; Place to the left instead
+        overlayX := activeX - overlayWidth - borderThickness - 10  ; Left of window - border - 10px gap
     }
 
     ; Ensure overlay stays on screen vertically
@@ -253,8 +255,17 @@ ScrollLock::{
     infoGui.Show("x" overlayX " y" overlayY " w" overlayWidth " h" overlayHeight " NoActivate")
     WinSetTransparent 230, infoGui.Hwnd
 
+    ; Get ACTUAL GUI dimensions (Windows may have added borders/scaling)
+    WinGetPos(&actualGuiX, &actualGuiY, &actualGuiW, &actualGuiH, infoGui.Hwnd)
+
+    ; Recalculate position if GUI is wider than expected (e.g., on left side)
+    if (overlayX < activeX && actualGuiW > overlayWidth) {
+        ; GUI is on left side and wider than expected - adjust to avoid overlap
+        overlayX := activeX - actualGuiW - borderThickness - 10
+        infoGui.Show("x" overlayX " NoActivate")
+    }
+
     ; Create gold border to show window bounding box
-    borderThickness := 4
     borderColor := "FFD700"  ; Gold
 
     ; Create all 4 borders - disable DPI scaling for exact pixel dimensions
