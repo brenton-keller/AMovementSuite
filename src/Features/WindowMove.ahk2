@@ -52,11 +52,11 @@ global positioningGui := ""
         Sleep 10  ; Ensure restore completes
     }
     
-    WinGetPos &initialWX, &initialWY, &winWidth, &winHeight, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &initialWX, &initialWY, &winWidth, &winHeight)
     
     ; Get the monitor the window is primarily on
     primaryMonitor := GetWindowMonitor(initialWX, initialWY, winWidth, winHeight)
-    MonitorGetWorkArea(primaryMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+    VirtualMonitorGetWorkArea(primaryMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
     
     ; Calculate initial offset between mouse and window position
     offsetX := startX - initialWX
@@ -75,11 +75,18 @@ global positioningGui := ""
     zWasPressed := false
     guiShown := false
 
+    ; Cache monitor bounds to avoid recalculating every frame
+    cachedMonitor := primaryMonitor
+    cachedMonLeft := MonitorWorkAreaLeft
+    cachedMonTop := MonitorWorkAreaTop
+    cachedMonRight := MonitorWorkAreaRight
+    cachedMonBottom := MonitorWorkAreaBottom
+
     While (GetKeyState("RButton", "P") && GetKeyState("LAlt", "P"))
     {
         ; Check Snapping key state - snapping only enabled when key is toggled
         currentSKeyState := GetKeyState("1", "P")
-        
+
         ; Toggle snapping when S is pressed (transition from up to down)
         if (currentSKeyState && !lastSKeyState) {
             enableWindowSnapping := !enableWindowSnapping
@@ -91,16 +98,25 @@ global positioningGui := ""
 
         ; Update last key state
         lastSKeyState := currentSKeyState
-        
+
         MouseGetPos &currentX, &currentY
-        
+
         ; Calculate new window position directly from current mouse position
         newX := Round(currentX - offsetX)
         newY := Round(currentY - offsetY)
-        
-        ; Get the monitor for the new position
+
+        ; Only update monitor bounds if we've changed monitors (performance optimization)
         currentMonitor := GetWindowMonitor(newX, newY, winWidth, winHeight)
-        MonitorGetWorkArea(currentMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+        if (currentMonitor != cachedMonitor) {
+            VirtualMonitorGetWorkArea(currentMonitor, &cachedMonLeft, &cachedMonTop, &cachedMonRight, &cachedMonBottom)
+            cachedMonitor := currentMonitor
+        }
+
+        ; Use cached values
+        MonitorWorkAreaLeft := cachedMonLeft
+        MonitorWorkAreaTop := cachedMonTop
+        MonitorWorkAreaRight := cachedMonRight
+        MonitorWorkAreaBottom := cachedMonBottom
 
         ; Check for Z key press
         if (GetKeyState("z", "P")) {
@@ -148,7 +164,7 @@ global positioningGui := ""
         newY := Max(MonitorWorkAreaTop - 1, Min(MonitorWorkAreaBottom - winHeight + 1, newY))
         
         ; Move the window
-        WinMove newX, newY, , , "ahk_id " mwin
+        VisualToWinMove("ahk_id " mwin, newX, newY)
         
         ; Update snap indicator if position changed and S is being held
         if (enableWindowSnapping) {
@@ -208,11 +224,11 @@ ButtonClick(ctrl, *) {
     mwin := positioningGui.mwin
     
     ; Get window dimensions and position
-    WinGetPos &winX, &winY, &winWidth, &winHeight, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &winX, &winY, &winWidth, &winHeight)
     
     ; Determine which monitor the window is on
     currentMonitor := GetWindowMonitor(winX, winY, winWidth, winHeight)
-    MonitorGetWorkArea(currentMonitor, &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
+    VirtualMonitorGetWorkArea(currentMonitor, &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
     
     ; Calculate monitor width and height
     monitorWidth := monitorRight - monitorLeft
@@ -277,7 +293,7 @@ ButtonClick(ctrl, *) {
     }
     
     ; Move and resize the window
-    WinMove newX, newY, newWidth, newHeight, "ahk_id " mwin
+    VisualToWinMove("ahk_id " mwin, newX, newY, newWidth, newHeight)
     
     ; Clear tooltip after a short delay
     SetTimer () => ToolTip("", , , 2), -1000
@@ -309,8 +325,8 @@ MoveGroupedWindows(mwin, startX, startY) {
     }
 
     ; Get initial positions
-    WinGetPos &mwinX, &mwinY, &mwinW, &mwinH, "ahk_id " mwin
-    WinGetPos &otherX, &otherY, &otherW, &otherH, "ahk_id " otherWin
+    GetWindowVisualPos("ahk_id " mwin, &mwinX, &mwinY, &mwinW, &mwinH)
+    GetWindowVisualPos("ahk_id " otherWin, &otherX, &otherY, &otherW, &otherH)
 
     ; Calculate mouse offset from main window
     offsetX := startX - mwinX
@@ -336,10 +352,10 @@ MoveGroupedWindows(mwin, startX, startY) {
 
         ; Get monitors for both windows
         mwinMonitor := GetWindowMonitor(newMwinX, newMwinY, mwinW, mwinH)
-        MonitorGetWorkArea(mwinMonitor, &mwinMonLeft, &mwinMonTop, &mwinMonRight, &mwinMonBottom)
+        VirtualMonitorGetWorkArea(mwinMonitor, &mwinMonLeft, &mwinMonTop, &mwinMonRight, &mwinMonBottom)
 
         otherMonitor := GetWindowMonitor(newOtherX, newOtherY, otherW, otherH)
-        MonitorGetWorkArea(otherMonitor, &otherMonLeft, &otherMonTop, &otherMonRight, &otherMonBottom)
+        VirtualMonitorGetWorkArea(otherMonitor, &otherMonLeft, &otherMonTop, &otherMonRight, &otherMonBottom)
 
         ; Constrain each window to its monitor independently
         newMwinX := Max(mwinMonLeft - 1, Min(mwinMonRight - mwinW + 1, newMwinX))
@@ -349,8 +365,8 @@ MoveGroupedWindows(mwin, startX, startY) {
         newOtherY := Max(otherMonTop - 1, Min(otherMonBottom - otherH + 1, newOtherY))
 
         ; Move both windows
-        WinMove newMwinX, newMwinY, , , "ahk_id " mwin
-        WinMove newOtherX, newOtherY, , , "ahk_id " otherWin
+        VisualToWinMove("ahk_id " mwin, newMwinX, newMwinY)
+        VisualToWinMove("ahk_id " otherWin, newOtherX, newOtherY)
 
         ; Check for overlap and update always-on-top accordingly
         if (WindowsOverlap(windowGroup.window1, windowGroup.window2)) {
@@ -397,11 +413,11 @@ MoveGroupedWindows(mwin, startX, startY) {
         Sleep 10  ; Ensure restore completes
     }
     
-    WinGetPos &initialWX, &initialWY, &winWidth, &winHeight, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &initialWX, &initialWY, &winWidth, &winHeight)
     
     ; Get the monitor the window is primarily on
     primaryMonitor := GetWindowMonitor(initialWX, initialWY, winWidth, winHeight)
-    MonitorGetWorkArea(primaryMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+    VirtualMonitorGetWorkArea(primaryMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
     
     ; Calculate initial offset between mouse and window position
     offsetX := startX - initialWX
@@ -423,7 +439,7 @@ MoveGroupedWindows(mwin, startX, startY) {
     ; Store initial positions of all snapped windows
     snappedWindowsInitialPositions := []
     for idx, snapWin in snappedWindows {
-        WinGetPos &wx, &wy, &ww, &wh, "ahk_id " snapWin
+        GetWindowVisualPos("ahk_id " snapWin, &wx, &wy, &ww, &wh)
         snappedWindowsInitialPositions.Push({hwnd: snapWin, x: wx, y: wy, w: ww, h: wh})
     }
     
@@ -441,7 +457,7 @@ MoveGroupedWindows(mwin, startX, startY) {
         
         ; Get the monitor for the new position
         currentMonitor := GetWindowMonitor(newX, newY, winWidth, winHeight)
-        MonitorGetWorkArea(currentMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+        VirtualMonitorGetWorkArea(currentMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
         
         ; Constrain main window to screen boundaries
         newX := Max(MonitorWorkAreaLeft - 1, Min(MonitorWorkAreaRight - winWidth + 1, newX))
@@ -452,7 +468,7 @@ MoveGroupedWindows(mwin, startX, startY) {
         actualDeltaY := newY - initialWY
         
         ; Move the main window
-        WinMove newX, newY, , , "ahk_id " mwin
+        VisualToWinMove("ahk_id " mwin, newX, newY)
         
         ; Move all snapped windows by the same delta
         for idx, winInfo in snappedWindowsInitialPositions {
@@ -462,12 +478,12 @@ MoveGroupedWindows(mwin, startX, startY) {
             ; Optionally constrain snapped windows to their respective monitors
             ; This is a design decision - you might want them to be able to move off-screen
             snapMonitor := GetWindowMonitor(snapNewX, snapNewY, winInfo.w, winInfo.h)
-            MonitorGetWorkArea(snapMonitor, &snapMonLeft, &snapMonTop, &snapMonRight, &snapMonBottom)
+            VirtualMonitorGetWorkArea(snapMonitor, &snapMonLeft, &snapMonTop, &snapMonRight, &snapMonBottom)
             
             snapNewX := Max(snapMonLeft - 1, Min(snapMonRight - winInfo.w + 1, snapNewX))
             snapNewY := Max(snapMonTop - 1, Min(snapMonBottom - winInfo.h + 1, snapNewY))
             
-            WinMove snapNewX, snapNewY, , , "ahk_id " winInfo.hwnd
+            VisualToWinMove("ahk_id " winInfo.hwnd, snapNewX, snapNewY)
         }
     }
     

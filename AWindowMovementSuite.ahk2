@@ -15,6 +15,7 @@ CoordMode "Mouse", "Screen"
 #Include %A_ScriptDir%\src\lib\Core\ColorUtils.ahk2
 #Include %A_ScriptDir%\src\lib\Core\MoveUtils.ahk2
 #Include %A_ScriptDir%\src\lib\Core\ToggleUtils.ahk2
+#Include %A_ScriptDir%\src\lib\Core\VirtualMonitorManager.ahk2
 
 #Include src\Features\WindowMove.ahk2
 #Include src\Features\WindowScaleWidth.ahk2
@@ -33,6 +34,12 @@ CoordMode "Mouse", "Screen"
 ; Load mouse hotkeys
 #Include src\MouseHotkeys\setting_mouse.ahk2
 
+; Load UI components
+#Include src\UI\PBPSettingsGUI.ahk2
+
+; Load PBP settings from file
+LoadPBPSettings()
+
 ; Create the tray menu
 A_TrayMenu.Delete  ; Clear default menu
 A_TrayMenu.Add "Width Scaling (LCtrl+RButton)", ToggleWidthScaling
@@ -49,6 +56,9 @@ A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Window Move Settings", ShowWindowMoveSettings
 A_TrayMenu.Add "Program Paths Configuration", ShowProgramPathsConfig
 A_TrayMenu.Add  ; Separator
+A_TrayMenu.Add "PBP Virtual Monitor", TogglePBPFromTray
+A_TrayMenu.Add "PBP Settings...", ShowPBPSettings
+A_TrayMenu.Add  ; Separator
 A_TrayMenu.Add "Exit", (*) => ExitApp()
 
 ; Initialize menu checks
@@ -63,36 +73,70 @@ A_TrayMenu.Check "Window Grouping (LAlt+LWin+LButton)"
 
 ; --- START: Monitor Information Display on Startup ---
 ShowMonitorInfo() {
+    global pbpEnabled, pbpSplitX, pbpSplitPercent
+
+    ; Physical Monitor Info
     monitorCount := MonitorGetCount()
-    infoText := "Detected " monitorCount " Monitor(s):`r`n`r`n" ; Use `r`n for Edit controls
+    infoText := "=== PHYSICAL MONITORS ===`r`n"
+    infoText .= "Detected " monitorCount " Physical Monitor(s):`r`n`r`n"
     primaryMon := MonitorGetPrimary()
 
     Loop monitorCount {
-        thisMon := A_Index ; Current monitor number in the loop
+        thisMon := A_Index
 
-        ; Get full monitor coordinates and dimensions
         MonitorGet(thisMon, &Left, &Top, &Right, &Bottom)
         Width := Right - Left
         Height := Bottom - Top
+        physWidth := Width  ; Store for virtual monitor calculations
 
-        ; Get work area (excluding taskbar, usually) coordinates and dimensions
         MonitorGetWorkArea(thisMon, &WorkLeft, &WorkTop, &WorkRight, &WorkBottom)
         WorkWidth := WorkRight - WorkLeft
         WorkHeight := WorkBottom - WorkTop
 
-        ; Check if this is the primary monitor
         isPrimary := (thisMon == primaryMon) ? "Yes" : "No"
 
-        ; Build the text block for this monitor (use `r`n for newlines in Edit controls)
-        infoText .= "--- Monitor " thisMon " ---`r`n"
-        infoText .= "  Primary Monitor: " isPrimary "`r`n"
-        infoText .= "  Position (Top-Left Corner): X=" Left ", Y=" Top "`r`n"
-        infoText .= "  Full Resolution: " Width "x" Height "`r`n"
-        infoText .= "  Bounding Box (Raw Coords): Left=" Left ", Top=" Top ", Right=" Right ", Bottom=" Bottom "`r`n"
-        infoText .= "  Work Area Position (Top-Left): X=" WorkLeft ", Y=" WorkTop "`r`n"
-        infoText .= "  Work Area Size: " WorkWidth "x" WorkHeight "`r`n"
-        infoText .= "  Work Area Box (Raw Coords): Left=" WorkLeft ", Top=" WorkTop ", Right=" WorkRight ", Bottom=" WorkBottom "`r`n`r`n"
+        infoText .= "--- Physical Monitor " thisMon " ---`r`n"
+        infoText .= "  Primary: " isPrimary " | Resolution: " Width "x" Height "`r`n"
+        infoText .= "  Position: X=" Left ", Y=" Top "`r`n"
+        infoText .= "  Work Area: " WorkWidth "x" WorkHeight "`r`n`r`n"
     }
+
+    ; Virtual Monitor Info (if PBP is enabled)
+    if (pbpEnabled) {
+        virtualCount := VirtualMonitorGetCount()
+        leftWidth := pbpSplitX
+        rightWidth := physWidth - pbpSplitX
+        infoText .= "`r`n=== VIRTUAL MONITORS (PBP ENABLED) ===`r`n"
+        infoText .= "Split Configuration: " pbpSplitPercent "% (" leftWidth "px / " rightWidth "px)`r`n"
+        infoText .= "Virtual Monitors: " virtualCount "`r`n`r`n"
+
+        Loop virtualCount {
+            thisMon := A_Index
+
+            VirtualMonitorGet(thisMon, &Left, &Top, &Right, &Bottom)
+            Width := Right - Left
+            Height := Bottom - Top
+
+            VirtualMonitorGetWorkArea(thisMon, &WorkLeft, &WorkTop, &WorkRight, &WorkBottom)
+            WorkWidth := WorkRight - WorkLeft
+            WorkHeight := WorkBottom - WorkTop
+
+            isPrimary := (thisMon == GetVirtualMonitorPrimary()) ? "Yes" : "No"
+
+            infoText .= "--- Virtual Monitor " thisMon " ---`r`n"
+            infoText .= "  Primary: " isPrimary " | Resolution: " Width "x" Height "`r`n"
+            infoText .= "  Position: X=" Left ", Y=" Top "`r`n"
+            infoText .= "  Bounds: Left=" Left ", Right=" Right "`r`n`r`n"
+        }
+    } else {
+        infoText .= "`r`n=== PBP MODE ===`r`n"
+        infoText .= "Status: DISABLED`r`n"
+        infoText .= "Toggle with: Alt+ScrollLock or Tray Menu`r`n`r`n"
+    }
+
+    infoText .= "`r`n=== HOTKEYS ===`r`n"
+    infoText .= "Alt+ScrollLock: Toggle PBP Mode`r`n"
+    infoText .= "ScrollLock (hold): Show Active Window Info`r`n`r`n"
 
     ; --- Create a Custom GUI instead of MsgBox ---
     ; Estimate reasonable GUI size (adjust as needed)
@@ -141,3 +185,205 @@ ShowMonitorInfo() {
 
 ShowMonitorInfo() ; Call the function immediately on script start
 ; --- END: Monitor Information Display on Startup ---
+
+; --- START: PBP Virtual Monitor Toggle ---
+TogglePBPFromTray(*) {
+    global pbpEnabled
+    TogglePBPMode()  ; Call the function from VirtualMonitorManager
+
+    ; Update tray menu check
+    if (pbpEnabled) {
+        A_TrayMenu.Check "PBP Virtual Monitor"
+    } else {
+        A_TrayMenu.Uncheck "PBP Virtual Monitor"
+    }
+}
+
+; Alt+ScrollLock hotkey to toggle PBP mode
+!ScrollLock::{
+    TogglePBPFromTray()
+}
+
+; ScrollLock (held) - Show active window information
+ScrollLock::{
+    ; Get active window BEFORE creating GUI
+    activeWin := WinExist("A")
+
+    if (!activeWin) {
+        ToolTip("No active window")
+        Sleep 1000
+        ToolTip()
+        return
+    }
+
+    ; Get active window position to place overlay near it
+    WinGetPos(&activeX, &activeY, &activeW, &activeH, "ahk_id " activeWin)
+
+    ; Create info overlay GUI
+    infoGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    infoGui.BackColor := "1a1a1a"
+    infoGui.SetFont("s10 cWhite", "Consolas")
+
+    ; Use Edit control for multi-line display
+    infoText := infoGui.Add("Edit", "x10 y10 w430 h350 ReadOnly -VScroll Background1a1a1a cWhite", "Loading...")
+
+    ; Position overlay at top-right of the active window (offset slightly)
+    overlayWidth := 450
+    overlayHeight := 370
+    overlayX := activeX + activeW + 10  ; 10px to the right of window
+    overlayY := activeY  ; Aligned with window top
+
+    ; Get monitor bounds using VIRTUAL monitor API (following ShowWindowPositioningGUI pattern)
+    VirtualMonitorGetWorkArea(GetWindowMonitor(activeX, activeY, activeW, activeH), &mLeft, &mTop, &mRight, &mBottom)
+
+    ; If overlay would go off-screen right, position to the left of window instead
+    if (overlayX + overlayWidth > mRight) {
+        overlayX := activeX - overlayWidth - 10  ; Place to the left instead
+    }
+
+    ; Ensure overlay stays on screen vertically
+    if (overlayY + overlayHeight > mBottom) {
+        overlayY := mBottom - overlayHeight
+    }
+    if (overlayY < mTop) {
+        overlayY := mTop
+    }
+
+    ; Show GUI near the active window
+    infoGui.Show("x" overlayX " y" overlayY " w" overlayWidth " h" overlayHeight " NoActivate")
+    WinSetTransparent 230, infoGui.Hwnd
+
+    ; Create gold border to show window bounding box
+    borderThickness := 4
+    borderColor := "FFD700"  ; Gold
+
+    ; Create all 4 borders - disable DPI scaling for exact pixel dimensions
+    borderTop := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x80000 +E0x20 -DPIScale")
+    borderTop.BackColor := borderColor
+    WinSetTransparent 255, borderTop.Hwnd
+
+    borderBottom := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x80000 +E0x20 -DPIScale")
+    borderBottom.BackColor := borderColor
+    WinSetTransparent 255, borderBottom.Hwnd
+
+    borderLeft := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x80000 +E0x20 -DPIScale")
+    borderLeft.BackColor := borderColor
+    WinSetTransparent 255, borderLeft.Hwnd
+
+    borderRight := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x80000 +E0x20 -DPIScale")
+    borderRight.BackColor := borderColor
+    WinSetTransparent 255, borderRight.Hwnd
+
+    ; Update info while ScrollLock is held
+    while (GetKeyState("ScrollLock", "P")) {
+        try {
+            ; Get actual visual frame bounds (excludes invisible DWM borders)
+            GetWindowVisualPos("ahk_id " activeWin, &wx, &wy, &ww, &wh)
+
+            winClass := WinGetClass("ahk_id " activeWin)
+            winTitle := WinGetTitle("ahk_id " activeWin)
+            winProcess := WinGetProcessName("ahk_id " activeWin)
+            minMax := WinGetMinMax("ahk_id " activeWin)
+
+            ; Update border positions - horizontal bars extend to fill corners
+            borderTop.Show("x" . (wx - borderThickness) . " y" . (wy - borderThickness) . " w" . (ww + borderThickness * 2) . " h" . borderThickness . " NoActivate")
+            borderBottom.Show("x" . (wx - borderThickness) . " y" . (wy + wh) . " w" . (ww + borderThickness * 2) . " h" . borderThickness . " NoActivate")
+            borderLeft.Show("x" . (wx - borderThickness) . " y" . wy . " w" . borderThickness . " h" . wh . " NoActivate")
+            borderRight.Show("x" . (wx + ww) . " y" . wy . " w" . borderThickness . " h" . wh . " NoActivate")
+
+            ; Determine monitor (virtual monitor aware)
+            monIndex := GetWindowMonitor(wx, wy, ww, wh)
+
+            ; Build info text (use `r`n for Edit controls)
+            info := "ACTIVE WINDOW INFO`r`n"
+            info .= "════════════════════════════════════`r`n`r`n"
+            info .= "Process: " winProcess "`r`n"
+            info .= "Title: " SubStr(winTitle, 1, 35) (StrLen(winTitle) > 35 ? "..." : "") "`r`n"
+            info .= "Class: " winClass "`r`n`r`n"
+            info .= "Position:`r`n"
+            info .= "  X: " wx "`r`n"
+            info .= "  Y: " wy "`r`n`r`n"
+            info .= "Dimensions:`r`n"
+            info .= "  Width: " ww "`r`n"
+            info .= "  Height: " wh "`r`n`r`n"
+            info .= "Edges:`r`n"
+            info .= "  Right: " (wx + ww) "`r`n"
+            info .= "  Bottom: " (wy + wh) "`r`n`r`n"
+            info .= "Monitor: " monIndex
+
+            ; Show min/max state
+            if (minMax == 1)
+                info .= " (Maximized)"
+            else if (minMax == -1)
+                info .= " (Minimized)"
+
+            ; Update display
+            infoText.Value := info
+        } catch as err {
+            infoText.Value := "Error: " err.Message
+        }
+
+        Sleep 50  ; Update 20 times per second
+    }
+
+    ; Cleanup
+    infoGui.Destroy()
+    borderTop.Destroy()
+    borderBottom.Destroy()
+    borderLeft.Destroy()
+    borderRight.Destroy()
+}
+; --- END: PBP Virtual Monitor Toggle ---
+
+; --- START: Emergency Key Release (Failsafe) ---
+; Pause key - Release all potentially stuck keys
+; This is a failsafe for when keys get stuck in pressed state
+
+; Function to release all keys
+ReleaseAllKeys() {
+    ; Release all modifier keys (left and right variants)
+    Send "{LCtrl up}{RCtrl up}{Ctrl up}"
+    Send "{LShift up}{RShift up}{Shift up}"
+    Send "{LAlt up}{RAlt up}{Alt up}"
+    Send "{LWin up}{RWin up}"
+
+    ; Release mouse buttons
+    Send "{LButton up}{RButton up}{MButton up}"
+    Send "{XButton1 up}{XButton2 up}"
+
+    ; Release other common keys that might be involved in hotkeys
+    Send "{Space up}{Enter up}{Escape up}{Tab up}"
+    Send "{Backspace up}{Delete up}{Home up}{End up}"
+    Send "{PgUp up}{PgDn up}{Insert up}"
+    Send "{Up up}{Down up}{Left up}{Right up}"
+
+    ; Release function keys
+    Send "{F1 up}{F2 up}{F3 up}{F4 up}{F5 up}{F6 up}"
+    Send "{F7 up}{F8 up}{F9 up}{F10 up}{F11 up}{F12 up}"
+
+    ; Show confirmation feedback
+    ToolTip("All keys released!")
+    SetTimer () => ToolTip(), -1000  ; Clear after 1 second
+}
+
+; Ctrl+Pause hotkey - Direct hotkey for the common case
+; Note: Ctrl+Pause generates CtrlBreak, not Ctrl+Pause
+^CtrlBreak::ReleaseAllKeys()
+
+; Timer-based approach to ensure it works even when modifiers are stuck
+SetTimer CheckPauseKey, 50  ; Check every 50ms
+
+CheckPauseKey() {
+    static pauseWasPressed := false
+
+    ; Check if Pause key is currently pressed
+    pausePressed := GetKeyState("Pause", "P")
+
+    ; Trigger on key press (rising edge detection)
+    if (pausePressed && !pauseWasPressed) {
+        ReleaseAllKeys()
+    }
+
+    pauseWasPressed := pausePressed
+}
+; --- END: Emergency Key Release (Failsafe) ---

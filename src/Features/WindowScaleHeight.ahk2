@@ -84,12 +84,12 @@ FramesEqual_Height(frame1, frame2) {
     }
 
     MouseGetPos &startX, &startY, &mwin
-    WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &wx, &wy, &ww, &wh)
 
     ; Get the monitor containing the window
     monitorIndex := GetWindowMonitor(wx, wy, ww, wh)
-    MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
-    MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+    VirtualMonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+    VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
 
     ; Initial values
     initialH := wh
@@ -111,9 +111,6 @@ FramesEqual_Height(frame1, frame2) {
 
     ; Calculate maximum height and add safety check
     maxHeight := workBottom - workTop
-    if (maxHeight <= initialH) {
-        maxHeight := initialH + 1  ; Add 1 pixel buffer to prevent division by zero
-    }
 
     relativeY := (startY - wy) / initialH
 
@@ -141,45 +138,43 @@ FramesEqual_Height(frame1, frame2) {
             break
 
         MouseGetPos &currentX, &currentY
-        
-        ; Check for monitor changes during drag
-        newMonitorIndex := MonitorFromPoint(currentX, currentY)
-        if (newMonitorIndex != monitorIndex) {
-            monitorIndex := newMonitorIndex
-            MonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
-            MonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
-            
-            maxHeight := workBottom - workTop
-            if (maxHeight <= initialH) {
-                maxHeight := initialH + 1
-            }
-        }
 
         deltaX := currentX - startX
-        
+
         ; Always use horizontal movement to control size consistently
         ; Positive deltaX = increase height, negative = decrease height
-        
+
         if (isNearTopEdge) {
             ; TOP EDGE ONLY MODE: Bottom edge stays fixed
             ; Moving right increases height (moves top edge up)
             ; Moving left decreases height (moves top edge down)
             scaleFactor := 1 + (deltaX * 0.003/2)
-            
+
             if (deltaX > 0) {
                 ; Increasing height (moving top edge up)
-                newH := Min(initialH * scaleFactor, bottomEdgePos - workTop)
+                newH := initialH * scaleFactor
             } else {
                 ; Decreasing height (moving top edge down)
                 newH := Max(initialH * scaleFactor, Colors.MIN_HEIGHT)
             }
-            
+
             ; Calculate new top position based on fixed bottom
             newY := bottomEdgePos - newH
-            
-            ; Ensure top doesn't go above screen
+
+            ; Check monitor based on NEW window position (not mouse position)
+            newMonitorIndex := GetWindowMonitor(wx, newY, ww, newH)
+            if (newMonitorIndex != monitorIndex) {
+                monitorIndex := newMonitorIndex
+                VirtualMonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+                VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+
+                maxHeight := workBottom - workTop
+            }
+
+            ; Constrain with monitor bounds
+            newH := Min(newH, bottomEdgePos - workTop)
             newY := Max(newY, workTop)
-            
+
             ; Recalculate height based on new top position
             newH := bottomEdgePos - newY
         }
@@ -187,7 +182,7 @@ FramesEqual_Height(frame1, frame2) {
             ; BOTTOM EDGE ONLY MODE: Top edge stays fixed
             ; Moving right increases height (moves bottom edge down)
             ; Moving left decreases height (moves bottom edge up)
-            
+
             if (deltaX > 0) {
                 ; Increasing height
                 scaleFactor := 1 + (deltaX * 0.003/2)
@@ -195,42 +190,62 @@ FramesEqual_Height(frame1, frame2) {
                 ; Decreasing height
                 scaleFactor := 1 + (deltaX * 0.003/2)
             }
-            
+
             newY := initialY  ; Keep top position fixed
             newH := initialH * scaleFactor
-            
-            ; Constrain height so bottom edge doesn't exceed screen bottom
-            newH := Min(newH, workBottom - initialY)
-            
+
             ; Ensure minimum height
             newH := Max(newH, Colors.MIN_HEIGHT)
+
+            ; Check monitor based on NEW window position (not mouse position)
+            newMonitorIndex := GetWindowMonitor(wx, newY, ww, newH)
+            if (newMonitorIndex != monitorIndex) {
+                monitorIndex := newMonitorIndex
+                VirtualMonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+                VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+
+                maxHeight := workBottom - workTop
+            }
+
+            ; Constrain height so bottom edge doesn't exceed screen bottom
+            newH := Min(newH, workBottom - initialY)
         }
         else {
             ; PROPORTIONAL MODE: Both edges can move
+            ; Dynamic sensitivity based on target height
+            if (deltaX < 0) {
+                ; For reduction (moving mouse left)
+                scaleFactor := 1 + (deltaX * 0.003)
+            } else {
+                ; For expansion (moving mouse right)
+                scaleFactor := 1 + (deltaX * 0.003)
+            }
+            scaleFactor := Max(0.1, scaleFactor)  ; Allow smaller minimum scale
+
+            newH := Round(initialH * scaleFactor)
+            newH := Max(Colors.MIN_HEIGHT, newH)
+
+            ; Calculate vertical position for proportional resize
+            newY := Round(initialY - (newH - initialH) * (1 - relativeY))
+
+            ; Check monitor based on NEW window position (not mouse position)
+            newMonitorIndex := GetWindowMonitor(wx, newY, ww, newH)
+            if (newMonitorIndex != monitorIndex) {
+                monitorIndex := newMonitorIndex
+                VirtualMonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
+                VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
+
+                maxHeight := workBottom - workTop
+            }
+
             ; Check if mouse is near screen edge for snapping
             if (currentX >= workRight - snapEdgeThreshold) {
                 ; Snap to max height
                 newH := maxHeight
                 newY := workTop
-            }
-            else {
-                ; Dynamic sensitivity based on target height
-                if (deltaX < 0) {
-                    ; For reduction (moving mouse left)
-                    scaleFactor := 1 + (deltaX * 0.003)
-                } else {
-                    ; For expansion (moving mouse right)
-                    scaleFactor := 1 + (deltaX * 0.003)
-                }
-                scaleFactor := Max(0.1, scaleFactor)  ; Allow smaller minimum scale
-                
-                newH := Round(initialH * scaleFactor)
-                newH := Max(Colors.MIN_HEIGHT, Min(newH, maxHeight))
-                
-                ; Calculate vertical position for proportional resize
-                ; newY := Round(startY - (newH * relativeY))
-                ; newY := Max(workTop, Min(workBottom - newH, newY))
-                newY := Round(initialY - (newH - initialH) * (1 - relativeY))
+            } else {
+                ; Constrain to monitor bounds
+                newH := Min(newH, maxHeight)
                 newY := Max(workTop, Min(workBottom - newH, newY))
             }
         }
@@ -268,7 +283,8 @@ FramesEqual_Height(frame1, frame2) {
         DllCall("LockWindowUpdate", "UInt", previewGui.Hwnd)
 
         ; Update preview color based on new height
-        newColor := CalculateColorHeight(newH, initialH, maxHeight)
+        ; Pass maxHeight + 1 to color calc for better gradient (prevents purple at max height)
+        newColor := CalculateColorHeight(newH, initialH, maxHeight + 1)
         previewGui.BackColor := newColor
 
         ; Update preview
@@ -292,7 +308,7 @@ FramesEqual_Height(frame1, frame2) {
     if (IsSet(newH) && IsSet(newY))
     {
         ; Check if window is already at target position
-        WinGetPos &currentX, &currentY, &currentW, &currentH, "ahk_id " mwin
+        GetWindowVisualPos("ahk_id " mwin, &currentX, &currentY, &currentW, &currentH)
 
         ; Only update if not already at target (prevents flash from redundant update)
         if (currentX != wx || currentY != newY || currentW != ww || currentH != newH) {
@@ -304,8 +320,8 @@ FramesEqual_Height(frame1, frame2) {
                 Sleep 10
             }
 
-            ; Final resize (without the hide/show to reduce flash)
-            WinMove wx, newY, ww, newH, "ahk_id " mwin
+            ; Final resize using visual coordinates
+            VisualToWinMove("ahk_id " mwin, wx, newY, ww, newH)
         }
     }
 

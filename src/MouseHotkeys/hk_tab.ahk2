@@ -1,8 +1,16 @@
 ;Send {4} - Previous tab (RAlt+F4)
 RAlt & F4::{
     if GetKeyState("LShift", "P") {
-        ; Shift was held - Ctrl+Shift+Left
-        Send("{Ctrl Down}{Shift Down}{Left}{Shift Up}{Ctrl Up}")
+        ; Shift was held
+        ActiveProcess := WinGetProcessName("A")
+        if (ActiveProcess = "Vivaldi.exe" || ActiveProcess = "Code.exe") {
+            ; Vivaldi/VS Code: Move tab left
+            Send("{Ctrl Down}{Shift Down}{PgUp}{Shift Up}{Ctrl Up}")
+        }
+        else {
+            ; Other apps: Ctrl+Shift+Left
+            Send("{Ctrl Down}{Shift Down}{Left}{Shift Up}{Ctrl Up}")
+        }
     }
     else {
         ; No modifiers or Ctrl/Alt held - Previous tab
@@ -13,8 +21,16 @@ RAlt & F4::{
 ;Send {5} - Next tab (RAlt+F5)
 RAlt & F5::{
     if GetKeyState("LShift", "P") {
-        ; Shift was held - Ctrl+Shift+Right
-        Send("{Ctrl Down}{Shift Down}{Right}{Shift Up}{Ctrl Up}")
+        ; Shift was held
+        ActiveProcess := WinGetProcessName("A")
+        if (ActiveProcess = "Vivaldi.exe" || ActiveProcess = "Code.exe") {
+            ; Vivaldi/VS Code: Move tab right
+            Send("{Ctrl Down}{Shift Down}{PgDn}{Shift Up}{Ctrl Up}")
+        }
+        else {
+            ; Other apps: Ctrl+Shift+Right
+            Send("{Ctrl Down}{Shift Down}{Right}{Shift Up}{Ctrl Up}")
+        }
     }
     else {
         ; No modifiers or Ctrl/Alt held - Next tab

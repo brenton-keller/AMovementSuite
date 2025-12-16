@@ -105,12 +105,15 @@ CalculateColorWidth(currentWidth, initialWidth, maxWidth, colorSet) {
     } else {
         color_change := color_shrink
     }
-    
+
     ; Safety check for division by zero
+    ; If maxWidth <= initialWidth, we can't calculate a gradient - return target color
     if (maxWidth <= initialWidth) {
+        ; Use pure target color when no range to interpolate
         return Format("{:02X}{:02X}{:02X}", color_change.R, color_change.G, color_change.B)
     }
-    
+
+    ; Calculate percentage safely (denominator guaranteed non-zero)
     percentage := (currentWidth - initialWidth) / (maxWidth - initialWidth)
     percentage := Max(0, Min(1, percentage))
     

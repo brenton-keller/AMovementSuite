@@ -141,7 +141,7 @@ MoveWindowToNextDesktop() {
 }
 
 /** ShowVDNotification
- * Displays a tooltip notification for virtual desktop operations.
+ * Displays a high-quality GUI notification for virtual desktop operations.
  *
  * @param {String} message - The main message to display
  * @param {String} winTitle - Optional window title to append to message
@@ -150,16 +150,40 @@ MoveWindowToNextDesktop() {
  * @returns {void}
  *
  * @behavior
- * - Shows tooltip with operation result
+ * - Shows GUI with operation result
  * - Includes window title if provided
  * - Auto-dismisses after 2 seconds
  */
 ShowVDNotification(message, winTitle := "", isSuccess := true) {
-    winInfo := winTitle ? "`n(" winTitle ")" : ""
-    prefix := isSuccess ? "✓ " : "✗ "
+    static notifGui := ""
 
-    ToolTip prefix message winInfo
-    SetTimer () => ToolTip(), -2000
+    ; Destroy previous notification if it exists
+    if (notifGui) {
+        try notifGui.Destroy()
+        notifGui := ""
+    }
+
+    ; Create notification GUI
+    notifGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    notifGui.BackColor := "1a1a1a"
+    notifGui.SetFont("s12 cWhite", "Segoe UI")
+
+    ; Build notification text
+    prefix := isSuccess ? "✓ " : "✗ "
+    notifText := prefix message
+    if (winTitle) {
+        notifText .= "`n`n" winTitle
+    }
+
+    ; Add text control
+    textCtrl := notifGui.Add("Text", "x20 y15 w400 cWhite Center", notifText)
+
+    ; Position at center of screen
+    notifGui.Show("x" (A_ScreenWidth/2 - 220) " y" (A_ScreenHeight/2 - 50) " w440 h" (winTitle ? "100" : "60") " NoActivate")
+    WinSetTransparent 230, notifGui.Hwnd
+
+    ; Auto-dismiss after 2 seconds
+    SetTimer () => (notifGui ? notifGui.Destroy() : ""), -2000
 }
 
 /** IsValidWindowForVirtualDesktop

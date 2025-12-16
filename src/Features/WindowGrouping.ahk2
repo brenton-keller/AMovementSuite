@@ -217,7 +217,7 @@ ClearSelectionOverlays() {
 
     ; Get monitor work area
     primaryMonitor := GetWindowMonitor(initialWX, initialWY, winWidth, winHeight)
-    MonitorGetWorkArea(primaryMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+    VirtualMonitorGetWorkArea(primaryMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
 
     ; Calculate initial offset between mouse and window position
     offsetX := startX - initialWX
@@ -235,7 +235,7 @@ ClearSelectionOverlays() {
 
         ; Get current monitor
         currentMonitor := GetWindowMonitor(newX, newY, winWidth, winHeight)
-        MonitorGetWorkArea(currentMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
+        VirtualMonitorGetWorkArea(currentMonitor, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
 
         ; Constrain to screen boundaries
         newX := Max(MonitorWorkAreaLeft - 1, Min(MonitorWorkAreaRight - winWidth + 1, newX))

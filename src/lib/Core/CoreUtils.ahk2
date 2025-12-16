@@ -140,17 +140,8 @@ ShowProgramPathsConfig(*) {
 }
 
 GetWindowMonitor(winX, winY, winWidth, winHeight) {
-    winCenterX := winX + (winWidth / 2)
-    winCenterY := winY + (winHeight / 2)
-    
-    MonitorCount := MonitorGetCount()
-    Loop MonitorCount {
-        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
-        if (winCenterX >= MonLeft && winCenterX <= MonRight
-            && winCenterY >= MonTop && winCenterY <= MonBottom)
-            return A_Index
-    }
-    return 1
+    ; Use virtual monitor API for PBP support
+    return GetVirtualMonitorForWindow(winX, winY, winWidth, winHeight)
 }
 
 IsValidWindowForResize(hwnd) {
@@ -184,13 +175,8 @@ IsValidWindowForResize(hwnd) {
 }
 
 GetMonitorAtPos(x, y) {
-    MonitorCount := MonitorGetCount()
-    Loop MonitorCount {
-        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
-        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
-            return A_Index
-    }
-    return 1
+    ; Use virtual monitor API for PBP support
+    return GetVirtualMonitorFromPoint(x, y)
 }
 
 ; When script starts, enter "click to analyze" mode

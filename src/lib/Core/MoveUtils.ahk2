@@ -1,3 +1,181 @@
+/** GetWindowVisualPos
+ * Gets the actual visual frame bounds of a window, excluding invisible DWM borders.
+ * Uses DwmGetWindowAttribute with DWMWA_EXTENDED_FRAME_BOUNDS to get the true visible window area.
+ * Falls back to WinGetPos if DWM API fails.
+ *
+ * @param {String|Integer} winTitle Window title or handle (e.g., "ahk_id " hwnd)
+ * @param {VarRef} &x Output variable for X-coordinate
+ * @param {VarRef} &y Output variable for Y-coordinate
+ * @param {VarRef} &width Output variable for width
+ * @param {VarRef} &height Output variable for height
+ * @returns {Boolean} True if successful, false otherwise
+ *
+ * @example
+ * GetWindowVisualPos("ahk_id " activeWin, &x, &y, &w, &h)
+ */
+GetWindowVisualPos(winTitle, &x, &y, &width, &height) {
+    ; Get window handle
+    hwnd := WinExist(winTitle)
+    if (!hwnd) {
+        x := y := width := height := ""
+        return false
+    }
+
+    ; Try to get visual frame bounds via DWM API
+    ; DWMWA_EXTENDED_FRAME_BOUNDS = 9
+    RECT := Buffer(16, 0)  ; RECT structure = 4 LONGs (16 bytes)
+    result := DllCall("dwmapi\DwmGetWindowAttribute"
+        , "Ptr", hwnd
+        , "UInt", 9  ; DWMWA_EXTENDED_FRAME_BOUNDS
+        , "Ptr", RECT
+        , "UInt", 16
+        , "UInt")
+
+    if (result = 0) {  ; S_OK
+        ; Extract RECT values (left, top, right, bottom)
+        x := NumGet(RECT, 0, "Int")
+        y := NumGet(RECT, 4, "Int")
+        right := NumGet(RECT, 8, "Int")
+        bottom := NumGet(RECT, 12, "Int")
+        width := right - x
+        height := bottom - y
+        return true
+    }
+
+    ; Fallback to WinGetPos if DWM API fails
+    try {
+        WinGetPos(&x, &y, &width, &height, winTitle)
+        return true
+    } catch {
+        x := y := width := height := ""
+        return false
+    }
+}
+
+/** GetDWMOffset
+ * Calculates the offset between visual coordinates and DWM coordinates for a window.
+ * This offset can be used to convert visual positions to DWM positions for WinMove.
+ *
+ * @param {String|Integer} winTitle Window title or handle (e.g., "ahk_id " hwnd)
+ * @param {VarRef} &offsetX Output variable for X offset (DWM_x - Visual_x)
+ * @param {VarRef} &offsetY Output variable for Y offset (DWM_y - Visual_y)
+ * @returns {Boolean} True if successful, false otherwise
+ *
+ * @example
+ * GetDWMOffset("ahk_id " activeWin, &ox, &oy)
+ * WinMove(visualX + ox, visualY + oy, , , "ahk_id " activeWin)
+ */
+GetDWMOffset(winTitle, &offsetX, &offsetY) {
+    ; Get visual position
+    if (!GetWindowVisualPos(winTitle, &visualX, &visualY, &visualW, &visualH))
+        return false
+
+    ; Get DWM position
+    try {
+        WinGetPos(&dwmX, &dwmY, &dwmW, &dwmH, winTitle)
+    } catch {
+        return false
+    }
+
+    ; Calculate offsets
+    offsetX := dwmX - visualX
+    offsetY := dwmY - visualY
+
+    return true
+}
+
+/** VisualToWinMove
+ * Moves a window to a visual position by converting to DWM coordinates.
+ * This ensures the visible part of the window appears at the specified coordinates.
+ *
+ * @param {String|Integer} winTitle Window title or handle
+ * @param {Integer} visualX Desired visual X position
+ * @param {Integer} visualY Desired visual Y position
+ * @param {Integer} width Optional width (leave blank to keep current)
+ * @param {Integer} height Optional height (leave blank to keep current)
+ * @returns {Boolean} True if successful, false otherwise
+ *
+ * @example
+ * VisualToWinMove("ahk_id " activeWin, 100, 100, 800, 600)
+ */
+VisualToWinMove(winTitle, visualX, visualY, width := "", height := "") {
+    ; Get DWM offset for this window
+    if (!GetDWMOffset(winTitle, &offsetX, &offsetY))
+        return false
+
+    ; Convert visual coordinates to DWM coordinates
+    dwmX := visualX + offsetX
+    dwmY := visualY + offsetY
+
+    ; Move window using DWM coordinates
+    try {
+        if (width != "" && height != "")
+            WinMove(dwmX, dwmY, width, height, winTitle)
+        else
+            WinMove(dwmX, dwmY, , , winTitle)
+        return true
+    } catch {
+        return false
+    }
+}
+
+/** VisualResize
+ * Resizes a window using visual dimensions by converting to DWM dimensions.
+ * This ensures the visible part of the window has the specified size.
+ *
+ * @param {String|Integer} winTitle Window title or handle
+ * @param {Integer} visualWidth Desired visual width
+ * @param {Integer} visualHeight Desired visual height
+ * @param {Boolean} keepPosition If true, maintains visual position (default true)
+ * @returns {Boolean} True if successful, false otherwise
+ *
+ * @example
+ * VisualResize("ahk_id " activeWin, 800, 600)
+ */
+VisualResize(winTitle, visualWidth, visualHeight, keepPosition := true) {
+    ; Get current visual position
+    if (!GetWindowVisualPos(winTitle, &visualX, &visualY, &currentVisualW, &currentVisualH))
+        return false
+
+    ; Get DWM dimensions
+    try {
+        WinGetPos(&dwmX, &dwmY, &dwmW, &dwmH, winTitle)
+    } catch {
+        return false
+    }
+
+    ; Calculate DWM border sizes
+    borderX := (dwmW - currentVisualW) / 2
+    borderY := (dwmH - currentVisualH) / 2
+
+    ; Convert visual dimensions to DWM dimensions
+    newDwmWidth := visualWidth + (borderX * 2)
+    newDwmHeight := visualHeight + (borderY * 2)
+
+    ; If keeping position, adjust DWM position to maintain visual position
+    if (keepPosition) {
+        if (!GetDWMOffset(winTitle, &offsetX, &offsetY))
+            return false
+        newDwmX := visualX + offsetX
+        newDwmY := visualY + offsetY
+
+        try {
+            WinMove(newDwmX, newDwmY, newDwmWidth, newDwmHeight, winTitle)
+            return true
+        } catch {
+            return false
+        }
+    } else {
+        ; Just resize without moving
+        try {
+            WinMove(, , newDwmWidth, newDwmHeight, winTitle)
+            return true
+        } catch {
+            return false
+        }
+    }
+}
+
 /** GetValidWindows
  * Returns an array of valid window handles that can be manipulated.
  * Handles errors gracefully - skips windows that throw access denied.
@@ -54,21 +232,17 @@ GetValidWindows(excludeHwnd := 0) {
 
 /** MonitorFromPoint
  * Determines which monitor contains a specified point (x,y) coordinate.
- * 
+ * Now supports virtual monitors for PBP mode.
+ *
  * @param x The x-coordinate to check
  * @param y The y-coordinate to check
- * 
+ *
  * @returns {Integer} The monitor index that contains the point,
  *          or the primary monitor index if the point is not on any monitor
  */
 MonitorFromPoint(x, y) {
-    MonitorCount := MonitorGetCount()
-    Loop MonitorCount {
-        MonitorGet(A_Index, &MonLeft, &MonTop, &MonRight, &MonBottom)
-        if (x >= MonLeft && x <= MonRight && y >= MonTop && y <= MonBottom)
-            return A_Index
-    }
-    return MonitorGetPrimary()  ; Default to primary monitor if not found
+    ; Use virtual monitor API for PBP support
+    return GetVirtualMonitorFromPoint(x, y)
 }
 
 /**
@@ -234,8 +408,9 @@ GetWindowEdges(excludeHwnd) {
             if (windowTitle == "")
                 continue
                 
-            ; Get window position
-            WinGetPos &wx, &wy, &ww, &wh, "ahk_id " current
+            ; Get window position (use visual bounds for accurate snapping)
+            if (!GetWindowVisualPos("ahk_id " current, &wx, &wy, &ww, &wh))
+                continue
             if (ww < 50 || wh < 50)  ; Skip tiny windows (likely not main app windows)
                 continue
                 
@@ -776,8 +951,8 @@ HighlightSnappedWindows(snappedWindows, mainBorder) {
         countGui.SetFont("s14 cWhite", "Arial")
         countGui.Add("Text", "x10 y10", "Found " . snappedWindows.Length . " window(s) snapped to " . mainBorder . " edge")
         
-        ; Position at bottom of screen
-        MonitorGetWorkArea(, &mX, &mY, &mW, &mH)
+        ; Position at bottom of screen (uses virtual monitors for PBP)
+        VirtualMonitorGetWorkArea(GetVirtualMonitorPrimary(), &mX, &mY, &mW, &mH)
         countGui.Show("x" mX+10 " y" mH-60 " w400 h50 NoActivate")
         
         highlightGuis.Push(countGui)
@@ -837,8 +1012,8 @@ ShowWindowPositioningGUI(mwin, cursorX, cursorY) {
     guiWidth := 215  ; Width for buttons plus margins
     guiHeight := 115  ; Height for three rows of buttons plus margins
     
-    ; Get the monitor where the cursor currently is
-    MonitorGetWorkArea(MonitorFromPoint(cursorX, cursorY), &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
+    ; Get the monitor where the cursor currently is (uses virtual monitors for PBP)
+    VirtualMonitorGetWorkArea(MonitorFromPoint(cursorX, cursorY), &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
     
     ; Calculate position under cursor, but keep it on screen
     guiX := cursorX - 10  ; Offset slightly so it's not directly under the cursor

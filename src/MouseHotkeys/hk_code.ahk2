@@ -1,3 +1,64 @@
+; Shared volume notification function
+ShowVolumeNotification(volumeLevel, isMuted := false) {
+    static volGui := ""
+    static textCtrl := ""
+    static progressCtrl := ""
+    static dismissTimer := ""
+    static lastMuteState := false
+
+    ; Build notification text
+    if (isMuted) {
+        mainText := "VOLUME: MUTED"
+    } else {
+        mainText := "VOLUME: " Round(volumeLevel) "%"
+    }
+
+    ; If GUI doesn't exist or mute state changed, recreate it
+    if (!volGui || lastMuteState != isMuted) {
+        ; Destroy old GUI if it exists
+        if (volGui) {
+            try volGui.Destroy()
+        }
+
+        ; Create notification GUI
+        volGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+        volGui.BackColor := "1a1a1a"
+        volGui.SetFont("s14 cWhite Bold", "Segoe UI")
+
+        ; Add text control
+        textCtrl := volGui.Add("Text", "x20 y15 w360 cWhite Center", mainText)
+
+        ; Add progress bar for visual feedback (unless muted)
+        if (!isMuted) {
+            volGui.SetFont("s10 cWhite", "Segoe UI")
+            progressCtrl := volGui.Add("Progress", "x20 y55 w360 h15 c00FF00 Background333333", Round(volumeLevel))
+        }
+
+        ; Position at center of screen
+        guiHeight := isMuted ? "60" : "90"
+        volGui.Show("x" (A_ScreenWidth/2 - 200) " y" (A_ScreenHeight/2 - 45) " w400 h" guiHeight " NoActivate")
+        WinSetTransparent 230, volGui.Hwnd
+
+        lastMuteState := isMuted
+    }
+    else {
+        ; GUI exists - just update the controls
+        textCtrl.Value := mainText
+        if (!isMuted && progressCtrl) {
+            progressCtrl.Value := Round(volumeLevel)
+        }
+    }
+
+    ; Clear existing timer if any
+    if (dismissTimer) {
+        SetTimer dismissTimer, 0
+    }
+
+    ; Set new auto-dismiss timer
+    dismissTimer := () => (volGui ? (volGui.Destroy(), volGui := "", textCtrl := "", progressCtrl := "") : "")
+    SetTimer dismissTimer, -1000
+}
+
 ;Send {7} - Nest code (RAlt+F7)
 RAlt & F7::{
     if GetKeyState("LCtrl", "P") && GetKeyState("LShift", "P") && GetKeyState("LAlt", "P") {
@@ -39,13 +100,11 @@ RAlt & F10::{
         isMuted := SoundGetMute()
 
         if (isMuted) {
-            ToolTip("Volume: MUTED", A_ScreenWidth/2, A_ScreenHeight/2)
+            ShowVolumeNotification(0, true)
         } else {
-            currentVol := Round(SoundGetVolume())
-            ToolTip("Volume: " currentVol "%", A_ScreenWidth/2, A_ScreenHeight/2)
+            currentVol := SoundGetVolume()
+            ShowVolumeNotification(currentVol, false)
         }
-
-        SetTimer(() => ToolTip(), -1000)  ; Hide tooltip after 1 second
     }
     else if GetKeyState("LCtrl", "P") {
         ; Ctrl held - Unfold all
@@ -65,10 +124,7 @@ RAlt & F11::{
         currentVol := SoundGetVolume()
         newVol := Max(0, currentVol - 1)  ; Decrease by 1%, ensure not below 0
         SoundSetVolume(newVol)
-
-        displayVol := Round(newVol)
-        ToolTip("Volume: " displayVol "%", A_ScreenWidth/2, A_ScreenHeight/2)
-        SetTimer(() => ToolTip(), -1000)
+        ShowVolumeNotification(newVol, false)
     }
     else {
         ; No LAlt modifier - Original behavior
