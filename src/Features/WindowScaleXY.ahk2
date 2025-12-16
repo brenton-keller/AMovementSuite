@@ -138,7 +138,7 @@ StartResize() {
     global debugModeXY
 
     MouseGetPos &startX, &startY, &mwin
-    WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &wx, &wy, &ww, &wh)
 
     currentMonitor := GetWindowMonitor(wx, wy, ww, wh)
     VirtualMonitorGet(currentMonitor, &MonLeft, &MonTop, &MonRight, &MonBottom)
@@ -447,7 +447,7 @@ StartResize() {
     if (IsSet(newW) && IsSet(newH))
     {
         ; Check if window is already at target position
-        WinGetPos &currentX, &currentY, &currentW, &currentH, "ahk_id " mwin
+        GetWindowVisualPos("ahk_id " mwin, &currentX, &currentY, &currentW, &currentH)
 
         ; Only update if not already at target (prevents flash from redundant update)
         if (currentX != newX || currentY != newY || currentW != newW || currentH != newH) {
@@ -458,8 +458,8 @@ StartResize() {
                 Sleep 10
             }
 
-            ; Final resize (without the hide/show to reduce flash)
-            WinMove newX, newY, newW, newH, "ahk_id " mwin
+            ; Final resize using visual coordinates
+            VisualToWinMove("ahk_id " mwin, newX, newY, newW, newH)
         }
     }
     resizeActive := false

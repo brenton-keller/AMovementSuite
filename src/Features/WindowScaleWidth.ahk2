@@ -81,7 +81,7 @@ FramesEqual_Width(frame1, frame2) {
     }
 
     MouseGetPos &startX, &startY, &mwin
-    WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &wx, &wy, &ww, &wh)
 
     monitorIndex := GetWindowMonitor(wx, wy, ww, wh)
     VirtualMonitorGet(monitorIndex, &monLeft, &monTop, &monRight, &monBottom)
@@ -159,8 +159,9 @@ FramesEqual_Width(frame1, frame2) {
                 
             ; Use try/catch to handle any errors
             try {
-                WinGetPos &x, &y, &w, &h, "ahk_id " hwnd
-                
+                if (!GetWindowVisualPos("ahk_id " hwnd, &x, &y, &w, &h))
+                    continue
+
                 ; Skip windows with invalid positions
                 if (x == "" || y == "" || w == "" || h == "")
                     continue
@@ -197,7 +198,7 @@ FramesEqual_Width(frame1, frame2) {
         ; Store original window positions and sizes
         for winInfo in snappedWindows {
             hwnd := winInfo.hwnd
-            WinGetPos &swx, &swy, &sww, &swh, "ahk_id " hwnd
+            GetWindowVisualPos("ahk_id " hwnd, &swx, &swy, &sww, &swh)
             snappedWindowsInfo[hwnd] := {x: swx, y: swy, w: sww, h: swh}
         }
         
@@ -494,7 +495,7 @@ FramesEqual_Width(frame1, frame2) {
     ; Set the new dimensions to main and snapped windows
     if (IsSet(newW) && IsSet(newX)) {
         ; Check if window is already at target position
-        WinGetPos &currentX, &currentY, &currentW, &currentH, "ahk_id " mwin
+        GetWindowVisualPos("ahk_id " mwin, &currentX, &currentY, &currentW, &currentH)
 
         ; Only update if not already at target (prevents flash from redundant update)
         if (currentX != newX || currentY != wy || currentW != newW || currentH != wh) {
@@ -506,8 +507,8 @@ FramesEqual_Width(frame1, frame2) {
                 Sleep 10
             }
 
-            ; Final resize (without the hide/show to reduce flash)
-            WinMove newX, wy, newW, wh, "ahk_id " mwin
+            ; Final resize using visual coordinates
+            VisualToWinMove("ahk_id " mwin, newX, wy, newW, wh)
         }
         
         ; Now apply the changes to snapped windows
@@ -563,8 +564,8 @@ FramesEqual_Width(frame1, frame2) {
                         }
                     }
                     
-                    ; ; Apply the changes to the real window
-                    WinMove finalX, finalY, finalW, finalH, "ahk_id " hwnd
+                    ; Apply the changes to the real window using visual coordinates
+                    VisualToWinMove("ahk_id " hwnd, finalX, finalY, finalW, finalH)
                     
                     ; ; Force refresh
                     ; WinHide "ahk_id " hwnd

@@ -253,15 +253,43 @@ ScrollLock::{
     infoGui.Show("x" overlayX " y" overlayY " w" overlayWidth " h" overlayHeight " NoActivate")
     WinSetTransparent 230, infoGui.Hwnd
 
+    ; Create gold border to show window bounding box
+    borderThickness := 4
+    borderColor := "FFD700"  ; Gold
+
+    ; Create all 4 borders - disable DPI scaling for exact pixel dimensions
+    borderTop := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x80000 +E0x20 -DPIScale")
+    borderTop.BackColor := borderColor
+    WinSetTransparent 255, borderTop.Hwnd
+
+    borderBottom := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x80000 +E0x20 -DPIScale")
+    borderBottom.BackColor := borderColor
+    WinSetTransparent 255, borderBottom.Hwnd
+
+    borderLeft := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x80000 +E0x20 -DPIScale")
+    borderLeft.BackColor := borderColor
+    WinSetTransparent 255, borderLeft.Hwnd
+
+    borderRight := Gui("-Caption +ToolWindow +AlwaysOnTop +E0x80000 +E0x20 -DPIScale")
+    borderRight.BackColor := borderColor
+    WinSetTransparent 255, borderRight.Hwnd
+
     ; Update info while ScrollLock is held
     while (GetKeyState("ScrollLock", "P")) {
         try {
-            ; Get current window info (activeWin handle stays constant)
-            WinGetPos(&wx, &wy, &ww, &wh, "ahk_id " activeWin)
+            ; Get actual visual frame bounds (excludes invisible DWM borders)
+            GetWindowVisualPos("ahk_id " activeWin, &wx, &wy, &ww, &wh)
+
             winClass := WinGetClass("ahk_id " activeWin)
             winTitle := WinGetTitle("ahk_id " activeWin)
             winProcess := WinGetProcessName("ahk_id " activeWin)
             minMax := WinGetMinMax("ahk_id " activeWin)
+
+            ; Update border positions - horizontal bars extend to fill corners
+            borderTop.Show("x" . (wx - borderThickness) . " y" . (wy - borderThickness) . " w" . (ww + borderThickness * 2) . " h" . borderThickness . " NoActivate")
+            borderBottom.Show("x" . (wx - borderThickness) . " y" . (wy + wh) . " w" . (ww + borderThickness * 2) . " h" . borderThickness . " NoActivate")
+            borderLeft.Show("x" . (wx - borderThickness) . " y" . wy . " w" . borderThickness . " h" . wh . " NoActivate")
+            borderRight.Show("x" . (wx + ww) . " y" . wy . " w" . borderThickness . " h" . wh . " NoActivate")
 
             ; Determine monitor (virtual monitor aware)
             monIndex := GetWindowMonitor(wx, wy, ww, wh)
@@ -300,6 +328,10 @@ ScrollLock::{
 
     ; Cleanup
     infoGui.Destroy()
+    borderTop.Destroy()
+    borderBottom.Destroy()
+    borderLeft.Destroy()
+    borderRight.Destroy()
 }
 ; --- END: PBP Virtual Monitor Toggle ---
 

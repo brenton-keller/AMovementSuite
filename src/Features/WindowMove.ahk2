@@ -52,7 +52,7 @@ global positioningGui := ""
         Sleep 10  ; Ensure restore completes
     }
     
-    WinGetPos &initialWX, &initialWY, &winWidth, &winHeight, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &initialWX, &initialWY, &winWidth, &winHeight)
     
     ; Get the monitor the window is primarily on
     primaryMonitor := GetWindowMonitor(initialWX, initialWY, winWidth, winHeight)
@@ -164,7 +164,7 @@ global positioningGui := ""
         newY := Max(MonitorWorkAreaTop - 1, Min(MonitorWorkAreaBottom - winHeight + 1, newY))
         
         ; Move the window
-        WinMove newX, newY, , , "ahk_id " mwin
+        VisualToWinMove("ahk_id " mwin, newX, newY)
         
         ; Update snap indicator if position changed and S is being held
         if (enableWindowSnapping) {
@@ -224,7 +224,7 @@ ButtonClick(ctrl, *) {
     mwin := positioningGui.mwin
     
     ; Get window dimensions and position
-    WinGetPos &winX, &winY, &winWidth, &winHeight, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &winX, &winY, &winWidth, &winHeight)
     
     ; Determine which monitor the window is on
     currentMonitor := GetWindowMonitor(winX, winY, winWidth, winHeight)
@@ -293,7 +293,7 @@ ButtonClick(ctrl, *) {
     }
     
     ; Move and resize the window
-    WinMove newX, newY, newWidth, newHeight, "ahk_id " mwin
+    VisualToWinMove("ahk_id " mwin, newX, newY, newWidth, newHeight)
     
     ; Clear tooltip after a short delay
     SetTimer () => ToolTip("", , , 2), -1000
@@ -325,8 +325,8 @@ MoveGroupedWindows(mwin, startX, startY) {
     }
 
     ; Get initial positions
-    WinGetPos &mwinX, &mwinY, &mwinW, &mwinH, "ahk_id " mwin
-    WinGetPos &otherX, &otherY, &otherW, &otherH, "ahk_id " otherWin
+    GetWindowVisualPos("ahk_id " mwin, &mwinX, &mwinY, &mwinW, &mwinH)
+    GetWindowVisualPos("ahk_id " otherWin, &otherX, &otherY, &otherW, &otherH)
 
     ; Calculate mouse offset from main window
     offsetX := startX - mwinX
@@ -365,8 +365,8 @@ MoveGroupedWindows(mwin, startX, startY) {
         newOtherY := Max(otherMonTop - 1, Min(otherMonBottom - otherH + 1, newOtherY))
 
         ; Move both windows
-        WinMove newMwinX, newMwinY, , , "ahk_id " mwin
-        WinMove newOtherX, newOtherY, , , "ahk_id " otherWin
+        VisualToWinMove("ahk_id " mwin, newMwinX, newMwinY)
+        VisualToWinMove("ahk_id " otherWin, newOtherX, newOtherY)
 
         ; Check for overlap and update always-on-top accordingly
         if (WindowsOverlap(windowGroup.window1, windowGroup.window2)) {
@@ -413,7 +413,7 @@ MoveGroupedWindows(mwin, startX, startY) {
         Sleep 10  ; Ensure restore completes
     }
     
-    WinGetPos &initialWX, &initialWY, &winWidth, &winHeight, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &initialWX, &initialWY, &winWidth, &winHeight)
     
     ; Get the monitor the window is primarily on
     primaryMonitor := GetWindowMonitor(initialWX, initialWY, winWidth, winHeight)
@@ -439,7 +439,7 @@ MoveGroupedWindows(mwin, startX, startY) {
     ; Store initial positions of all snapped windows
     snappedWindowsInitialPositions := []
     for idx, snapWin in snappedWindows {
-        WinGetPos &wx, &wy, &ww, &wh, "ahk_id " snapWin
+        GetWindowVisualPos("ahk_id " snapWin, &wx, &wy, &ww, &wh)
         snappedWindowsInitialPositions.Push({hwnd: snapWin, x: wx, y: wy, w: ww, h: wh})
     }
     
@@ -468,7 +468,7 @@ MoveGroupedWindows(mwin, startX, startY) {
         actualDeltaY := newY - initialWY
         
         ; Move the main window
-        WinMove newX, newY, , , "ahk_id " mwin
+        VisualToWinMove("ahk_id " mwin, newX, newY)
         
         ; Move all snapped windows by the same delta
         for idx, winInfo in snappedWindowsInitialPositions {
@@ -483,7 +483,7 @@ MoveGroupedWindows(mwin, startX, startY) {
             snapNewX := Max(snapMonLeft - 1, Min(snapMonRight - winInfo.w + 1, snapNewX))
             snapNewY := Max(snapMonTop - 1, Min(snapMonBottom - winInfo.h + 1, snapNewY))
             
-            WinMove snapNewX, snapNewY, , , "ahk_id " winInfo.hwnd
+            VisualToWinMove("ahk_id " winInfo.hwnd, snapNewX, snapNewY)
         }
     }
     

@@ -84,7 +84,7 @@ FramesEqual_Height(frame1, frame2) {
     }
 
     MouseGetPos &startX, &startY, &mwin
-    WinGetPos &wx, &wy, &ww, &wh, "ahk_id " mwin
+    GetWindowVisualPos("ahk_id " mwin, &wx, &wy, &ww, &wh)
 
     ; Get the monitor containing the window
     monitorIndex := GetWindowMonitor(wx, wy, ww, wh)
@@ -308,7 +308,7 @@ FramesEqual_Height(frame1, frame2) {
     if (IsSet(newH) && IsSet(newY))
     {
         ; Check if window is already at target position
-        WinGetPos &currentX, &currentY, &currentW, &currentH, "ahk_id " mwin
+        GetWindowVisualPos("ahk_id " mwin, &currentX, &currentY, &currentW, &currentH)
 
         ; Only update if not already at target (prevents flash from redundant update)
         if (currentX != wx || currentY != newY || currentW != ww || currentH != newH) {
@@ -320,8 +320,8 @@ FramesEqual_Height(frame1, frame2) {
                 Sleep 10
             }
 
-            ; Final resize (without the hide/show to reduce flash)
-            WinMove wx, newY, ww, newH, "ahk_id " mwin
+            ; Final resize using visual coordinates
+            VisualToWinMove("ahk_id " mwin, wx, newY, ww, newH)
         }
     }
 
