@@ -105,9 +105,6 @@ FramesEqual_Width(frame1, frame2) {
     isNearRightEdge := (wx + ww - startX) <= edgeThreshold
 
     maxWidth := workRight - workLeft
-    if (maxWidth <= initialW) {
-        maxWidth := initialW + 1  ; Add 1 pixel buffer to prevent division by zero
-    }
 
     relativeX := (startX - wx) / initialW
 
@@ -270,9 +267,6 @@ FramesEqual_Width(frame1, frame2) {
                 VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
 
                 maxWidth := workRight - workLeft
-                if (maxWidth <= initialW) {
-                    maxWidth := initialW + 1
-                }
             }
 
             ; Constrain left edge from moving beyond screen left
@@ -302,9 +296,6 @@ FramesEqual_Width(frame1, frame2) {
                 VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
 
                 maxWidth := workRight - workLeft
-                if (maxWidth <= initialW) {
-                    maxWidth := initialW + 1
-                }
             }
 
             ; Constrain width so right edge doesn't exceed screen right
@@ -340,9 +331,6 @@ FramesEqual_Width(frame1, frame2) {
                 VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
 
                 maxWidth := workRight - workLeft
-                if (maxWidth <= initialW) {
-                    maxWidth := initialW + 1
-                }
             }
 
             ; Check if mouse is near screen edge for snapping
@@ -392,7 +380,8 @@ FramesEqual_Width(frame1, frame2) {
         ; Lock main preview to prevent flicker
         DllCall("LockWindowUpdate", "UInt", previewGui.Hwnd)
 
-        newColor := CalculateColorWidth(newW, initialW, maxWidth, 1)
+        ; Pass maxWidth + 1 to color calc for better gradient (prevents purple at max width)
+        newColor := CalculateColorWidth(newW, initialW, maxWidth + 1, 1)
         previewGui.BackColor := newColor
 
         ; Update main preview
@@ -440,7 +429,7 @@ FramesEqual_Width(frame1, frame2) {
                             newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
 
                             ; Update preview
-                            newColor := CalculateColorWidth(newSnapW, sww, maxWidth, 2)
+                            newColor := CalculateColorWidth(newSnapW, sww, maxWidth + 1, 2)
                             snapPreview.gui.BackColor := newColor
                             WinMove swx, swy, newSnapW, swh, snapPreview.gui.Hwnd
                             WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd
@@ -461,7 +450,7 @@ FramesEqual_Width(frame1, frame2) {
                             newSnapW := Max(Colors.MIN_WIDTH, newSnapW)
 
                             ; Update preview
-                            newColor := CalculateColorWidth(newSnapW, sww, maxWidth, 2)
+                            newColor := CalculateColorWidth(newSnapW, sww, maxWidth + 1, 2)
                             snapPreview.gui.BackColor := newColor
                             WinMove newSnapX, swy, newSnapW, swh, snapPreview.gui.Hwnd
                             WinSetRegion "0-0 w" newSnapW " h" swh, snapPreview.gui.Hwnd

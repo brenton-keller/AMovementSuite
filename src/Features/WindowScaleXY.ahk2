@@ -171,12 +171,6 @@ StartResize() {
 
     maxWidth := MonRight - MonLeft
     maxHeight := MonBottom - MonTop
-    if (maxWidth <= initialW) {
-        maxWidth := initialW + 1  ; Add 1 pixel buffer to prevent division by zero
-    }
-    if (maxHeight <= initialH) {
-        maxHeight := initialH + 1  ; Add 1 pixel buffer to prevent division by zero
-    }
 
     relativeX := (startX - wx) / ww
     relativeY := (startY - wy) / wh
@@ -429,7 +423,8 @@ StartResize() {
         DllCall("LockWindowUpdate", "UInt", previewGui.Hwnd)
 
         if (!debugModeXY) {
-            newColor := CalculateColorXY(newW, newH, initialW, initialH, maxWidth, maxHeight)
+            ; Pass maxWidth/maxHeight + 1 to color calc for better gradient (prevents purple at max size)
+            newColor := CalculateColorXY(newW, newH, initialW, initialH, maxWidth + 1, maxHeight + 1)
             previewGui.BackColor := newColor
         }
 

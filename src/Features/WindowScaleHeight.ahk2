@@ -111,9 +111,6 @@ FramesEqual_Height(frame1, frame2) {
 
     ; Calculate maximum height and add safety check
     maxHeight := workBottom - workTop
-    if (maxHeight <= initialH) {
-        maxHeight := initialH + 1  ; Add 1 pixel buffer to prevent division by zero
-    }
 
     relativeY := (startY - wy) / initialH
 
@@ -172,9 +169,6 @@ FramesEqual_Height(frame1, frame2) {
                 VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
 
                 maxHeight := workBottom - workTop
-                if (maxHeight <= initialH) {
-                    maxHeight := initialH + 1
-                }
             }
 
             ; Constrain with monitor bounds
@@ -211,9 +205,6 @@ FramesEqual_Height(frame1, frame2) {
                 VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
 
                 maxHeight := workBottom - workTop
-                if (maxHeight <= initialH) {
-                    maxHeight := initialH + 1
-                }
             }
 
             ; Constrain height so bottom edge doesn't exceed screen bottom
@@ -245,9 +236,6 @@ FramesEqual_Height(frame1, frame2) {
                 VirtualMonitorGetWorkArea(monitorIndex, &workLeft, &workTop, &workRight, &workBottom)
 
                 maxHeight := workBottom - workTop
-                if (maxHeight <= initialH) {
-                    maxHeight := initialH + 1
-                }
             }
 
             ; Check if mouse is near screen edge for snapping
@@ -295,7 +283,8 @@ FramesEqual_Height(frame1, frame2) {
         DllCall("LockWindowUpdate", "UInt", previewGui.Hwnd)
 
         ; Update preview color based on new height
-        newColor := CalculateColorHeight(newH, initialH, maxHeight)
+        ; Pass maxHeight + 1 to color calc for better gradient (prevents purple at max height)
+        newColor := CalculateColorHeight(newH, initialH, maxHeight + 1)
         previewGui.BackColor := newColor
 
         ; Update preview
