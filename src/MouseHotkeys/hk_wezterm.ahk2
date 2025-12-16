@@ -9,10 +9,7 @@ RAlt & F12::{
         currentVol := SoundGetVolume()
         newVol := Min(100, currentVol + 1)  ; Increase by 1%, ensure not above 100
         SoundSetVolume(newVol)
-
-        displayVol := Round(newVol)
-        ToolTip("Volume: " displayVol "%", A_ScreenWidth/2, A_ScreenHeight/2)
-        SetTimer(() => ToolTip(), -1000)
+        ShowVolumeNotification(newVol, false)
         return
     }
 
