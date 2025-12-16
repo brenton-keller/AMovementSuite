@@ -25,7 +25,7 @@ ShowPBPSettings(*) {
     ; === Header ===
     settingsGui.Add("Text", "xm ym w500", "PBP Virtual Monitor Split Configuration")
     settingsGui.Add("Text", "xm y+5 w500", "Adjust split position - changes apply automatically")
-    settingsGui.Add("Text", "xm y+5 w500", "Toggle PBP: ScrollLock  |  Tray Menu: Right-click icon")
+    settingsGui.Add("Text", "xm y+5 w500", "Toggle PBP: Alt+ScrollLock  |  Tray Menu: Right-click icon")
 
     ; === Separator ===
     settingsGui.Add("Text", "xm y+15 w500 0x10")  ; Horizontal line
