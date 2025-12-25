@@ -145,6 +145,10 @@ GetWindowMonitor(winX, winY, winWidth, winHeight) {
 }
 
 IsValidWindowForResize(hwnd) {
+    ; Check if window still exists
+    if (!hwnd || !WinExist("ahk_id " hwnd))
+        return false
+
     ; Get window class
     windowClass := WinGetClass("ahk_id " hwnd)
     
@@ -250,3 +254,102 @@ AnalyzeWindow() {
 
 ; Start the application
 ; AnalyzeWindow()
+
+; ============================================================================
+; Shared Debug/Notification Utilities
+; ============================================================================
+
+; Simple debug tooltip message
+ShowDebugMessage(message) {
+    ToolTip message
+    SetTimer () => ToolTip(), -2000
+}
+
+; ============================================================================
+; Shared Action Notification System
+; High-quality GUI notifications for window actions
+; ============================================================================
+
+/** ShowActionNotification
+ * Displays a polished GUI notification for window actions.
+ *
+ * @param {String} action - The action type: "pinned", "unpinned", "sent_back",
+ *                          "minimized", "grouped", "ungrouped", "group_select",
+ *                          "group_offset", "error"
+ * @param {String} message - Optional custom message (overrides default)
+ * @param {String} winTitle - Optional window title to display
+ * @param {Object} options - Optional settings: {duration: ms, position: "center"|"cursor"}
+ *
+ * @returns {void}
+ */
+ShowActionNotification(action, message := "", winTitle := "", options := {}) {
+    static notifGui := ""
+    static iconMap := Map(
+        "pinned",       {icon: "📌", color: "22c55e", defaultMsg: "Pinned to Top"},
+        "unpinned",     {icon: "📌", color: "ef4444", defaultMsg: "Unpinned"},
+        "sent_back",    {icon: "⬇",  color: "3b82f6", defaultMsg: "Sent to Back"},
+        "minimized",    {icon: "➖", color: "8b5cf6", defaultMsg: "Minimized"},
+        "grouped",      {icon: "🔗", color: "22c55e", defaultMsg: "Windows Grouped"},
+        "ungrouped",    {icon: "🔓", color: "f59e0b", defaultMsg: "Group Cleared"},
+        "group_select", {icon: "👆", color: "3b82f6", defaultMsg: "Window Selected"},
+        "group_offset", {icon: "↔",  color: "22c55e", defaultMsg: "Offset Updated"},
+        "error",        {icon: "✗",  color: "ef4444", defaultMsg: "Error"},
+        "success",      {icon: "✓",  color: "22c55e", defaultMsg: "Success"},
+        "info",         {icon: "ℹ",  color: "3b82f6", defaultMsg: "Info"}
+    )
+
+    ; Get icon info for this action
+    iconInfo := iconMap.Has(action) ? iconMap[action] : iconMap["info"]
+
+    ; Destroy previous notification if it exists
+    if (notifGui) {
+        try notifGui.Destroy()
+        notifGui := ""
+    }
+
+    ; Determine message to display
+    displayMsg := message ? message : iconInfo.defaultMsg
+
+    ; Create notification GUI
+    notifGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    notifGui.BackColor := "1a1a1a"
+
+    ; Icon on the left
+    notifGui.SetFont("s20", "Segoe UI Emoji")
+    notifGui.Add("Text", "x15 y12 w40 h40 c" iconInfo.color, iconInfo.icon)
+
+    ; Main message
+    notifGui.SetFont("s13 Bold", "Segoe UI")
+    notifGui.Add("Text", "x55 y15 w300 c" iconInfo.color, displayMsg)
+
+    ; Window title (if provided)
+    if (winTitle) {
+        ; Truncate long titles
+        displayTitle := StrLen(winTitle) > 40 ? SubStr(winTitle, 1, 37) "..." : winTitle
+        notifGui.SetFont("s10 Norm", "Segoe UI")
+        notifGui.Add("Text", "x55 y40 w300 ccccccc", displayTitle)
+    }
+
+    ; Calculate dimensions
+    guiWidth := 370
+    guiHeight := winTitle ? 75 : 50
+
+    ; Position
+    posType := options.HasOwnProp("position") ? options.position : "center"
+    if (posType = "cursor") {
+        MouseGetPos &mx, &my
+        posX := mx - guiWidth // 2
+        posY := my - guiHeight - 20
+    } else {
+        posX := (A_ScreenWidth - guiWidth) // 2
+        posY := (A_ScreenHeight - guiHeight) // 2
+    }
+
+    ; Show with transparency
+    notifGui.Show("x" posX " y" posY " w" guiWidth " h" guiHeight " NoActivate")
+    WinSetTransparent 240, notifGui.Hwnd
+
+    ; Auto-dismiss
+    duration := options.HasOwnProp("duration") ? options.duration : 1800
+    SetTimer () => (notifGui ? (notifGui.Destroy(), notifGui := "") : ""), -duration
+}

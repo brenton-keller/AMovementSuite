@@ -48,13 +48,13 @@ AlwaysOnTop() {
     
     ; Check if we have a valid window
     if (!mwin) {
-        ShowDebugMessage("No window detected under cursor")
+        ShowActionNotification("error", "No window under cursor", "", {position: "cursor"})
         return
     }
-    
+
     ; Check if it's a valid window for always-on-top
     if (!IsValidWindowForTopMost(mwin)) {
-        ShowDebugMessage("This window cannot be set as always-on-top")
+        ShowActionNotification("error", "Cannot pin this window", "", {position: "cursor"})
         return
     }
     
@@ -69,8 +69,8 @@ AlwaysOnTop() {
         ; Remove always-on-top
         WinSetAlwaysOnTop 0, "ahk_id " mwin
         windowsAlwaysOnTop.Delete(mwin)
-        ShowToggleNotification("Always on Top: OFF", winTitle)
-        
+        ShowActionNotification("unpinned", "", winTitle, {position: "cursor"})
+
         ; Fix Z-order: If we're turning off always-on-top for a non-active window,
         ; make sure the active window comes to the front
         if (mwin != activeWin && WinExist("ahk_id " activeWin)) {
@@ -86,7 +86,7 @@ AlwaysOnTop() {
         ; Set always-on-top
         WinSetAlwaysOnTop 1, "ahk_id " mwin
         windowsAlwaysOnTop[mwin] := true
-        ShowToggleNotification("Always on Top: ON", winTitle)
+        ShowActionNotification("pinned", "", winTitle, {position: "cursor"})
     }
 }
 
@@ -96,34 +96,34 @@ AlwaysOnTop() {
  */
 SendWindowToBack() {
     MouseGetPos , , &mwin
-    
+
     ; Check if we have a valid window
     if (!mwin) {
-        ShowDebugMessage("No window detected under cursor")
+        ShowActionNotification("error", "No window under cursor", "", {position: "cursor"})
         return
     }
-    
+
     ; Check if it's a valid window for manipulation
     if (!IsValidWindowForManipulation(mwin)) {
-        ShowDebugMessage("This window cannot be sent to back")
+        ShowActionNotification("error", "Cannot send to back", "", {position: "cursor"})
         return
     }
-    
+
     winTitle := WinGetTitle("ahk_id " mwin)
-    
+
     ; Check if this is the active window
     isActiveWindow := (mwin = WinGetID("A"))
-    
+
     ; Send window to back using Windows API
     ; HWND_BOTTOM = 1
     DllCall("SetWindowPos", "Ptr", mwin, "Ptr", 1, "Int", 0, "Int", 0, "Int", 0, "Int", 0, "UInt", 0x213)
-    
+
     ; If we sent the active window to back, activate the next window
     if (isActiveWindow) {
         SendInput "!{Esc}"  ; Use Alt+Esc to activate the next window in Z-order
     }
-    
-    ShowToggleNotification("Window sent to back", winTitle)
+
+    ShowActionNotification("sent_back", "", winTitle, {position: "cursor"})
 }
 
 /** MinimizeWindow
@@ -135,13 +135,13 @@ MinimizeWindow() {
 
     ; Check if we have a valid window
     if (!mwin) {
-        ShowDebugMessage("No window detected under cursor")
+        ShowActionNotification("error", "No window under cursor", "", {position: "cursor"})
         return
     }
 
     ; Check if it's a valid window for manipulation
     if (!IsValidWindowForManipulation(mwin)) {
-        ShowDebugMessage("This window cannot be minimized")
+        ShowActionNotification("error", "Cannot minimize", "", {position: "cursor"})
         return
     }
 
@@ -150,7 +150,7 @@ MinimizeWindow() {
     ; Minimize the window
     WinMinimize "ahk_id " mwin
 
-    ShowToggleNotification("Window minimized", winTitle)
+    ShowActionNotification("minimized", "", winTitle)
 }
 
 /** SendToBackAndMinimize
@@ -162,13 +162,13 @@ SendToBackAndMinimize() {
 
     ; Check if we have a valid window
     if (!mwin) {
-        ShowDebugMessage("No window detected under cursor")
+        ShowActionNotification("error", "No window under cursor", "", {position: "cursor"})
         return
     }
 
     ; Check if it's a valid window for manipulation
     if (!IsValidWindowForManipulation(mwin)) {
-        ShowDebugMessage("This window cannot be sent to back and minimized")
+        ShowActionNotification("error", "Cannot minimize", "", {position: "cursor"})
         return
     }
 
@@ -192,20 +192,7 @@ SendToBackAndMinimize() {
     ; Minimize the window
     WinMinimize "ahk_id " mwin
 
-    ShowToggleNotification("Window sent to back and minimized", winTitle)
-}
-
-; Show a brief notification about the toggle action
-ShowToggleNotification(message, winTitle := "") {
-    winInfo := winTitle ? " (" winTitle ")" : ""
-    ToolTip message winInfo
-    SetTimer () => ToolTip(), -2000
-}
-
-; Show debug messages
-ShowDebugMessage(message) {
-    ToolTip message
-    SetTimer () => ToolTip(), -2000
+    ShowActionNotification("minimized", "Sent back + minimized", winTitle)
 }
 
 ; Check if it's a valid window for setting always-on-top

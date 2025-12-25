@@ -1,12 +1,20 @@
 ; Screenshot active window to user's Screenshots folder
 ; Uses GDI+ to capture and save as PNG
 
+; Global variables for region selection
+global regionSelectActive := false
+global regionStartX := 0
+global regionStartY := 0
+global regionEndX := 0
+global regionEndY := 0
+global selectionGui := ""
+global overlayGui := ""
+
 PrintScreen:: {
     ; Get the active window
     hwnd := WinExist("A")
     if (!hwnd) {
-        ToolTip("No active window")
-        SetTimer () => ToolTip(), -1500
+        ShowScreenshotNotification("No active window", "", false)
         return
     }
 
@@ -14,8 +22,7 @@ PrintScreen:: {
     try {
         WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
     } catch {
-        ToolTip("Could not get window position")
-        SetTimer () => ToolTip(), -1500
+        ShowScreenshotNotification("Could not get window position", "", false)
         return
     }
 
@@ -36,8 +43,7 @@ PrintScreen:: {
     ; Initialize GDI+
     pToken := Gdip_Startup()
     if (!pToken) {
-        ToolTip("Failed to initialize GDI+")
-        SetTimer () => ToolTip(), -1500
+        ShowScreenshotNotification("Failed to initialize GDI+", "", false)
         return
     }
 
@@ -45,8 +51,7 @@ PrintScreen:: {
     pBitmap := Gdip_BitmapFromHWND(hwnd)
     if (!pBitmap) {
         Gdip_Shutdown(pToken)
-        ToolTip("Failed to capture window")
-        SetTimer () => ToolTip(), -1500
+        ShowScreenshotNotification("Failed to capture window", "", false)
         return
     }
 
@@ -59,12 +64,224 @@ PrintScreen:: {
 
     if (result == 0) {
         ; Copy file path to clipboard
-        A_Clipboard := filename
-        ToolTip("Screenshot saved & copied:`n" filename)
+        A_Clipboard := ":: " filename
+        ShowScreenshotNotification("Screenshot saved & copied", filename, true)
     } else {
-        ToolTip("Failed to save screenshot (error " result ")")
+        ShowScreenshotNotification("Failed to save screenshot (error " result ")", "", false)
     }
-    SetTimer () => ToolTip(), -2000
+}
+
++PrintScreen:: {
+    ; Interactive region selection screenshot
+    global regionSelectActive, regionStartX, regionStartY, regionEndX, regionEndY, selectionGui, overlayGui
+
+    ; Set coordinate mode to screen for consistent positioning
+    CoordMode("Mouse", "Screen")
+    CoordMode("Pixel", "Screen")
+
+    ; Create semi-transparent overlay covering all monitors
+    overlayGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20 -DPIScale")
+    overlayGui.BackColor := "000000"
+    WinSetTransparent(80, overlayGui)
+
+    ; Get virtual screen dimensions (all monitors)
+    virtualScreenX := SysGet(76)  ; SM_XVIRTUALSCREEN
+    virtualScreenY := SysGet(77)  ; SM_YVIRTUALSCREEN
+    virtualScreenW := SysGet(78)  ; SM_CXVIRTUALSCREEN
+    virtualScreenH := SysGet(79)  ; SM_CYVIRTUALSCREEN
+
+    overlayGui.Show("x" virtualScreenX " y" virtualScreenY " w" virtualScreenW " h" virtualScreenH " NA")
+
+    ; Create selection rectangle GUI (initially hidden)
+    selectionGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20 -DPIScale")
+    selectionGui.BackColor := "FF0000"
+    WinSetTransparent(100, selectionGui)
+
+    ; Show instruction tooltip
+    ToolTip("Click and drag to select region`nPress ESC to cancel")
+
+    ; Set up hotkeys for region selection
+    Hotkey("LButton", StartRegionSelect, "On")
+    Hotkey("Escape", CancelRegionSelect, "On")
+
+    regionSelectActive := true
+
+    ; Wait for selection to complete or cancel
+    while (regionSelectActive) {
+        Sleep(10)
+    }
+
+    ; Cleanup
+    Hotkey("LButton", StartRegionSelect, "Off")
+    Hotkey("Escape", CancelRegionSelect, "Off")
+    ToolTip()
+
+    if (overlayGui) {
+        overlayGui.Destroy()
+        overlayGui := ""
+    }
+    if (selectionGui) {
+        selectionGui.Destroy()
+        selectionGui := ""
+    }
+
+    ; If we have valid coordinates, capture the region
+    if (regionStartX != 0 || regionStartY != 0 || regionEndX != 0 || regionEndY != 0) {
+        CaptureRegion(regionStartX, regionStartY, regionEndX, regionEndY)
+
+        ; Reset coordinates
+        regionStartX := 0
+        regionStartY := 0
+        regionEndX := 0
+        regionEndY := 0
+    }
+}
+
+StartRegionSelect(*) {
+    global regionStartX, regionStartY, regionEndX, regionEndY, selectionGui
+
+    ; Get starting position
+    MouseGetPos(&regionStartX, &regionStartY)
+    regionEndX := regionStartX
+    regionEndY := regionStartY
+
+    ; Show selection rectangle
+    selectionGui.Show("x" regionStartX " y" regionStartY " w1 h1 NA")
+
+    ; Track mouse movement until button released
+    Hotkey("LButton", StartRegionSelect, "Off")
+
+    while GetKeyState("LButton", "P") {
+        MouseGetPos(&regionEndX, &regionEndY)
+
+        ; Calculate rectangle dimensions
+        x := Min(regionStartX, regionEndX)
+        y := Min(regionStartY, regionEndY)
+        w := Abs(regionEndX - regionStartX)
+        h := Abs(regionEndY - regionStartY)
+
+        ; Update selection GUI
+        selectionGui.Show("x" x " y" y " w" w " h" h " NA")
+
+        Sleep(10)
+    }
+
+    ; Button released, finalize selection
+    global regionSelectActive
+    regionSelectActive := false
+}
+
+CancelRegionSelect(*) {
+    global regionSelectActive, regionStartX, regionStartY, regionEndX, regionEndY
+
+    ; Reset coordinates to indicate cancellation
+    regionStartX := 0
+    regionStartY := 0
+    regionEndX := 0
+    regionEndY := 0
+
+    regionSelectActive := false
+}
+
+CaptureRegion(x1, y1, x2, y2) {
+    ; Calculate region boundaries
+    x := Min(x1, x2)
+    y := Min(y1, y2)
+    w := Abs(x2 - x1)
+    h := Abs(y2 - y1)
+
+    ; Ensure minimum size
+    if (w < 5 || h < 5) {
+        ShowScreenshotNotification("Region too small", "", false)
+        return
+    }
+
+    ; Build screenshot folder path
+    screenshotDir := EnvGet("USERPROFILE") "\Screenshots"
+
+    ; Create directory if it doesn't exist
+    if (!DirExist(screenshotDir))
+        DirCreate(screenshotDir)
+
+    ; Generate filename: date_region_time
+    datePart := FormatTime(, "yyyy-MM-dd")
+    timePart := FormatTime(, "HHmmss")
+    filename := screenshotDir "\" datePart "_region_" timePart ".png"
+
+    ; Initialize GDI+
+    pToken := Gdip_Startup()
+    if (!pToken) {
+        ShowScreenshotNotification("Failed to initialize GDI+", "", false)
+        return
+    }
+
+    ; Capture the screen region
+    pBitmap := Gdip_BitmapFromScreen(x, y, w, h)
+    if (!pBitmap) {
+        Gdip_Shutdown(pToken)
+        ShowScreenshotNotification("Failed to capture region", "", false)
+        return
+    }
+
+    ; Save as PNG
+    result := Gdip_SaveBitmapToFile(pBitmap, filename)
+
+    ; Cleanup
+    Gdip_DisposeImage(pBitmap)
+    Gdip_Shutdown(pToken)
+
+    if (result == 0) {
+        ; Copy file path to clipboard with :: prefix
+        A_Clipboard := ":: " filename
+        ShowScreenshotNotification("Region captured & copied", filename, true)
+    } else {
+        ShowScreenshotNotification("Failed to save screenshot (error " result ")", "", false)
+    }
+}
+
+; High-quality notification GUI for screenshot operations
+ShowScreenshotNotification(message, filePath := "", isSuccess := true) {
+    static notifGui := ""
+    static textCtrl := ""
+    static dismissTimer := ""
+
+    ; Destroy previous notification if it exists
+    if (notifGui) {
+        try notifGui.Destroy()
+        notifGui := ""
+        textCtrl := ""
+    }
+
+    ; Create notification GUI
+    notifGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    notifGui.BackColor := "1a1a1a"
+    notifGui.SetFont("s14 cWhite Bold", "Segoe UI")
+
+    ; Build notification text
+    prefix := isSuccess ? "SCREENSHOT: " : "ERROR: "
+    notifText := prefix message
+    if (filePath) {
+        notifText .= "`n`n" filePath
+    }
+
+    ; Add text control
+    textCtrl := notifGui.Add("Text", "x20 y15 w560 cWhite Center", notifText)
+
+    ; Calculate height based on content
+    guiHeight := filePath ? 120 : 60
+
+    ; Position at center of screen
+    notifGui.Show("x" (A_ScreenWidth/2 - 300) " y" (A_ScreenHeight/2 - guiHeight/2) " w600 h" guiHeight " NoActivate")
+    WinSetTransparent 230, notifGui.Hwnd
+
+    ; Clear existing timer if any
+    if (dismissTimer) {
+        SetTimer dismissTimer, 0
+    }
+
+    ; Set new auto-dismiss timer
+    dismissTimer := () => (notifGui ? (notifGui.Destroy(), notifGui := "", textCtrl := "") : "")
+    SetTimer dismissTimer, -2000
 }
 
 ; ========== GDI+ Functions ==========
@@ -120,6 +337,31 @@ Gdip_BitmapFromHWND(hwnd) {
 
 Gdip_DisposeImage(pBitmap) {
     DllCall("gdiplus\GdipDisposeImage", "Ptr", pBitmap)
+}
+
+Gdip_BitmapFromScreen(x, y, w, h) {
+    ; Capture a region of the screen
+    ; Create compatible DCs
+    hdcSrc := DllCall("GetDC", "Ptr", 0, "Ptr")  ; Get screen DC
+    hdcDest := DllCall("CreateCompatibleDC", "Ptr", hdcSrc, "Ptr")
+    hBitmap := DllCall("CreateCompatibleBitmap", "Ptr", hdcSrc, "Int", w, "Int", h, "Ptr")
+    hOld := DllCall("SelectObject", "Ptr", hdcDest, "Ptr", hBitmap, "Ptr")
+
+    ; Copy screen region to bitmap
+    DllCall("BitBlt", "Ptr", hdcDest, "Int", 0, "Int", 0, "Int", w, "Int", h,
+            "Ptr", hdcSrc, "Int", x, "Int", y, "UInt", 0x00CC0020)  ; SRCCOPY
+
+    ; Create GDI+ bitmap from HBITMAP
+    pBitmap := 0
+    DllCall("gdiplus\GdipCreateBitmapFromHBITMAP", "Ptr", hBitmap, "Ptr", 0, "Ptr*", &pBitmap)
+
+    ; Cleanup GDI objects
+    DllCall("SelectObject", "Ptr", hdcDest, "Ptr", hOld)
+    DllCall("DeleteObject", "Ptr", hBitmap)
+    DllCall("DeleteDC", "Ptr", hdcDest)
+    DllCall("ReleaseDC", "Ptr", 0, "Ptr", hdcSrc)
+
+    return pBitmap
 }
 
 Gdip_SaveBitmapToFile(pBitmap, filename) {

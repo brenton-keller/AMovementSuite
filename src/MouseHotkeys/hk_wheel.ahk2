@@ -6,69 +6,87 @@ global ctrlBuffer := ""
 global altBuffer := ""
 
 ;Send {Wheel Left} - Copy (RAlt+Left) - Push wheel left
-RAlt & Left::{
+*Left::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{Left}"
+        return
+    }
+    ; RAlt is held - do copy actions
     if GetKeyState("LCtrl", "P") {
-        ; Ctrl held - Standard copy
-        Send("^c")
+        SendInput "^c"
     }
     else if GetKeyState("LShift", "P") {
-        ; Shift held - Extract color
         ExtractColorUnderCursor()
     }
     else if GetKeyState("LAlt", "P") {
-        ; Alt held - Save to alt buffer
         SaveToBuffer("alt")
     }
     else {
-        ; No modifiers - Standard copy
-        Send("^c")
+        SendInput "^c"
     }
 }
 
 ;Send {Wheel Right} - Paste (RAlt+Right) - Push wheel right
-RAlt & Right::{
+*Right::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{Right}"
+        return
+    }
+    ; RAlt is held - do paste actions
     if GetKeyState("LCtrl", "P") {
-        ; Ctrl held - Standard paste
-        Send("^v")
+        SendInput "^v"
     }
     else if GetKeyState("LShift", "P") {
-        ; Shift held - Paste color
         PasteColor()
     }
     else if GetKeyState("LAlt", "P") {
-        ; Alt held - Paste from alt buffer
         PasteBuffer("alt")
     }
     else {
-        ; No modifiers - Standard paste
-        Send("^v")
+        SendInput "^v"
     }
 }
 
 ;Send {Wheel Click} - Top button 1 (RAlt+Up)
-; Disabled - not working properly
-; RAlt & Up::{
-;     WindowCascade()
-; }
+*Up::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{Up}"
+        return
+    }
+    ; RAlt+Up - your custom action here
+}
 
 ;Send {Top Button 1} - Top button 2 (RAlt+Down)
-RAlt & Down::{
-    ; Your custom action here
+*Down::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{Down}"
+        return
+    }
+    ; RAlt+Down - your custom action here
 }
 
 ;Send {Top Button 2} - Side button (RAlt+PgDn)
-RAlt & PgDn::{
-    ; Your custom action here
+*PgDn::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{PgDn}"
+        return
+    }
+    ; RAlt+PgDn - your custom action here
 }
 
 ; Copy to buffer while preserving system clipboard
 SaveToBuffer(bufferType) {
     ; Save current clipboard
     originalClip := ClipboardAll()
-    
+
+    ; Release any held modifiers before sending Ctrl+C
+    ; This prevents RAlt (prefix key) from interfering
+    SendInput "{RAlt up}{LAlt up}{LCtrl up}{LShift up}"
+    Sleep 10
+
     ; Clear and perform copy
     A_Clipboard := ""
-    Send "^c"
+    SendInput "^c"
     
     ; Store copied content in appropriate buffer
     if ClipWait(0.2) {
@@ -120,10 +138,11 @@ PasteBuffer(bufferType) {
     ; Use buffer content for pasting
     A_Clipboard := bufferContent
     ClipWait(0.2)
-    
-    ; ; Show tooltip with preview of what's being pasted
-    ; ToolTip("Pasting from " bufferType " buffer: " SubStr(bufferContent, 1, 20) (StrLen(bufferContent) > 20 ? "..." : ""), A_ScreenWidth/2, A_ScreenHeight/2)
-    Send "^v"
+
+    ; Release modifiers before pasting to prevent interference
+    SendInput "{RAlt up}{LAlt up}{LCtrl up}{LShift up}"
+    Sleep 10
+    SendInput "^v"
     Sleep 100
     
     ; Restore original clipboard

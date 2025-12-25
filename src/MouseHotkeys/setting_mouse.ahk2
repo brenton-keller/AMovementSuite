@@ -9,6 +9,9 @@ SetControlDelay -1
 
 SetNumLockState("Off")
 
+; Suppress RAlt from activating menu - MUST be before any RAlt hotkeys
+*RAlt::return
+
 ; DllCall("RegisterShellHookWindow", "Ptr", A_ScriptHwnd)
 ; MsgNum := DllCall("RegisterWindowMessage", "Str", "SHELLHOOK")
 
@@ -17,7 +20,7 @@ SetNumLockState("Off")
 #Include hk_code.ahk2
 #Include hk_wheel.ahk2
 #Include hk_programs.ahk2
-#Include hk_wezterm.ahk2
+#Include hk_f12.ahk2
 #Include hk_transparency.ahk2
 #Include hk_screenshot.ahk2
 

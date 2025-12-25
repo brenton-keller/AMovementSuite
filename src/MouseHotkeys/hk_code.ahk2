@@ -60,9 +60,12 @@ ShowVolumeNotification(volumeLevel, isMuted := false) {
 }
 
 ;Send {7} - Nest code (RAlt+F7)
-RAlt & F7::{
+*F7::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{F7}"
+        return
+    }
     if GetKeyState("LCtrl", "P") && GetKeyState("LShift", "P") && GetKeyState("LAlt", "P") {
-        ; Ctrl+Shift+Alt held
         Send("^k")
         Send("^j")
         Send("^a")
@@ -71,7 +74,6 @@ RAlt & F7::{
         Send("{Escape}")
     }
     else if GetKeyState("LCtrl", "P") && GetKeyState("LShift", "P") {
-        ; Ctrl+Shift held
         Send("^k")
         Send("^j")
         Send("^a")
@@ -80,25 +82,25 @@ RAlt & F7::{
         Send("{Escape}")
     }
     else if GetKeyState("LCtrl", "P") {
-        ; Ctrl held
         Send("^a")
         Send("^k")
         Send("^1")
         Send("{Escape}")
     }
     else {
-        ; No modifiers or Shift/Alt held - Fold
         Send("^+{[}")
     }
 }
 
 ;Send {10} - Unnest code / Mute Toggle (RAlt+F10)
-RAlt & F10::{
+*F10::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{F10}"
+        return
+    }
     if GetKeyState("LAlt", "P") {
-        ; Alt held - Toggle Mute
-        SoundSetMute(-1)  ; -1 toggles mute state
+        SoundSetMute(-1)
         isMuted := SoundGetMute()
-
         if (isMuted) {
             ShowVolumeNotification(0, true)
         } else {
@@ -107,27 +109,27 @@ RAlt & F10::{
         }
     }
     else if GetKeyState("LCtrl", "P") {
-        ; Ctrl held - Unfold all
         Send("^k")
         Send("^j")
     }
     else {
-        ; No modifiers or Shift held - Unfold
         Send("^+{]}")
     }
 }
 
 ;Send {11} - Comment/Uncomment / Volume Down (RAlt+F11)
-RAlt & F11::{
+*F11::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{F11}"
+        return
+    }
     if GetKeyState("LAlt", "P") {
-        ; Alt held - Lower Volume
         currentVol := SoundGetVolume()
-        newVol := Max(0, currentVol - 1)  ; Decrease by 1%, ensure not below 0
+        newVol := Max(0, currentVol - 1)
         SoundSetVolume(newVol)
         ShowVolumeNotification(newVol, false)
     }
     else {
-        ; No LAlt modifier - Original behavior
         ActiveProcess := WinGetProcessName("A")
         switch ActiveProcess {
             case "cursor.exe", "Code.exe":

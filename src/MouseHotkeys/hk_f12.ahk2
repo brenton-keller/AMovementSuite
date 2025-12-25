@@ -1,19 +1,34 @@
-; WezTerm Smart Launcher / Volume Up
+; F12 Hotkeys - WezTerm launcher, Volume Up, Calculator
 ; RAlt+F12 - Launch WezTerm
 ; LAlt+RAlt+F12 - Volume Up
-; If clipboard contains a valid file path, launches from that directory
+; LShift+RAlt+F12 - Calculator
+; F12 alone - reserved for future use
 
-RAlt & F12::{
-    if GetKeyState("LAlt", "P") {
-        ; Alt held - Increase Volume
-        currentVol := SoundGetVolume()
-        newVol := Min(100, currentVol + 1)  ; Increase by 1%, ensure not above 100
-        SoundSetVolume(newVol)
-        ShowVolumeNotification(newVol, false)
+*F12::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{F12}"
         return
     }
+    if GetKeyState("LAlt", "P") {
+        ; LAlt+RAlt+F12 - Volume Up
+        currentVol := SoundGetVolume()
+        newVol := Min(100, currentVol + 1)
+        SoundSetVolume(newVol)
+        ShowVolumeNotification(newVol, false)
+    }
+    else if GetKeyState("LShift", "P") {
+        ; LShift+RAlt+F12 - Calculator
+        CalculateAndInsert()
+    }
+    else {
+        ; RAlt+F12 - WezTerm
+        LaunchWezTerm()
+    }
+}
 
-    ; Original WezTerm launcher code
+; WezTerm launcher function
+; If clipboard contains a valid file path, launches from that directory
+LaunchWezTerm() {
     ; Get clipboard content and trim whitespace/quotes
     clipContent := A_Clipboard
     clipContent := Trim(clipContent, " `t`r`n`"'")

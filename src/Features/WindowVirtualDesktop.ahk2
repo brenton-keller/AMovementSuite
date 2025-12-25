@@ -178,8 +178,11 @@ ShowVDNotification(message, winTitle := "", isSuccess := true) {
     ; Add text control
     textCtrl := notifGui.Add("Text", "x20 y15 w400 cWhite Center", notifText)
 
+    ; Calculate height based on content - increased to prevent cutoff
+    guiHeight := winTitle ? 120 : 60
+
     ; Position at center of screen
-    notifGui.Show("x" (A_ScreenWidth/2 - 220) " y" (A_ScreenHeight/2 - 50) " w440 h" (winTitle ? "100" : "60") " NoActivate")
+    notifGui.Show("x" (A_ScreenWidth/2 - 220) " y" (A_ScreenHeight/2 - guiHeight/2) " w440 h" guiHeight " NoActivate")
     WinSetTransparent 230, notifGui.Hwnd
 
     ; Auto-dismiss after 2 seconds

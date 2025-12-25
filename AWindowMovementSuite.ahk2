@@ -187,6 +187,62 @@ ShowMonitorInfo() ; Call the function immediately on script start
 ; --- END: Monitor Information Display on Startup ---
 
 ; --- START: PBP Virtual Monitor Toggle ---
+ShowPBPNotification(enabled) {
+    global pbpSplitX, pbpSplitPercent
+    static pbpGui := ""
+    static dismissTimer := ""
+
+    ; Destroy old GUI if it exists
+    if (pbpGui) {
+        try pbpGui.Destroy()
+    }
+
+    ; Create notification GUI
+    pbpGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    pbpGui.BackColor := "1a1a1a"
+
+    ; Status text with color coding
+    if (enabled) {
+        ; Get physical monitor dimensions for split calculation
+        MonitorGet(1, &PhysLeft, &PhysTop, &PhysRight, &PhysBottom)
+        physWidth := PhysRight - PhysLeft
+        leftWidth := pbpSplitX
+        rightWidth := physWidth - pbpSplitX
+
+        pbpGui.SetFont("s16 c00FF00 Bold", "Segoe UI")
+        pbpGui.Add("Text", "x20 y12 w310 c00FF00 Center", "PBP MODE: ON")
+
+        pbpGui.SetFont("s11 cFFFFFF", "Segoe UI")
+        pbpGui.Add("Text", "x20 y45 w310 cFFFFFF Center", Round(pbpSplitPercent) "% Split")
+
+        pbpGui.SetFont("s10 cAAAAAA", "Segoe UI")
+        pbpGui.Add("Text", "x20 y70 w310 cAAAAAA Center", leftWidth "px  +  " rightWidth "px")
+
+        guiHeight := 105
+    } else {
+        pbpGui.SetFont("s16 cFF6666 Bold", "Segoe UI")
+        pbpGui.Add("Text", "x20 y15 w310 cFF6666 Center", "PBP MODE: OFF")
+
+        pbpGui.SetFont("s10 cAAAAAA", "Segoe UI")
+        pbpGui.Add("Text", "x20 y50 w310 cAAAAAA Center", "Using physical monitors")
+
+        guiHeight := 85
+    }
+
+    ; Position at center of screen
+    pbpGui.Show("x" (A_ScreenWidth/2 - 175) " y" (A_ScreenHeight/2 - 50) " w350 h" guiHeight " NoActivate")
+    WinSetTransparent 230, pbpGui.Hwnd
+
+    ; Clear existing timer if any
+    if (dismissTimer) {
+        SetTimer dismissTimer, 0
+    }
+
+    ; Set new auto-dismiss timer
+    dismissTimer := () => (pbpGui ? (pbpGui.Destroy(), pbpGui := "") : "")
+    SetTimer dismissTimer, -1500
+}
+
 TogglePBPFromTray(*) {
     global pbpEnabled
     TogglePBPMode()  ; Call the function from VirtualMonitorManager
@@ -197,6 +253,9 @@ TogglePBPFromTray(*) {
     } else {
         A_TrayMenu.Uncheck "PBP Virtual Monitor"
     }
+
+    ; Show nice notification
+    ShowPBPNotification(pbpEnabled)
 }
 
 ; Alt+ScrollLock hotkey to toggle PBP mode
@@ -232,18 +291,36 @@ ScrollLock::{
     borderThickness := 4
     overlayWidth := 450
     overlayHeight := 370
-    overlayX := activeX + activeW + borderThickness + 10  ; Right of window + border + 10px gap
-    overlayY := activeY  ; Aligned with window top
+    gap := 10
 
     ; Get monitor bounds using VIRTUAL monitor API (following ShowWindowPositioningGUI pattern)
     VirtualMonitorGetWorkArea(GetWindowMonitor(activeX, activeY, activeW, activeH), &mLeft, &mTop, &mRight, &mBottom)
 
-    ; If overlay would go off-screen right, position to the left of window instead
-    if (overlayX + overlayWidth > mRight) {
-        overlayX := activeX - overlayWidth - borderThickness - 10  ; Left of window - border - 10px gap
+    ; Calculate potential positions
+    rightX := activeX + activeW + borderThickness + gap  ; Right of window
+    leftX := activeX - overlayWidth - borderThickness - gap  ; Left of window
+
+    ; Determine horizontal position with fallback logic
+    if (rightX + overlayWidth <= mRight) {
+        ; Fits on right - preferred position
+        overlayX := rightX
+    } else if (leftX >= mLeft) {
+        ; Fits on left - fallback
+        overlayX := leftX
+    } else {
+        ; Neither side fits - clamp to screen edges
+        ; Try right side clamped to screen
+        if (mRight - mLeft >= overlayWidth) {
+            ; Screen is wide enough for overlay, position at right edge
+            overlayX := mRight - overlayWidth
+        } else {
+            ; Screen narrower than overlay (rare) - align to left edge
+            overlayX := mLeft
+        }
     }
 
-    ; Ensure overlay stays on screen vertically
+    ; Determine vertical position - align with window top, clamped to screen
+    overlayY := activeY
     if (overlayY + overlayHeight > mBottom) {
         overlayY := mBottom - overlayHeight
     }
@@ -350,31 +427,73 @@ ScrollLock::{
 ; Pause key - Release all potentially stuck keys
 ; This is a failsafe for when keys get stuck in pressed state
 
+ShowKeyReleaseNotification() {
+    static keyGui := ""
+    static dismissTimer := ""
+
+    ; Destroy old GUI if it exists
+    if (keyGui) {
+        try keyGui.Destroy()
+    }
+
+    ; Create notification GUI
+    keyGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
+    keyGui.BackColor := "1a1a1a"
+
+    ; Title
+    keyGui.SetFont("s16 c00BFFF Bold", "Segoe UI")
+    keyGui.Add("Text", "x20 y15 w260 c00BFFF Center", "KEYS RELEASED")
+
+    ; Subtitle
+    keyGui.SetFont("s10 cAAAAAA", "Segoe UI")
+    keyGui.Add("Text", "x20 y50 w260 cAAAAAA Center", "All modifiers and buttons reset")
+
+    ; Position at center of screen
+    keyGui.Show("x" (A_ScreenWidth/2 - 150) " y" (A_ScreenHeight/2 - 45) " w300 h85 NoActivate")
+    WinSetTransparent 230, keyGui.Hwnd
+
+    ; Clear existing timer if any
+    if (dismissTimer) {
+        SetTimer dismissTimer, 0
+    }
+
+    ; Set new auto-dismiss timer
+    dismissTimer := () => (keyGui ? (keyGui.Destroy(), keyGui := "") : "")
+    SetTimer dismissTimer, -1000
+}
+
 ; Function to release all keys
 ReleaseAllKeys() {
+    ; Use SendInput for more reliable key release
+    ; SendInput bypasses the keyboard hook and directly injects events
+
+    ; For prefix keys like RAlt, we need to send down+up to fully reset state
+    ; This clears AHK's internal "waiting for suffix" state
+    SendInput "{RAlt down}{RAlt up}"
+    Sleep 10
+
     ; Release all modifier keys (left and right variants)
-    Send "{LCtrl up}{RCtrl up}{Ctrl up}"
-    Send "{LShift up}{RShift up}{Shift up}"
-    Send "{LAlt up}{RAlt up}{Alt up}"
-    Send "{LWin up}{RWin up}"
+    SendInput "{LCtrl up}{RCtrl up}{Ctrl up}"
+    SendInput "{LShift up}{RShift up}{Shift up}"
+    SendInput "{LAlt up}{RAlt up}{Alt up}"
+    SendInput "{LWin up}{RWin up}"
 
     ; Release mouse buttons
-    Send "{LButton up}{RButton up}{MButton up}"
-    Send "{XButton1 up}{XButton2 up}"
+    SendInput "{LButton up}{RButton up}{MButton up}"
+    SendInput "{XButton1 up}{XButton2 up}"
 
     ; Release other common keys that might be involved in hotkeys
-    Send "{Space up}{Enter up}{Escape up}{Tab up}"
-    Send "{Backspace up}{Delete up}{Home up}{End up}"
-    Send "{PgUp up}{PgDn up}{Insert up}"
-    Send "{Up up}{Down up}{Left up}{Right up}"
+    SendInput "{Space up}{Enter up}{Escape up}{Tab up}"
+    SendInput "{Backspace up}{Delete up}{Home up}{End up}"
+    SendInput "{PgUp up}{PgDn up}{Insert up}"
+    SendInput "{Up up}{Down up}{Left up}{Right up}"
 
     ; Release function keys
-    Send "{F1 up}{F2 up}{F3 up}{F4 up}{F5 up}{F6 up}"
-    Send "{F7 up}{F8 up}{F9 up}{F10 up}{F11 up}{F12 up}"
+    SendInput "{F1 up}{F2 up}{F3 up}{F4 up}{F5 up}{F6 up}"
+    SendInput "{F7 up}{F8 up}{F9 up}{F10 up}{F11 up}{F12 up}"
 
-    ; Show confirmation feedback
-    ToolTip("All keys released!")
-    SetTimer () => ToolTip(), -1000  ; Clear after 1 second
+    ; Show nice notification
+    ShowKeyReleaseNotification()
 }
 
 ; Ctrl+Pause hotkey - Direct hotkey for the common case

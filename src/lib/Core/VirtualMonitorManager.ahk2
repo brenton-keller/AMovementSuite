@@ -244,8 +244,9 @@ GetVirtualMonitorPrimary() {
 }
 
 /** TogglePBPMode
- * Toggles PBP mode on/off and shows notification.
+ * Toggles PBP mode on/off.
  * Also saves the state to settings file for persistence.
+ * Note: Notification is handled by caller (TogglePBPFromTray)
  *
  * @returns {Boolean} New PBP enabled state
  */
@@ -259,22 +260,6 @@ TogglePBPMode() {
 
     ; Save to settings file
     SavePBPSettings()
-
-    ; Show notification with current split configuration
-    if (pbpEnabled) {
-        ; Calculate current split dimensions
-        MonitorGet(1, &PhysLeft, &PhysTop, &PhysRight, &PhysBottom)
-        physWidth := PhysRight - PhysLeft
-        leftWidth := pbpSplitX
-        rightWidth := physWidth - pbpSplitX
-
-        ToolTip("PBP Virtual Monitor: ENABLED`n" pbpSplitPercent "% split (" leftWidth "px + " rightWidth "px)")
-    } else {
-        ToolTip("PBP Virtual Monitor: DISABLED")
-    }
-
-    ; Clear tooltip after 2 seconds
-    SetTimer(() => ToolTip(), -2000)
 
     return pbpEnabled
 }

@@ -59,8 +59,7 @@ ClearGroup() {
     windowGroup.window2WasAlwaysOnTop := false
     isGroupActive := false
 
-    ToolTip "Group cleared"
-    SetTimer () => ToolTip(), -1500
+    ShowActionNotification("ungrouped", "", "", {position: "cursor"})
 }
 
 ; Create a group from two windows
@@ -89,15 +88,13 @@ CreateGroup(hwnd1, hwnd2) {
     topWindow := (activeWin == hwnd1) ? 1 : 2
 
     ; Only set always-on-top if windows overlap
-    if (WindowsOverlap(hwnd1, hwnd2)) {
+    overlapping := WindowsOverlap(hwnd1, hwnd2)
+    if (overlapping) {
         if (topWindow == 1) {
             WinSetAlwaysOnTop 1, "ahk_id " hwnd1
         } else {
             WinSetAlwaysOnTop 1, "ahk_id " hwnd2
         }
-        ToolTip "Windows grouped (overlapping - z-order locked)"
-    } else {
-        ToolTip "Windows grouped (no overlap)"
     }
 
     ; Store group information
@@ -110,7 +107,9 @@ CreateGroup(hwnd1, hwnd2) {
     windowGroup.window2WasAlwaysOnTop := window2WasAlwaysOnTop
     isGroupActive := true
 
-    SetTimer () => ToolTip(), -1500
+    ; Show notification with overlap status
+    overlapMsg := overlapping ? "Grouped (z-locked)" : "Grouped"
+    ShowActionNotification("grouped", overlapMsg, "", {position: "cursor"})
 }
 
 ; Create a visual overlay for window selection
@@ -167,8 +166,8 @@ ClearSelectionOverlays() {
         windowGroup.window1 := clickedWindow
         CreateSelectionOverlay(clickedWindow)
         isSelectingForGroup := true
-        ToolTip "Window 1 selected - click another window to group"
-        SetTimer () => ToolTip(), -2000
+        winTitle := WinGetTitle("ahk_id " clickedWindow)
+        ShowActionNotification("group_select", "Click another window", winTitle, {position: "cursor", duration: 3000})
         return
     }
 
@@ -188,8 +187,7 @@ ClearSelectionOverlays() {
         ClearSelectionOverlays()
         isSelectingForGroup := false
         windowGroup.window1 := 0
-        ToolTip "Selection cancelled"
-        SetTimer () => ToolTip(), -1500
+        ShowActionNotification("info", "Selection cancelled", "", {position: "cursor"})
     }
 }
 
@@ -223,8 +221,6 @@ ClearSelectionOverlays() {
     offsetX := startX - initialWX
     offsetY := startY - initialWY
 
-    ToolTip "Repositioning window within group"
-
     While (GetKeyState("RButton", "P") && GetKeyState("LAlt", "P") && GetKeyState("LWin", "P"))
     {
         MouseGetPos &currentX, &currentY
@@ -252,7 +248,8 @@ ClearSelectionOverlays() {
     windowGroup.offsetY := y2 - y1
 
     ; Check for overlap and update always-on-top accordingly
-    if (WindowsOverlap(windowGroup.window1, windowGroup.window2)) {
+    overlapping := WindowsOverlap(windowGroup.window1, windowGroup.window2)
+    if (overlapping) {
         ; Windows are overlapping - ensure top window has always-on-top
         if (windowGroup.topWindow == 1) {
             WinSetAlwaysOnTop 1, "ahk_id " windowGroup.window1
@@ -267,13 +264,13 @@ ClearSelectionOverlays() {
                 WinSetAlwaysOnTop 0, "ahk_id " windowGroup.window1
             }
         }
-        ToolTip "Group offset updated (overlapping - z-order locked)"
     } else {
         ; Windows not overlapping - restore original always-on-top states
         WinSetAlwaysOnTop windowGroup.window1WasAlwaysOnTop, "ahk_id " windowGroup.window1
         WinSetAlwaysOnTop windowGroup.window2WasAlwaysOnTop, "ahk_id " windowGroup.window2
-        ToolTip "Group offset updated (no overlap)"
     }
 
-    SetTimer () => ToolTip(), -1500
+    ; Show notification
+    offsetMsg := overlapping ? "Offset updated (z-locked)" : "Offset updated"
+    ShowActionNotification("group_offset", offsetMsg, "", {position: "cursor"})
 }

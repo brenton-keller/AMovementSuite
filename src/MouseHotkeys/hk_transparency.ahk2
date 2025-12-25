@@ -121,13 +121,15 @@ ApplyDepthTransparency(windows, decayFactor := 0.85, minOpacity := 60) {
     ; Apply depth-based transparency
     appliedOpacity := ApplyDepthTransparency(windowsToModify)
 
-    ; Visual indicator while held
+    ; Create visual indicator while held
     indicatorGui := Gui("+ToolWindow -Caption +AlwaysOnTop +E0x20")
-    indicatorGui.BackColor := "FF6600"
-    WinSetTransparent 150, indicatorGui.Hwnd
-    indicatorGui.Show("x10 y10 w200 h50 NoActivate")
-
-    ToolTip("Transparent: " windowsToModify.Length " windows")
+    indicatorGui.BackColor := "1a1a1a"
+    indicatorGui.SetFont("s14", "Segoe UI Emoji")
+    indicatorGui.Add("Text", "x12 y8 w30 cf59e0b", "👁")
+    indicatorGui.SetFont("s11 Bold", "Segoe UI")
+    indicatorGui.Add("Text", "x42 y10 w200 cf59e0b", "X-Ray: " windowsToModify.Length " windows")
+    WinSetTransparent 230, indicatorGui.Hwnd
+    indicatorGui.Show("x" (A_ScreenWidth // 2 - 130) " y30 w260 h40 NoActivate")
 
     ; Wait for both keys to be released
     while (GetKeyState("Alt", "P") && GetKeyState("``", "P")) {
@@ -143,8 +145,6 @@ ApplyDepthTransparency(windows, decayFactor := 0.85, minOpacity := 60) {
             WinSetTransparent(255, "ahk_id " hwnd)
         }
     }
-
-    ToolTip()
 
     ; Toggle state
     transparencyEnabled := !transparencyEnabled

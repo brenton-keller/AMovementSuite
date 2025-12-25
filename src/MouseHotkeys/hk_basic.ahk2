@@ -1,9 +1,12 @@
 global distraction_free := Map()
 
 ;Send {1} - Backspace (RAlt+F1)
-RAlt & F1::{
+*F1::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{F1}"
+        return
+    }
     if GetKeyState("LCtrl", "P") {
-        ; Ctrl was held - do Ctrl variant
         ActiveProcess := WinGetProcessName("A")
         switch ActiveProcess {
             case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe":
@@ -13,7 +16,6 @@ RAlt & F1::{
         }
     }
     else if GetKeyState("LShift", "P") {
-        ; Shift was held - do Shift variant
         ActiveProcess := WinGetProcessName("A")
         switch ActiveProcess {
             case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe", "Vivaldi.exe":
@@ -23,12 +25,11 @@ RAlt & F1::{
         }
     }
     else if GetKeyState("LAlt", "P") {
-        ; Alt was held - do Alt variant
         ActiveProcess := WinGetProcessName("A")
-        if (ActiveProcess = "msedge.exe" || 
-            ActiveProcess = "brave.exe" || 
-            ActiveProcess = "opera.exe" || 
-            ActiveProcess = "XYplorer.exe" || 
+        if (ActiveProcess = "msedge.exe" ||
+            ActiveProcess = "brave.exe" ||
+            ActiveProcess = "opera.exe" ||
+            ActiveProcess = "XYplorer.exe" ||
             ActiveProcess = "Vivaldi.exe"
             ) {
             Send("!{Left}")
@@ -38,15 +39,17 @@ RAlt & F1::{
         }
     }
     else {
-        ; No modifiers - just RAlt+F1
         Send("{Backspace}")
     }
 }
 
 ;Send {2} - Enter (RAlt+F2)
-RAlt & F2::{
+*F2::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{F2}"
+        return
+    }
     if GetKeyState("Ctrl", "P") {
-        ; Ctrl was held - do Ctrl variant
         ActiveProcess := WinGetProcessName("A")
         switch ActiveProcess {
             case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe":
@@ -56,7 +59,6 @@ RAlt & F2::{
         }
     }
     else if GetKeyState("LShift", "P") {
-        ; Shift was held - do Shift variant
         ActiveProcess := WinGetProcessName("A")
         switch ActiveProcess {
             case "msedge.exe", "brave.exe", "opera.exe", "XYplorer.exe":
@@ -66,12 +68,11 @@ RAlt & F2::{
         }
     }
     else if GetKeyState("LAlt", "P") {
-        ; Alt was held - do Alt variant
         ActiveProcess := WinGetProcessName("A")
-        if (ActiveProcess = "msedge.exe" || 
-            ActiveProcess = "brave.exe" || 
-            ActiveProcess = "opera.exe" || 
-            ActiveProcess = "XYplorer.exe" || 
+        if (ActiveProcess = "msedge.exe" ||
+            ActiveProcess = "brave.exe" ||
+            ActiveProcess = "opera.exe" ||
+            ActiveProcess = "XYplorer.exe" ||
             ActiveProcess = "Vivaldi.exe"
             ) {
             Send("!{Right}")
@@ -81,7 +82,21 @@ RAlt & F2::{
         }
     }
     else {
-        ; No modifiers - just RAlt+F2
         Send("{Enter}")
     }
+}
+
+; CapsLock as mouse click (up only)
+CapsLock::Click "Up"
+
+; Alt+CapsLock as mouse click (down only)
+!CapsLock::Click "Down"
+
+; RAlt+NumpadEnter - double click
+*NumpadEnter::{
+    if !GetKeyState("RAlt", "P") {
+        Send "{Blind}{NumpadEnter}"
+        return
+    }
+    Click 2
 }
